@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@layer theme {
+  :root {
+    --color-primary: #0056a4;
+    --color-primary-hover: #004482;
+    --color-accent: #cc0000;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  width: max-content;
+  animation: 28s linear infinite marquee;
+  display: flex;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.card-shadow {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.text-hero {
+  font-size: clamp(1.25rem, 4vw, 2.75rem);
+  line-height: 1.15;
+}
+
+/* Scrollbar invisível onde necessário */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
