@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { 
-  Article, AdItem, UserProfile, Comment, NewsletterSubscriber, NotificationItem,
+  Article, AdItem, UserProfile, UserRole, Comment, NewsletterSubscriber, NotificationItem,
   ClassifiedItem, ClassifiedCategory, ClassifiedReport, ClassifiedsSettings,
   ClassifiedSection, ClassifiedType, ClassifiedStatus
 } from '../types/database';
@@ -89,13 +89,13 @@ const setStored = <T>(key: string, value: T): void => {
 const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
   {
     id: 'user-admin-1',
-    email: 'admin@folhadaregiao.com.br',
-    fullName: 'Editor Chefe',
+    email: 'tomsilvaconsignado@gmail.com',
+    fullName: 'Administrador Tom Silva',
     role: 'admin',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
     interests: ['Política', 'Cidades', 'Eventos', 'Brasil'],
     createdAt: new Date().toISOString(),
-    passwordHash: 'admin123'
+    passwordHash: 'Folha@1234'
   },
   {
     id: 'user-reader-1',
@@ -117,8 +117,30 @@ if (typeof window !== 'undefined') {
   if (!localStorage.getItem(STORAGE_KEYS.ADS)) {
     setStored(STORAGE_KEYS.ADS, INITIAL_ADS);
   }
-  if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
+  // Inicializa ou atualiza o usuário admin nas credenciais solicitadas
+  const existingUsers = getStored<(UserProfile & { passwordHash: string })[]>(STORAGE_KEYS.USERS, []);
+  if (!existingUsers || existingUsers.length === 0) {
     setStored(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+  } else {
+    // Garante que o administrador tomsilvaconsignado@gmail.com com Folha@1234 esteja presente e atualizado
+    const adminIndex = existingUsers.findIndex(u => 
+      u.email.toLowerCase() === 'tomsilvaconsignado@gmail.com' || 
+      u.email.toLowerCase() === 'admin@folhadaregiao.com.br' ||
+      u.id === 'user-admin-1'
+    );
+    if (adminIndex >= 0) {
+      existingUsers[adminIndex] = {
+        ...existingUsers[adminIndex],
+        id: 'user-admin-1',
+        email: 'tomsilvaconsignado@gmail.com',
+        fullName: existingUsers[adminIndex].fullName === 'Editor Chefe' ? 'Administrador Tom Silva' : existingUsers[adminIndex].fullName,
+        role: 'admin',
+        passwordHash: 'Folha@1234'
+      };
+    } else {
+      existingUsers.unshift(INITIAL_DEMO_USERS[0]);
+    }
+    setStored(STORAGE_KEYS.USERS, existingUsers);
   }
   if (!localStorage.getItem(STORAGE_KEYS.CLASSIFIEDS)) {
     setStored(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
@@ -185,7 +207,13 @@ export const authService = {
     return getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
   },
 
-  async signUp(email: string, password: string, fullName: string, role: 'admin' | 'editor' | 'reader' = 'reader'): Promise<AuthResponse> {
+  async signUp(
+    email: string, 
+    password: string, 
+    fullName: string, 
+    role: 'admin' | 'editor' | 'reader' = 'reader',
+    additionalData?: Partial<UserProfile>
+  ): Promise<AuthResponse> {
     const defaultInterests = ['Política', 'Cidades'];
     if (isSupabaseConfigured() && supabase) {
       try {
@@ -196,7 +224,8 @@ export const authService = {
             data: {
               full_name: fullName,
               role,
-              interests: defaultInterests
+              interests: defaultInterests,
+              ...additionalData
             }
           }
         });
@@ -212,7 +241,9 @@ export const authService = {
             fullName,
             role,
             interests: defaultInterests,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            status: 'active',
+            ...additionalData
           };
 
           // Tenta salvar profile
@@ -223,7 +254,13 @@ export const authService = {
               full_name: profile.fullName,
               role: profile.role,
               interests: profile.interests,
-              created_at: profile.createdAt
+              created_at: profile.createdAt,
+              account_type: profile.accountType,
+              phone: profile.phone,
+              city: profile.city,
+              state: profile.state,
+              cpf: profile.cpf,
+              cnpj: profile.cnpj
             }
           ]);
 
@@ -250,7 +287,9 @@ export const authService = {
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
       interests: defaultInterests,
       createdAt: new Date().toISOString(),
-      passwordHash: password
+      passwordHash: password,
+      status: 'active',
+      ...additionalData
     };
 
     users.push(newUser);
@@ -263,7 +302,22 @@ export const authService = {
       role: newUser.role,
       avatarUrl: newUser.avatarUrl,
       interests: newUser.interests,
-      createdAt: newUser.createdAt
+      createdAt: newUser.createdAt,
+      accountType: newUser.accountType,
+      phone: newUser.phone,
+      city: newUser.city,
+      state: newUser.state,
+      cpf: newUser.cpf,
+      isLegalAge: newUser.isLegalAge,
+      companyName: newUser.companyName,
+      tradeName: newUser.tradeName,
+      cnpj: newUser.cnpj,
+      legalRepresentative: newUser.legalRepresentative,
+      representativeCpf: newUser.representativeCpf,
+      termsAccepted: newUser.termsAccepted,
+      termsAcceptedAt: newUser.termsAcceptedAt,
+      termsVersion: newUser.termsVersion,
+      status: newUser.status || 'active'
     };
 
     setStored(STORAGE_KEYS.CURRENT_USER, safeProfile);
@@ -318,6 +372,10 @@ export const authService = {
       return { user: null, error: 'E-mail ou senha incorretos.' };
     }
 
+    if (found.status === 'suspended') {
+      return { user: null, error: 'Esta conta está temporariamente suspensa por moderação da administração.' };
+    }
+
     const safeProfile: UserProfile = {
       id: found.id,
       email: found.email,
@@ -325,7 +383,22 @@ export const authService = {
       role: found.role,
       avatarUrl: found.avatarUrl,
       interests: found.interests || ['Política', 'Cidades'],
-      createdAt: found.createdAt
+      createdAt: found.createdAt,
+      accountType: found.accountType || 'pf',
+      phone: found.phone,
+      city: found.city,
+      state: found.state,
+      cpf: found.cpf,
+      isLegalAge: found.isLegalAge,
+      companyName: found.companyName,
+      tradeName: found.tradeName,
+      cnpj: found.cnpj,
+      legalRepresentative: found.legalRepresentative,
+      representativeCpf: found.representativeCpf,
+      termsAccepted: found.termsAccepted,
+      termsAcceptedAt: found.termsAcceptedAt,
+      termsVersion: found.termsVersion,
+      status: found.status || 'active'
     };
 
     setStored(STORAGE_KEYS.CURRENT_USER, safeProfile);
@@ -427,7 +500,8 @@ export const newsService = {
             viewsCount: item.views_count || 0,
             author: item.author || 'Folha da Região',
             createdAt: item.created_at,
-            updatedAt: item.updated_at
+            updatedAt: item.updated_at,
+            status: item.status || 'published'
           }));
         }
       } catch (err) {
@@ -435,7 +509,11 @@ export const newsService = {
       }
     }
 
-    return getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const localArticles = getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    return localArticles.map(a => ({
+      ...a,
+      status: a.status || 'published'
+    }));
   },
 
   async getArticleBySlug(slug: string): Promise<Article | null> {
@@ -453,6 +531,7 @@ export const newsService = {
         const updated: Article = {
           ...articles[index],
           ...article,
+          status: article.status || articles[index].status || 'published',
           updatedAt: new Date().toISOString()
         };
         articles[index] = updated;
@@ -495,7 +574,8 @@ export const newsService = {
       isSecondary: Boolean(article.isSecondary),
       viewsCount: 1,
       author: article.author || 'Redação Folha da Região',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      status: article.status || 'published'
     };
 
     // Se marcado como hero, desmarca os anteriores
@@ -623,10 +703,74 @@ export const adsService = {
     return newAd;
   },
 
+  async getAllAds(): Promise<AdItem[]> {
+    return getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
+  },
+
   async deleteAd(id: string): Promise<void> {
     const ads = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
     const filtered = ads.filter(a => a.id !== id);
     setStored(STORAGE_KEYS.ADS, filtered);
+  }
+};
+
+// ==========================================
+// SERVIÇO DE GERENCIAMENTO DE USUÁRIOS
+// ==========================================
+export const usersService = {
+  async getAllUsers(): Promise<UserProfile[]> {
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    return users.map(u => ({
+      id: u.id,
+      email: u.email,
+      fullName: u.fullName,
+      role: u.role || 'reader',
+      avatarUrl: u.avatarUrl,
+      interests: u.interests || ['Política', 'Cidades'],
+      createdAt: u.createdAt || new Date().toISOString(),
+      accountType: u.accountType || 'pf',
+      phone: u.phone || '',
+      city: u.city || '',
+      state: u.state || '',
+      cpf: u.cpf,
+      isLegalAge: u.isLegalAge,
+      companyName: u.companyName,
+      tradeName: u.tradeName,
+      cnpj: u.cnpj,
+      legalRepresentative: u.legalRepresentative,
+      representativeCpf: u.representativeCpf,
+      termsAccepted: u.termsAccepted,
+      termsAcceptedAt: u.termsAcceptedAt,
+      termsVersion: u.termsVersion,
+      status: u.status || 'active'
+    }));
+  },
+
+  async updateUserRole(userId: string, newRole: UserRole): Promise<void> {
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const idx = users.findIndex(u => u.id === userId);
+    if (idx !== -1) {
+      users[idx].role = newRole;
+      setStored(STORAGE_KEYS.USERS, users);
+    }
+    const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+    if (current && current.id === userId) {
+      current.role = newRole;
+      setStored(STORAGE_KEYS.CURRENT_USER, current);
+      window.dispatchEvent(new Event('folha_auth_changed'));
+    }
+  },
+
+  async toggleUserStatus(userId: string): Promise<'active' | 'suspended'> {
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const idx = users.findIndex(u => u.id === userId);
+    if (idx !== -1) {
+      const nextStatus: 'active' | 'suspended' = (users[idx].status || 'active') === 'active' ? 'suspended' : 'active';
+      users[idx].status = nextStatus;
+      setStored(STORAGE_KEYS.USERS, users);
+      return nextStatus;
+    }
+    return 'active';
   }
 };
 

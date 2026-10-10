@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Share2, Eye, Clock, MessageSquare, Send, Check, Bookmark, ThumbsUp, Play } from 'lucide-react';
-import { Article, Comment, UserProfile } from '../../types/database';
+import { Article, Comment, UserProfile, AdItem } from '../../types/database';
 import { commentsService, newsService } from '../../lib/supabase';
 import { ArticleCard, formatRelativeTime } from '../news/ArticleCard';
+import { AdSlot } from '../news/AdSlot';
 
 interface ArticleDetailProps {
   article: Article;
@@ -11,6 +12,7 @@ interface ArticleDetailProps {
   onOpenAuth: () => void;
   onBack: () => void;
   onSelectArticle: (article: Article) => void;
+  articleAd?: AdItem;
 }
 
 export const ArticleDetail: React.FC<ArticleDetailProps> = ({
@@ -19,7 +21,8 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   currentUser,
   onOpenAuth,
   onBack,
-  onSelectArticle
+  onSelectArticle,
+  articleAd
 }) => {
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
   const [copied, setCopied] = useState(false);
@@ -240,6 +243,13 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
           }`}
           dangerouslySetInnerHTML={{ __html: article.content }}
         />
+
+        {/* Publicidade dentro da matéria */}
+        {articleAd && (
+          <div className="my-8 pt-4 border-t border-gray-100">
+            <AdSlot ad={articleAd} />
+          </div>
+        )}
       </article>
 
       {/* Seção de Comentários */}

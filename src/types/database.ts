@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'editor' | 'reader';
+export type AccountType = 'pf' | 'pj';
 
 export interface UserProfile {
   id: string;
@@ -8,6 +9,25 @@ export interface UserProfile {
   avatarUrl?: string;
   interests?: string[]; // Categorias de interesse, ex: ['Política', 'Cidades']
   createdAt: string;
+  // Identificação e Cadastro Público Obrigatório
+  accountType?: AccountType;
+  phone?: string;
+  city?: string;
+  state?: string;
+  // Pessoa Física
+  cpf?: string;
+  isLegalAge?: boolean;
+  // Pessoa Jurídica
+  companyName?: string; // Razão Social
+  tradeName?: string;   // Nome Fantasia
+  cnpj?: string;
+  legalRepresentative?: string;
+  representativeCpf?: string;
+  // Segurança Jurídica e Consentimento (LGPD)
+  termsAccepted?: boolean;
+  termsAcceptedAt?: string;
+  termsVersion?: string;
+  status?: 'active' | 'suspended';
 }
 
 export interface NotificationItem {
@@ -22,6 +42,8 @@ export interface NotificationItem {
   createdAt: string;
   read: boolean;
 }
+
+export type ArticleStatus = 'published' | 'draft';
 
 export interface Article {
   id: string;
@@ -39,6 +61,7 @@ export interface Article {
   author: string;
   createdAt: string;
   updatedAt?: string;
+  status?: ArticleStatus;
 }
 
 export type CategorySlug = 
@@ -59,6 +82,9 @@ export interface CategoryItem {
   slug: CategorySlug;
 }
 
+export type AdPlacement = 'header' | 'feed' | 'sidebar' | 'article' | 'footer';
+export type AdStatus = 'active' | 'paused' | 'ended';
+
 export interface AdItem {
   id: string;
   title: string;
@@ -66,10 +92,13 @@ export interface AdItem {
   linkUrl: string;
   mediaUrl: string;
   mediaType: 'image' | 'video' | 'gif';
-  placement: 'header' | 'sidebar' | 'feed';
+  placement: AdPlacement;
   aspectRatio: string; // e.g. "728 / 90", "1 / 1", "1 / 2", "16 / 9"
   maxWidth?: number;
   active: boolean;
+  status?: AdStatus;
+  startDate?: string;
+  endDate?: string;
   createdAt: string;
 }
 

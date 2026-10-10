@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import { 
-  ArrowLeft, Plus, Edit2, Trash2, Eye, Shield, Database, Github, 
-  Check, Copy, Sparkles, AlertCircle, RefreshCw, Layers, Radio, Users, 
-  FileText, ExternalLink, Play, Bell, Tag
+  ArrowLeft, LayoutDashboard, PlusCircle, FileText, 
+  Radio, Tag, Users, Settings, Eye, CheckCircle2, 
+  Clock, TrendingUp, Sparkles, AlertCircle, Newspaper, 
+  Megaphone, ShoppingBag, Shield, ExternalLink, ChevronRight
 } from 'lucide-react';
 import { Article, AdItem, UserProfile } from '../../types/database';
-import { newsService, adsService, getSupabaseConfig, saveSupabaseConfig, isSupabaseConfigured, notificationsService } from '../../lib/supabase';
-import { INITIAL_CATEGORIES } from '../../data/initialData';
+import { AdminAddArticle } from './AdminAddArticle';
+import { AdminManageArticles } from './AdminManageArticles';
+import { AdminManageAds } from './AdminManageAds';
 import { AdminClassifiedsTab } from './AdminClassifiedsTab';
+import { AdminManageUsers } from './AdminManageUsers';
+import { AdminSettings } from './AdminSettings';
+import { isSupabaseConfigured } from '../../lib/supabase';
 
 interface AdminDashboardProps {
   currentUser: UserProfile;
@@ -17,6 +22,15 @@ interface AdminDashboardProps {
   onBackToPortal: () => void;
 }
 
+export type AdminTab = 
+  | 'overview'             // Painel Inicial
+  | 'add_article'          // Adicionar Notícia
+  | 'manage_articles'      // Gerenciar Notícias
+  | 'manage_ads'           // Publicidade
+  | 'manage_classifieds'   // Classificados
+  | 'manage_users'         // Gerenciar Usuários
+  | 'settings';            // Configurações do Portal
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   currentUser,
   articles,
@@ -24,247 +38,155 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshData,
   onBackToPortal
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'news' | 'ads' | 'classifieds' | 'supabase_github'>('overview');
-  
-  // Estado para modal de notícia
-  const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
-  const [articleForm, setArticleForm] = useState({
-    title: '',
-    subtitle: '',
-    category: 'Política',
-    imageUrl: '',
-    videoUrl: '',
-    isVideo: false,
-    isHero: false,
-    isSecondary: false,
-    author: currentUser.fullName,
-    content: ''
-  });
-
-  // Estado para modal de anúncio
-  const [isAdModalOpen, setIsAdModalOpen] = useState(false);
-  const [adForm, setAdForm] = useState({
-    title: '',
-    sponsorName: '',
-    linkUrl: '',
-    mediaUrl: '',
-    mediaType: 'gif' as 'image' | 'video' | 'gif',
-    placement: 'sidebar' as 'header' | 'sidebar' | 'feed',
-    aspectRatio: '1 / 1',
-    maxWidth: 300,
-    active: true
-  });
-
-  // Configurações do Supabase
-  const currentConfig = getSupabaseConfig();
-  const [sbUrl, setSbUrl] = useState(currentConfig.url);
-  const [sbKey, setSbKey] = useState(currentConfig.key);
-  const [copiedSql, setCopiedSql] = useState(false);
-  const [copiedGit, setCopiedGit] = useState(false);
 
   // Cálculos de Métricas
   const totalViews = articles.reduce((acc, a) => acc + (a.viewsCount || 0), 0);
+  const publishedArticles = articles.filter(a => (a.status || 'published') === 'published').length;
+  const draftArticles = articles.filter(a => a.status === 'draft').length;
+  const activeAds = ads.filter(a => a.status === 'active' || (a.status === undefined && a.active)).length;
 
-  const openNewArticleModal = () => {
-    setEditingArticle(null);
-    setArticleForm({
-      title: '',
-      subtitle: '',
-      category: 'Política',
-      imageUrl: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&h=600&fit=crop',
-      videoUrl: '',
-      isVideo: false,
-      isHero: false,
-      isSecondary: false,
-      author: currentUser.fullName,
-      content: '<p>Digite aqui os parágrafos completos da matéria jornalística...</p>'
-    });
-    setIsArticleModalOpen(true);
-  };
-
-  const openEditArticleModal = (art: Article) => {
+  const handleStartEditArticle = (art: Article) => {
     setEditingArticle(art);
-    setArticleForm({
-      title: art.title,
-      subtitle: art.subtitle || '',
-      category: art.category,
-      imageUrl: art.imageUrl,
-      videoUrl: art.videoUrl || '',
-      isVideo: Boolean(art.isVideo),
-      isHero: Boolean(art.isHero),
-      isSecondary: Boolean(art.isSecondary),
-      author: art.author,
-      content: art.content
-    });
-    setIsArticleModalOpen(true);
+    setActiveTab('add_article');
   };
 
-  const handleSaveArticle = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!articleForm.title.trim()) return;
+  const handleStartNewArticle = () => {
+    setEditingArticle(null);
+    setActiveTab('add_article');
+  };
 
-    await newsService.saveArticle({
-      id: editingArticle?.id,
-      title: articleForm.title,
-      subtitle: articleForm.subtitle,
-      slug: editingArticle?.slug || articleForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-      content: articleForm.content,
-      category: articleForm.category,
-      imageUrl: articleForm.imageUrl,
-      videoUrl: articleForm.videoUrl,
-      isVideo: articleForm.isVideo || Boolean(articleForm.videoUrl),
-      isHero: articleForm.isHero,
-      isSecondary: articleForm.isSecondary,
-      author: articleForm.author
-    });
-
-    setIsArticleModalOpen(false);
+  const handleArticleSaved = () => {
+    setEditingArticle(null);
     onRefreshData();
+    setActiveTab('manage_articles');
   };
 
-  const handleDeleteArticle = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta notícia?')) {
-      await newsService.deleteArticle(id);
-      onRefreshData();
+  const handleCancelArticle = () => {
+    setEditingArticle(null);
+    setActiveTab('manage_articles');
+  };
+
+  const isConnected = isSupabaseConfigured();
+
+  // Informações de cada aba para a barra de navegação e cabeçalho contextual
+  const navTabs = [
+    {
+      id: 'overview' as AdminTab,
+      label: 'Painel Inicial',
+      icon: LayoutDashboard,
+      color: 'text-blue-400',
+      activeColor: 'bg-blue-600',
+      badge: null,
+      desc: 'Visão geral, resumo de audiência e atalhos operacionais rápidos.'
+    },
+    {
+      id: 'add_article' as AdminTab,
+      label: 'Adicionar Notícia',
+      icon: PlusCircle,
+      color: 'text-emerald-400',
+      activeColor: 'bg-emerald-600',
+      badge: 'NOVA',
+      badgeColor: 'bg-emerald-500/30 text-emerald-300 border-emerald-500/50',
+      desc: 'Formulário passo a passo em 3 etapas para criar e publicar novas matérias.'
+    },
+    {
+      id: 'manage_articles' as AdminTab,
+      label: 'Gerenciar Notícias',
+      icon: Newspaper,
+      color: 'text-sky-400',
+      activeColor: 'bg-sky-600',
+      badge: `${articles.length}`,
+      badgeColor: 'bg-sky-500/20 text-sky-300',
+      desc: 'Lista de matérias publicadas e rascunhos com busca, filtros, prévia e edição.'
+    },
+    {
+      id: 'manage_ads' as AdminTab,
+      label: 'Publicidade',
+      icon: Megaphone,
+      color: 'text-purple-400',
+      activeColor: 'bg-purple-600',
+      badge: `${activeAds} ativas`,
+      badgeColor: 'bg-purple-500/20 text-purple-300',
+      desc: 'Posicionamento visual de banners comerciais com maquete interativa do portal.'
+    },
+    {
+      id: 'manage_classifieds' as AdminTab,
+      label: 'Classificados',
+      icon: ShoppingBag,
+      color: 'text-amber-400',
+      activeColor: 'bg-amber-600',
+      badge: 'MÓDULO',
+      badgeColor: 'bg-amber-500/20 text-amber-300',
+      desc: 'Moderação de anúncios públicos, aprovações, recusas e tratamento de denúncias.'
+    },
+    {
+      id: 'manage_users' as AdminTab,
+      label: 'Gerenciar Usuários',
+      icon: Users,
+      color: 'text-cyan-400',
+      activeColor: 'bg-cyan-600',
+      badge: null,
+      desc: 'Controle de anunciantes (Pessoa Física e Jurídica), papéis e suspensão de contas.'
+    },
+    {
+      id: 'settings' as AdminTab,
+      label: 'Configurações',
+      icon: Settings,
+      color: 'text-gray-300',
+      activeColor: 'bg-gray-600',
+      badge: null,
+      desc: 'Regras de aprovação dos classificados, banco Supabase e dados institucionais.'
     }
-  };
+  ];
 
-  const handleSaveAd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adForm.title.trim()) return;
-
-    await adsService.saveAd(adForm);
-    setIsAdModalOpen(false);
-    onRefreshData();
-  };
-
-  const handleDeleteAd = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja remover este anúncio?')) {
-      await adsService.deleteAd(id);
-      onRefreshData();
-    }
-  };
-
-  const handleSaveSupabase = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveSupabaseConfig(sbUrl, sbKey);
-  };
-
-  const sqlCode = `-- SQL DO PORTAL FOLHA DA REGIÃO ONLINE
-CREATE TABLE IF NOT EXISTS public.articles (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  title TEXT NOT NULL,
-  subtitle TEXT,
-  slug TEXT UNIQUE NOT NULL,
-  content TEXT NOT NULL,
-  category TEXT NOT NULL,
-  image_url TEXT NOT NULL,
-  video_url TEXT,
-  is_video BOOLEAN DEFAULT false,
-  is_hero BOOLEAN DEFAULT false,
-  is_secondary BOOLEAN DEFAULT false,
-  views_count INTEGER DEFAULT 0,
-  author TEXT DEFAULT 'Redação Folha da Região',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.notifications (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id UUID REFERENCES auth.users ON DELETE CASCADE NOT NULL,
-  article_id TEXT REFERENCES public.articles(id) ON DELETE CASCADE,
-  article_slug TEXT NOT NULL,
-  article_title TEXT NOT NULL,
-  category TEXT NOT NULL,
-  image_url TEXT,
-  message TEXT NOT NULL,
-  read BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.ads (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  title TEXT NOT NULL,
-  sponsor_name TEXT NOT NULL,
-  link_url TEXT NOT NULL,
-  media_url TEXT NOT NULL,
-  media_type TEXT,
-  placement TEXT,
-  aspect_ratio TEXT DEFAULT '1 / 1',
-  max_width INTEGER,
-  active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
-ALTER TABLE public.articles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.ads ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Leitura pública de artigos" ON public.articles FOR SELECT USING (true);
-CREATE POLICY "Leitura pública de anúncios" ON public.ads FOR SELECT USING (active = true);
-CREATE POLICY "Leitura de notificações por usuário" ON public.notifications FOR SELECT USING (auth.uid() = user_id);`;
-
-  const gitCommands = `# 1. Inicialize o repositório git no seu projeto:
-git init
-git add .
-git commit -m "feat: Portal de Notícias Folha da Região com Supabase e Auth"
-
-# 2. Crie um repositório no seu GitHub e vincule:
-git branch -M main
-git remote add origin https://github.com/SEU_USUARIO/folha-da-regiao-online.git
-git push -u origin main`;
-
-  const copyToClipboard = (text: string, type: 'sql' | 'git') => {
-    navigator.clipboard.writeText(text);
-    if (type === 'sql') {
-      setCopiedSql(true);
-      setTimeout(() => setCopiedSql(false), 3000);
-    } else {
-      setCopiedGit(true);
-      setTimeout(() => setCopiedGit(false), 3000);
-    }
-  };
+  const currentTabMeta = navTabs.find(t => t.id === activeTab) || navTabs[0];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16">
-      {/* Topo do Painel */}
-      <div className="bg-gray-900 text-white border-b border-gray-800">
-        <div className="container mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* =========================================================
+          CABEÇALHO SUPERIOR DO PAINEL COM MARCA E NAVEGAÇÃO
+      ========================================================= */}
+      <header className="bg-gray-950 text-white border-b border-gray-800/80 sticky top-0 z-40 shadow-xl backdrop-blur-md">
+        {/* Linha 1: Identidade, Usuário e Botão Ver Portal */}
+        <div className="container mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
           <div className="flex items-center gap-3">
             <button
               onClick={onBackToPortal}
-              className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300 hover:text-white transition-colors cursor-pointer"
-              title="Voltar ao Portal"
+              className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-xl transition-all cursor-pointer shadow-sm group"
+              title="Voltar à Página Principal do Portal"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-lg font-black tracking-tight text-white uppercase font-sans">
+                <span className="text-base font-black tracking-tight text-white uppercase font-sans">
                   FOLHA DA REGIÃO
                 </span>
-                <span className="px-2 py-0.5 bg-[#0056a4] text-white text-[9px] font-black uppercase tracking-widest rounded">
+                <span className="px-2 py-0.5 bg-[#0056a4] text-white text-[9px] font-black uppercase tracking-widest rounded-md shadow-xs">
                   PAINEL ADMIN
                 </span>
               </div>
-              <p className="text-[10px] text-gray-400">
-                Logado como: <strong className="text-white">{currentUser.fullName}</strong> ({currentUser.email})
+              <p className="text-[11px] text-gray-400">
+                Logado: <strong className="text-gray-200">{currentUser.fullName}</strong> ({currentUser.email})
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-              currentConfig.isConfigured 
-                ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' 
-                : 'bg-amber-950 text-amber-300 border border-amber-800'
+              isConnected 
+                ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/70' 
+                : 'bg-blue-950/80 text-blue-300 border border-blue-800/70'
             }`}>
-              <span className={`w-2 h-2 rounded-full ${currentConfig.isConfigured ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`}></span>
-              {currentConfig.isConfigured ? 'Supabase Conectado' : 'Modo Banco Local (Pronto para Supabase)'}
+              <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-blue-400'}`}></span>
+              {isConnected ? 'Supabase Conectado' : 'Modo Operacional Ativo'}
             </span>
 
             <button
               onClick={onBackToPortal}
-              className="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer border border-gray-700 hover:border-gray-600"
             >
               <Eye className="w-3.5 h-3.5 text-[#0056a4]" />
               Ver Portal ao Vivo
@@ -272,678 +194,368 @@ git push -u origin main`;
           </div>
         </div>
 
-        {/* Abas */}
-        <div className="container mx-auto px-4 flex gap-1 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-              activeTab === 'overview'
-                ? 'border-[#0056a4] text-white bg-gray-800/60'
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            Visão Geral
-          </button>
-          <button
-            onClick={() => setActiveTab('news')}
-            className={`px-4 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'news'
-                ? 'border-[#0056a4] text-white bg-gray-800/60'
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            Notícias ({articles.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('ads')}
-            className={`px-4 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'ads'
-                ? 'border-[#0056a4] text-white bg-gray-800/60'
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            <Radio className="w-3.5 h-3.5" />
-            Publicidades ({ads.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('classifieds')}
-            className={`px-4 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'classifieds'
-                ? 'border-[#0056a4] text-white bg-gray-800/60'
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            <Tag className="w-3.5 h-3.5 text-amber-400" />
-            Gerenciar Classificados
-          </button>
-          <button
-            onClick={() => setActiveTab('supabase_github')}
-            className={`px-4 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'supabase_github'
-                ? 'border-[#0056a4] text-white bg-gray-800/60'
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            <Database className="w-3.5 h-3.5 text-emerald-400" />
-            Supabase & GitHub
-          </button>
+        {/* Linha 2: Barra de Navegação com Ícones Separados e Intuitivos */}
+        <nav className="container mx-auto px-4 flex gap-1.5 overflow-x-auto no-scrollbar border-t border-gray-800/70 py-1.5">
+          {navTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (tab.id === 'add_article') {
+                    handleStartNewArticle();
+                  } else {
+                    setActiveTab(tab.id);
+                  }
+                }}
+                className={`px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 border ${
+                  isActive
+                    ? 'bg-gray-800 text-white border-gray-700 shadow-sm'
+                    : 'bg-transparent text-gray-400 hover:text-white hover:bg-gray-850 border-transparent'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                  isActive ? tab.activeColor : 'bg-gray-800/60'
+                }`}>
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : tab.color}`} />
+                </div>
+                <span>{tab.label}</span>
+                {tab.badge && (
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                    tab.badgeColor || 'bg-gray-700 text-gray-300 border-gray-600'
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      </header>
+
+      {/* =========================================================
+          SUB-HEADER INFORMATIVO DE CONTEXTO DA SEÇÃO ATIVA
+      ========================================================= */}
+      <div className="bg-white border-b border-gray-200/80 shadow-xs mb-6">
+        <div className="container mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-xs ${currentTabMeta.activeColor} text-white`}>
+              <currentTabMeta.icon className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Painel Administrativo</span>
+                <ChevronRight className="w-3 h-3 text-gray-400" />
+                <h2 className="text-sm font-black uppercase tracking-tight text-gray-900">
+                  {currentTabMeta.label}
+                </h2>
+              </div>
+              <p className="text-[11px] text-gray-500">
+                {currentTabMeta.desc}
+              </p>
+            </div>
+          </div>
+
+          {/* Atalho contextual à direita */}
+          {activeTab !== 'add_article' && (
+            <button
+              onClick={handleStartNewArticle}
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              Escrever Notícia
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* TAB 1: VISÃO GERAL */}
+      {/* =========================================================
+          CONTEÚDO DINÂMICO DAS SEÇÕES
+      ========================================================= */}
+      <main className="container mx-auto px-4">
+        {/* ====================================================
+            1. PAINEL INICIAL (VISÃO GERAL SIMPLIFICADA)
+        ==================================================== */}
         {activeTab === 'overview' && (
-          <div className="space-y-8 animate-in fade-in">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Total de Notícias</p>
-                <p className="text-3xl font-black text-gray-900 mt-2">{articles.length}</p>
-                <p className="text-[11px] text-emerald-600 font-bold mt-1">✓ Cobertura ativa em Sergipe</p>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Visualizações Totais</p>
-                <p className="text-3xl font-black text-gray-900 mt-2">{totalViews}</p>
-                <p className="text-[11px] text-gray-400 font-bold mt-1">Leitores em tempo real</p>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Anúncios / Parceiros</p>
-                <p className="text-3xl font-black text-gray-900 mt-2">{ads.length}</p>
-                <p className="text-[11px] text-[#0056a4] font-bold mt-1">Banners topo, feed e sidebar</p>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Status do Banco</p>
-                <p className="text-lg font-black text-gray-900 mt-2">
-                  {currentConfig.isConfigured ? 'Supabase Cloud' : 'Storage Local'}
+          <div className="space-y-8 animate-in fade-in duration-200">
+            {/* Banner de Apresentação e Boas-Vindas */}
+            <div className="bg-gradient-to-r from-gray-900 via-[#0056a4] to-gray-900 rounded-2xl p-6 md:p-8 text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div>
+                <span className="px-3 py-1 bg-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-full inline-block mb-2">
+                  Gestão Central do Portal
+                </span>
+                <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight">
+                  Bem-vindo, {currentUser.fullName}
+                </h1>
+                <p className="text-xs md:text-sm text-gray-200 mt-1 max-w-xl leading-relaxed">
+                  Painel intuitivo para publicar notícias, gerenciar publicidade com posicionamento visual e moderar os classificados com agilidade.
                 </p>
-                <p className="text-[11px] text-gray-500 mt-1">Pronto para migrar para Supabase</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2.5">
+                <button
+                  onClick={handleStartNewArticle}
+                  className="px-5 py-3 bg-white text-gray-900 hover:bg-gray-100 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4 text-emerald-600" />
+                  Nova Notícia
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('manage_ads')}
+                  className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-black uppercase tracking-wider rounded-xl transition-all backdrop-blur-xs flex items-center gap-2 cursor-pointer"
+                >
+                  <Megaphone className="w-4 h-4 text-purple-300" />
+                  Publicidade
+                </button>
               </div>
             </div>
 
-            <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight text-gray-900">
-                    Ações Rápidas do Editorial
-                  </h3>
-                  <p className="text-xs text-gray-500">Crie conteúdo ou gerencie publicidade do portal</p>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={openNewArticleModal}
-                    className="px-4 py-2 bg-[#0056a4] hover:bg-[#004482] text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all shadow-md"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Nova Notícia
-                  </button>
-                  <button
-                    onClick={() => { setIsAdModalOpen(true); }}
-                    className="px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all shadow-md"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Novo Anúncio
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-4 bg-blue-50/70 border border-blue-100 rounded-xl flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-[#0056a4] shrink-0 mt-0.5" />
-                <div className="text-xs text-gray-700 leading-relaxed">
-                  <strong className="text-gray-900 font-bold">Banco de dados preparado para Supabase:</strong> Você pode continuar editando notícias aqui. Todas as alterações persistem no seu navegador e podem ser enviadas diretamente para a sua instância do Supabase através da aba <strong>Supabase & GitHub</strong>.
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: GERENCIAR NOTÍCIAS */}
-        {activeTab === 'news' && (
-          <div className="space-y-6 animate-in fade-in">
-            <div className="flex flex-wrap justify-between items-center gap-4 bg-white p-4 rounded-xl border border-gray-100">
-              <div>
-                <h3 className="text-base font-black uppercase tracking-tight text-gray-900">
-                  Matérias Jornalísticas ({articles.length})
+            {/* OS 4 PILARES PRINCIPAIS EM DESTAQUE (Conforme solicitado) */}
+            <div>
+              <div className="mb-4">
+                <h3 className="font-black text-sm uppercase text-gray-900 tracking-wider">
+                  Principais Módulos de Gestão
                 </h3>
-                <p className="text-xs text-gray-500">Gerencie todas as publicações em tempo real</p>
+                <p className="text-xs text-gray-400">
+                  Acesse com um clique as quatro áreas fundamentais do portal:
+                </p>
               </div>
 
-              <button
-                onClick={openNewArticleModal}
-                className="px-4 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all shadow-md"
-              >
-                <Plus className="w-4 h-4" />
-                Publicar Nova Notícia
-              </button>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-gray-50 text-gray-500 uppercase font-black text-[10px] tracking-wider border-b border-gray-100">
-                    <tr>
-                      <th className="py-3 px-4">Imagem</th>
-                      <th className="py-3 px-4">Título & Slug</th>
-                      <th className="py-3 px-4">Categoria</th>
-                      <th className="py-3 px-4">Destaque</th>
-                      <th className="py-3 px-4">Visualizações</th>
-                      <th className="py-3 px-4 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {articles.map((art) => (
-                      <tr key={art.id} className="hover:bg-gray-50/70 transition-colors">
-                        <td className="py-3 px-4 w-16">
-                          <img
-                            src={art.imageUrl}
-                            alt={art.title}
-                            className="w-14 h-10 object-cover rounded-md bg-gray-100"
-                          />
-                        </td>
-                        <td className="py-3 px-4 max-w-md">
-                          <p className="font-bold text-gray-900 line-clamp-1">{art.title}</p>
-                          <p className="text-[10px] text-gray-400 truncate">/{art.slug}</p>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 bg-blue-50 text-[#0056a4] font-bold rounded">
-                            {art.category}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          {art.isHero ? (
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold rounded text-[10px]">
-                              HERO PRINCIPAL
-                            </span>
-                          ) : art.isVideo ? (
-                            <span className="px-2 py-0.5 bg-red-100 text-red-800 font-bold rounded text-[10px]">
-                              VÍDEO
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">Padrão</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 font-bold text-gray-700">
-                          {art.viewsCount || 0}
-                        </td>
-                        <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
-                          <button
-                            onClick={async () => {
-                              await notificationsService.notifyUsersForArticle(art);
-                              alert(`Notificação de "${art.title}" disparada para os leitores interessados na categoria ${art.category}!`);
-                            }}
-                            className="p-1.5 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded cursor-pointer"
-                            title="Disparar Alerta para Leitores Interessados"
-                          >
-                            <Bell className="w-4 h-4 text-amber-500" />
-                          </button>
-                          <button
-                            onClick={() => openEditArticleModal(art)}
-                            className="p-1.5 text-gray-600 hover:text-[#0056a4] hover:bg-gray-100 rounded cursor-pointer"
-                            title="Editar"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteArticle(art.id)}
-                            className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer"
-                            title="Excluir"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: GERENCIAR PUBLICIDADES */}
-        {activeTab === 'ads' && (
-          <div className="space-y-6 animate-in fade-in">
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100">
-              <div>
-                <h3 className="text-base font-black uppercase tracking-tight text-gray-900">
-                  Espaços Publicitários ({ads.length})
-                </h3>
-                <p className="text-xs text-gray-500">Controle de banners, vídeos e anunciantes locais</p>
-              </div>
-
-              <button
-                onClick={() => setIsAdModalOpen(true)}
-                className="px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer transition-all shadow-md"
-              >
-                <Plus className="w-4 h-4" />
-                Novo Anunciante
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {ads.map((ad) => (
-                <div key={ad.id} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-sm text-gray-900">{ad.title}</h4>
-                      <p className="text-xs text-gray-500">{ad.sponsorName}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                {/* 1. ADICIONAR NOTÍCIA */}
+                <div
+                  onClick={handleStartNewArticle}
+                  className="bg-white p-6 rounded-2xl border-2 border-emerald-100 hover:border-emerald-500 shadow-xs hover:shadow-md transition-all cursor-pointer group space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                      <PlusCircle className="w-6 h-6" />
                     </div>
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded uppercase">
-                      {ad.placement}
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                      Criação
                     </span>
                   </div>
-
-                  <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                    {ad.mediaType === 'video' ? (
-                      <video src={ad.mediaUrl} className="w-full h-full object-cover" muted />
-                    ) : (
-                      <img src={ad.mediaUrl} alt={ad.title} className="w-full h-full object-cover" />
-                    )}
+                  <div>
+                    <h4 className="font-black text-base text-gray-900 uppercase tracking-tight">
+                      Adicionar Notícia
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Cadastro em 3 etapas com upload 16:9, editor simples e opção de rascunho.
+                    </p>
                   </div>
+                  <div className="pt-2 text-xs font-bold text-emerald-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    <span>Criar nova matéria</span> &rarr;
+                  </div>
+                </div>
 
-                  <div className="flex justify-between items-center text-xs pt-2 border-t border-gray-100">
-                    <span className="text-gray-400 text-[10px] font-bold uppercase">{ad.mediaType} • {ad.aspectRatio}</span>
+                {/* 2. GERENCIAR NOTÍCIAS */}
+                <div
+                  onClick={() => setActiveTab('manage_articles')}
+                  className="bg-white p-6 rounded-2xl border-2 border-sky-100 hover:border-sky-500 shadow-xs hover:shadow-md transition-all cursor-pointer group space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                      <Newspaper className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-sky-100 text-sky-800">
+                      {articles.length} Matérias
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="font-black text-base text-gray-900 uppercase tracking-tight">
+                      Gerenciar Notícias
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Pesquisa rápida, filtros por categoria, edição sem perda de dados e prévia.
+                    </p>
+                  </div>
+                  <div className="pt-2 text-xs font-bold text-sky-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    <span>Ver lista completa</span> &rarr;
+                  </div>
+                </div>
+
+                {/* 3. PUBLICIDADE */}
+                <div
+                  onClick={() => setActiveTab('manage_ads')}
+                  className="bg-white p-6 rounded-2xl border-2 border-purple-100 hover:border-purple-500 shadow-xs hover:shadow-md transition-all cursor-pointer group space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                      <Megaphone className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                      {activeAds} Ativas
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="font-black text-base text-gray-900 uppercase tracking-tight">
+                      Publicidade
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Inserção de anúncios com maquete visual interativa e dimensões sugeridas.
+                    </p>
+                  </div>
+                  <div className="pt-2 text-xs font-bold text-purple-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    <span>Gerenciar campanhas</span> &rarr;
+                  </div>
+                </div>
+
+                {/* 4. CLASSIFICADOS */}
+                <div
+                  onClick={() => setActiveTab('manage_classifieds')}
+                  className="bg-white p-6 rounded-2xl border-2 border-amber-100 hover:border-amber-500 shadow-xs hover:shadow-md transition-all cursor-pointer group space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
+                      <ShoppingBag className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+                      Moderação
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="font-black text-base text-gray-900 uppercase tracking-tight">
+                      Classificados
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Aprovação de anúncios públicos, verificação de denúncias e regras do balcão.
+                    </p>
+                  </div>
+                  <div className="pt-2 text-xs font-bold text-amber-600 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                    <span>Moderar anúncios</span> &rarr;
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Painel de Indicadores Gerais */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
+                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Notícias Publicadas</p>
+                <p className="text-2xl font-black text-emerald-600 mt-1">{publishedArticles}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">Visíveis na capa e editorias</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
+                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Rascunhos Salvos</p>
+                <p className="text-2xl font-black text-amber-600 mt-1">{draftArticles}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">Em redação ou revisão</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
+                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Total de Leituras</p>
+                <p className="text-2xl font-black text-[#0056a4] mt-1">{totalViews}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">Visualizações registradas</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
+                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Banners no Ar</p>
+                <p className="text-2xl font-black text-purple-600 mt-1">{activeAds}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">Campanhas publicitárias ativas</p>
+              </div>
+            </div>
+
+            {/* Últimas Matérias para Edição Rápida */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <h3 className="font-black text-sm uppercase text-gray-900 tracking-wider">
+                  Matérias Mais Recentes Cadastradas
+                </h3>
+                <button
+                  onClick={() => setActiveTab('manage_articles')}
+                  className="text-xs font-bold text-[#0056a4] hover:underline cursor-pointer"
+                >
+                  Ver Todas as Notícias &rarr;
+                </button>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {articles.slice(0, 5).map(art => (
+                  <div key={art.id} className="py-3 flex items-center justify-between gap-4 hover:bg-gray-50/70 p-2 rounded-xl transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img src={art.imageUrl} alt="" className="w-12 h-10 rounded-lg object-cover shrink-0 bg-gray-100 border border-gray-200" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-gray-900 truncate">{art.title}</p>
+                        <p className="text-[10px] text-gray-400">
+                          {art.category} • {new Date(art.createdAt).toLocaleDateString('pt-BR')} • {art.viewsCount || 0} visualizações
+                        </p>
+                      </div>
+                    </div>
+
                     <button
-                      onClick={() => handleDeleteAd(ad.id)}
-                      className="text-red-600 hover:text-red-700 font-bold flex items-center gap-1 cursor-pointer"
+                      onClick={() => handleStartEditArticle(art)}
+                      className="px-3.5 py-1.5 bg-gray-100 hover:bg-[#0056a4] hover:text-white text-gray-700 text-xs font-bold rounded-lg transition-colors cursor-pointer shrink-0"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Remover
+                      Editar
                     </button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* TAB 4: GERENCIAR CLASSIFICADOS */}
-        {activeTab === 'classifieds' && (
-          <AdminClassifiedsTab currentUser={currentUser} />
+        {/* ====================================================
+            2. ADICIONAR NOTÍCIA (TELA EXCLUSIVA)
+        ==================================================== */}
+        {activeTab === 'add_article' && (
+          <AdminAddArticle
+            currentUser={currentUser}
+            editingArticle={editingArticle}
+            onSuccess={handleArticleSaved}
+            onCancel={handleCancelArticle}
+          />
         )}
 
-        {/* TAB 5: SUPABASE & GITHUB */}
-        {activeTab === 'supabase_github' && (
-          <div className="space-y-8 max-w-4xl animate-in fade-in">
-            {/* Bloco 1: Conexão com o Supabase */}
-            <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-              <div className="flex items-center gap-3">
-                <Database className="w-6 h-6 text-emerald-500" />
-                <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight text-gray-900">
-                    Conectar ao seu Supabase Oficial
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Insira as credenciais do seu projeto Supabase para habilitar banco PostgreSQL em nuvem e autenticação real.
-                  </p>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveSupabase} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    Supabase Project URL
-                  </label>
-                  <input
-                    type="url"
-                    value={sbUrl}
-                    onChange={(e) => setSbUrl(e.target.value)}
-                    placeholder="https://seu-projeto.supabase.co"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    Supabase Anon Public Key
-                  </label>
-                  <input
-                    type="password"
-                    value={sbKey}
-                    onChange={(e) => setSbKey(e.target.value)}
-                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10"
-                  />
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-xs text-gray-500">
-                    {currentConfig.isConfigured ? '🟢 Conectado e ativo' : '🟡 Usando armazenamento local seguro'}
-                  </span>
-                  <button
-                    type="submit"
-                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-lg transition-all shadow-md cursor-pointer"
-                  >
-                    Salvar e Conectar
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Bloco 2: Script SQL para rodar no Supabase */}
-            <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-base font-black uppercase tracking-tight text-gray-900 flex items-center gap-2">
-                    <Database className="w-4 h-4 text-emerald-600" />
-                    Script SQL para criar as Tabelas no Supabase
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Copie e cole este código no <strong>SQL Editor</strong> do seu painel do Supabase.
-                  </p>
-                </div>
-                <button
-                  onClick={() => copyToClipboard(sqlCode, 'sql')}
-                  className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  {copiedSql ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                  {copiedSql ? 'Copiado!' : 'Copiar SQL'}
-                </button>
-              </div>
-
-              <pre className="bg-gray-900 text-gray-200 p-4 rounded-xl text-xs overflow-x-auto max-h-60 font-mono">
-                {sqlCode}
-              </pre>
-            </div>
-
-            {/* Bloco 3: Como enviar para o GitHub */}
-            <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <Github className="w-5 h-5 text-gray-900" />
-                  <h3 className="text-base font-black uppercase tracking-tight text-gray-900">
-                    Comandos para enviar ao GitHub
-                  </h3>
-                </div>
-                <button
-                  onClick={() => copyToClipboard(gitCommands, 'git')}
-                  className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  {copiedGit ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                  {copiedGit ? 'Copiado!' : 'Copiar Comandos'}
-                </button>
-              </div>
-
-              <p className="text-xs text-gray-600">
-                Execute estes comandos no terminal da sua máquina para sincronizar o projeto com seu repositório:
-              </p>
-
-              <pre className="bg-gray-900 text-gray-200 p-4 rounded-xl text-xs overflow-x-auto font-mono">
-                {gitCommands}
-              </pre>
-            </div>
-          </div>
+        {/* ====================================================
+            3. GERENCIAR NOTÍCIAS (TABELA ORGANIZADA & FILTROS)
+        ==================================================== */}
+        {activeTab === 'manage_articles' && (
+          <AdminManageArticles
+            articles={articles}
+            onRefreshData={onRefreshData}
+            onEditArticle={handleStartEditArticle}
+            onAddNewArticle={handleStartNewArticle}
+          />
         )}
-      </div>
 
-      {/* MODAL DE CRIAR/EDITAR NOTÍCIA */}
-      {isArticleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl border border-gray-100">
-            <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-4">
-              {editingArticle ? 'Editar Notícia' : 'Nova Notícia'}
-            </h3>
+        {/* ====================================================
+            4. PUBLICIDADE (COM MAQUETE VISUAL DO PORTAL)
+        ==================================================== */}
+        {activeTab === 'manage_ads' && (
+          <AdminManageAds
+            ads={ads}
+            onRefreshData={onRefreshData}
+          />
+        )}
 
-            <form onSubmit={handleSaveArticle} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Título da Notícia
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={articleForm.title}
-                  onChange={(e) => setArticleForm({ ...articleForm, title: e.target.value })}
-                  placeholder="Título atraente e informativo"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4]"
-                />
-              </div>
+        {/* ====================================================
+            5. CLASSIFICADOS (MODERAÇÃO & APROVAÇÃO PÚBLICA)
+        ==================================================== */}
+        {activeTab === 'manage_classifieds' && (
+          <AdminClassifiedsTab
+            currentUser={currentUser}
+          />
+        )}
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Subtítulo / Resumo
-                </label>
-                <input
-                  type="text"
-                  value={articleForm.subtitle}
-                  onChange={(e) => setArticleForm({ ...articleForm, subtitle: e.target.value })}
-                  placeholder="Breve resumo da matéria"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4]"
-                />
-              </div>
+        {/* ====================================================
+            6. GERENCIAR USUÁRIOS (PF, PJ, ROLES & SUSPENSÃO)
+        ==================================================== */}
+        {activeTab === 'manage_users' && (
+          <AdminManageUsers
+            currentUser={currentUser}
+          />
+        )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    Categoria
-                  </label>
-                  <select
-                    value={articleForm.category}
-                    onChange={(e) => setArticleForm({ ...articleForm, category: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                  >
-                    {INITIAL_CATEGORIES.filter(c => c.slug !== 'todos').map(c => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    Autor
-                  </label>
-                  <input
-                    type="text"
-                    value={articleForm.author}
-                    onChange={(e) => setArticleForm({ ...articleForm, author: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  URL da Imagem de Capa
-                </label>
-                <input
-                  type="url"
-                  required
-                  value={articleForm.imageUrl}
-                  onChange={(e) => setArticleForm({ ...articleForm, imageUrl: e.target.value })}
-                  placeholder="https://exemplo.com/imagem.jpg"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                />
-              </div>
-
-              <div className="flex items-center gap-6 py-2 border-y border-gray-100">
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={articleForm.isHero}
-                    onChange={(e) => setArticleForm({ ...articleForm, isHero: e.target.checked })}
-                    className="w-4 h-4 text-[#0056a4] rounded"
-                  />
-                  Destaque Hero Principal (Topo do Portal)
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={articleForm.isVideo}
-                    onChange={(e) => setArticleForm({ ...articleForm, isVideo: e.target.checked })}
-                    className="w-4 h-4 text-red-600 rounded"
-                  />
-                  Matéria com Vídeo
-                </label>
-              </div>
-
-              {articleForm.isVideo && (
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    Link do Vídeo (YouTube)
-                  </label>
-                  <input
-                    type="url"
-                    value={articleForm.videoUrl}
-                    onChange={(e) => setArticleForm({ ...articleForm, videoUrl: e.target.value })}
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Conteúdo da Notícia (HTML ou Texto com Parágrafos)
-                </label>
-                <textarea
-                  rows={6}
-                  required
-                  value={articleForm.content}
-                  onChange={(e) => setArticleForm({ ...articleForm, content: e.target.value })}
-                  placeholder="<p>Texto do primeiro parágrafo...</p>"
-                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-sans text-gray-900 outline-none focus:border-[#0056a4]"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsArticleModalOpen(false)}
-                  className="px-5 py-2.5 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white rounded-lg text-xs font-black uppercase tracking-wider shadow-md cursor-pointer"
-                >
-                  Salvar Notícia
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE NOVO ANÚNCIO */}
-      {isAdModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
-            <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-4">
-              Cadastrar Espaço Publicitário
-            </h3>
-
-            <form onSubmit={handleSaveAd} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Título da Campanha
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={adForm.title}
-                  onChange={(e) => setAdForm({ ...adForm, title: e.target.value })}
-                  placeholder="Ex: Super Promoção Outono"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Nome do Anunciante
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={adForm.sponsorName}
-                  onChange={(e) => setAdForm({ ...adForm, sponsorName: e.target.value })}
-                  placeholder="Ex: Vidraçaria Manancial"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Link de Redirecionamento (Instagram ou Site)
-                </label>
-                <input
-                  type="url"
-                  required
-                  value={adForm.linkUrl}
-                  onChange={(e) => setAdForm({ ...adForm, linkUrl: e.target.value })}
-                  placeholder="https://instagram.com/..."
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  URL da Mídia (Vídeo mp4, GIF ou Imagem)
-                </label>
-                <input
-                  type="url"
-                  required
-                  value={adForm.mediaUrl}
-                  onChange={(e) => setAdForm({ ...adForm, mediaUrl: e.target.value })}
-                  placeholder="https://.../video.mp4"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    Tipo de Mídia
-                  </label>
-                  <select
-                    value={adForm.mediaType}
-                    onChange={(e) => setAdForm({ ...adForm, mediaType: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                  >
-                    <option value="gif">GIF Animado</option>
-                    <option value="video">Vídeo MP4</option>
-                    <option value="image">Imagem Estática</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    Posição no Portal
-                  </label>
-                  <select
-                    value={adForm.placement}
-                    onChange={(e) => setAdForm({ ...adForm, placement: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none"
-                  >
-                    <option value="header">Topo (728x90)</option>
-                    <option value="sidebar">Barra Lateral (300px)</option>
-                    <option value="feed">Feed de Notícias</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsAdModalOpen(false)}
-                  className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-700"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-gray-900 text-white rounded-lg text-xs font-black uppercase tracking-wider"
-                >
-                  Salvar Anúncio
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+        {/* ====================================================
+            7. CONFIGURAÇÕES DO PORTAL (REGRAS & SUPABASE)
+        ==================================================== */}
+        {activeTab === 'settings' && (
+          <AdminSettings />
+        )}
+      </main>
     </div>
   );
 };

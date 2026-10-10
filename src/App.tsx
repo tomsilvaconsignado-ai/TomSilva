@@ -42,6 +42,8 @@ export default function App() {
   // Modal de Autenticação
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [authReasonMessage, setAuthReasonMessage] = useState<string | undefined>(undefined);
+  const [pendingActionAfterAuth, setPendingActionAfterAuth] = useState<'create_classified' | null>(null);
   
   // Paginação de notícias
   const [visibleCount, setVisibleCount] = useState(7);
@@ -110,6 +112,8 @@ export default function App() {
 
   const handleOpenCreateClassified = () => {
     if (!currentUser) {
+      setAuthReasonMessage('Para publicar anúncios nos Classificados com segurança jurídica e credibilidade, você precisa estar cadastrado e conectado.');
+      setPendingActionAfterAuth('create_classified');
       handleOpenAuth('login');
       return;
     }
@@ -201,9 +205,12 @@ export default function App() {
   const mostReadArticles = [...articles].sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0)).slice(0, 5);
 
   // Anúncios específicos
-  const headerAd = ads.find(a => a.placement === 'header' && a.active);
-  const feedAd = ads.find(a => a.placement === 'feed' && a.active);
-  const sidebarAds = ads.filter(a => a.placement === 'sidebar' && a.active);
+  const isAdActive = (a: AdItem) => a.status === 'active' || (a.status === undefined && a.active);
+  const headerAd = ads.find(a => a.placement === 'header' && isAdActive(a));
+  const feedAd = ads.find(a => a.placement === 'feed' && isAdActive(a));
+  const sidebarAds = ads.filter(a => a.placement === 'sidebar' && isAdActive(a));
+  const articleAd = ads.find(a => a.placement === 'article' && isAdActive(a));
+  const footerAd = ads.find(a => a.placement === 'footer' && isAdActive(a));
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-[#0056a4] selection:text-white flex flex-col">
@@ -261,6 +268,7 @@ export default function App() {
             onOpenAuth={() => handleOpenAuth('login')}
             onBack={() => setViewMode('home')}
             onSelectArticle={handleSelectArticle}
+            articleAd={articleAd}
           />
         )}
 
@@ -268,7 +276,11 @@ export default function App() {
         {viewMode === 'classifieds' && (
           <ClassifiedList
             currentUser={currentUser}
-            onOpenAuth={() => handleOpenAuth('login')}
+            onOpenAuth={() => {
+              setAuthReasonMessage('Para publicar anúncios nos Classificados com credibilidade e segurança jurídica, faça login ou cadastre-se abaixo.');
+              setPendingActionAfterAuth('create_classified');
+              handleOpenAuth('login');
+            }}
             onOpenCreateModal={handleOpenCreateClassified}
             onOpenMyClassifieds={handleOpenMyClassifieds}
             onSelectClassified={handleSelectClassified}
@@ -481,13 +493,33 @@ export default function App() {
         }}
       />
 
+      {/* Banner Publicitário de Rodapé */}
+      {footerAd && (
+        <div className="container mx-auto px-4 py-4 max-w-5xl">
+          <AdSlot ad={footerAd} />
+        </div>
+      )}
+
       {/* Modal de Autenticação (Login / Cadastro / Recuperação) */}
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setAuthReasonMessage(undefined);
+          setPendingActionAfterAuth(null);
+        }}
         initialMode={authModalMode}
+        reasonMessage={authReasonMessage}
         onSuccess={(user) => {
           setCurrentUser(user);
+          if (pendingActionAfterAuth === 'create_classified') {
+            setPendingActionAfterAuth(null);
+            setAuthReasonMessage(undefined);
+            setEditingClassified(null);
+            setTimeout(() => {
+              setIsClassifiedFormOpen(true);
+            }, 300);
+          }
         }}
       />
 

@@ -2,5 +2,7 @@
   "name": "Folha da Região - Portal de Notícias",
   "description": "Portal de notícias de Sergipe e região. Cobertura completa de política, cidades, esportes, economia e entretenimento com painel administrativo e integração Supabase.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
