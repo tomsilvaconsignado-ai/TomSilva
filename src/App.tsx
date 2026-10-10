@@ -9,6 +9,10 @@ import { Footer } from './components/layout/Footer';
 import { ArticleCard } from './components/news/ArticleCard';
 import { AdSlot } from './components/news/AdSlot';
 import { AuthModal } from './components/auth/AuthModal';
+import { EmailConfirmationModal } from './components/auth/EmailConfirmationModal';
+import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
+import { EmailOutboxModal } from './components/notifications/EmailOutboxModal';
+import { EmailNotificationToast } from './components/notifications/EmailNotificationToast';
 import { ArticleDetail } from './components/pages/ArticleDetail';
 import { InstitutionalPage } from './components/pages/InstitutionalPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
@@ -45,6 +49,11 @@ export default function App() {
   const [authReasonMessage, setAuthReasonMessage] = useState<string | undefined>(undefined);
   const [pendingActionAfterAuth, setPendingActionAfterAuth] = useState<'create_classified' | null>(null);
   
+  // Modais de Segurança (Confirmação de E-mail, Redefinição de Senha e Caixa de E-mails)
+  const [emailConfirmToken, setEmailConfirmToken] = useState<string | null>(null);
+  const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(null);
+  const [isOutboxModalOpen, setIsOutboxModalOpen] = useState(false);
+
   // Paginação de notícias
   const [visibleCount, setVisibleCount] = useState(7);
   

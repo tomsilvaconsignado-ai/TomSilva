@@ -28,6 +28,36 @@ export interface UserProfile {
   termsAcceptedAt?: string;
   termsVersion?: string;
   status?: 'active' | 'suspended';
+  // Confirmação de E-mail
+  emailConfirmed?: boolean;
+  emailConfirmedAt?: string;
+}
+
+export type AuthTokenType = 'email_confirmation' | 'password_reset';
+
+export interface AuthSecurityToken {
+  id: string;
+  userId: string;
+  email: string;
+  token: string;
+  type: AuthTokenType;
+  expiresAt: string;
+  used: boolean;
+  usedAt?: string;
+  createdAt: string;
+}
+
+export interface OutboxEmail {
+  id: string;
+  to: string;
+  recipientName: string;
+  subject: string;
+  type: 'email_confirmation' | 'password_reset' | 'password_changed';
+  bodyHtml: string;
+  actionUrl: string;
+  actionLabel: string;
+  sentAt: string;
+  status: 'sent' | 'delivered';
 }
 
 export interface NotificationItem {

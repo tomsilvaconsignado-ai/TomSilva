@@ -8,6 +8,8 @@ import { INITIAL_ARTICLES, INITIAL_ADS } from '../data/initialData';
 import { 
   INITIAL_CLASSIFIEDS, INITIAL_CLASSIFIED_CATEGORIES, DEFAULT_CLASSIFIEDS_SETTINGS 
 } from '../data/initialClassifieds';
+import { emailService, checkEmailRateLimit } from './emailService';
+import { authSecurityService } from './authSecurityService';
 
 // Configurações lidas do ambiente ou do localStorage (para configuração em tempo de execução)
 const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -95,7 +97,10 @@ const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
     interests: ['Política', 'Cidades', 'Eventos', 'Brasil'],
     createdAt: new Date().toISOString(),
-    passwordHash: 'Folha@1234'
+    passwordHash: 'Folha@1234',
+    emailConfirmed: true,
+    emailConfirmedAt: '2026-01-01T00:00:00.000Z',
+    status: 'active'
   },
   {
     id: 'user-reader-1',
@@ -105,7 +110,10 @@ const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
     interests: ['Política', 'Cidades', 'Esporte'],
     createdAt: new Date().toISOString(),
-    passwordHash: 'leitor123'
+    passwordHash: 'leitor123',
+    emailConfirmed: true,
+    emailConfirmedAt: '2026-01-01T00:00:00.000Z',
+    status: 'active'
   }
 ];
 
@@ -122,7 +130,7 @@ if (typeof window !== 'undefined') {
   if (!existingUsers || existingUsers.length === 0) {
     setStored(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
   } else {
-    // Garante que o administrador tomsilvaconsignado@gmail.com com Folha@1234 esteja presente e atualizado
+    // Garante que o administrador tomsilvaconsignado@gmail.com com Folha@1234 esteja presente e confirmado
     const adminIndex = existingUsers.findIndex(u => 
       u.email.toLowerCase() === 'tomsilvaconsignado@gmail.com' || 
       u.email.toLowerCase() === 'admin@folhadaregiao.com.br' ||
@@ -135,7 +143,9 @@ if (typeof window !== 'undefined') {
         email: 'tomsilvaconsignado@gmail.com',
         fullName: existingUsers[adminIndex].fullName === 'Editor Chefe' ? 'Administrador Tom Silva' : existingUsers[adminIndex].fullName,
         role: 'admin',
-        passwordHash: 'Folha@1234'
+        passwordHash: 'Folha@1234',
+        emailConfirmed: true,
+        emailConfirmedAt: existingUsers[adminIndex].emailConfirmedAt || '2026-01-01T00:00:00.000Z'
       };
     } else {
       existingUsers.unshift(INITIAL_DEMO_USERS[0]);
@@ -279,6 +289,7 @@ export const authService = {
       return { user: null, error: 'Já existe uma conta com este e-mail.' };
     }
 
+    const isConfirmed = role === 'admin';
     const newUser: UserProfile & { passwordHash: string } = {
       id: 'usr-' + Math.random().toString(36).substring(2, 9),
       email: email.trim().toLowerCase(),
@@ -289,6 +300,8 @@ export const authService = {
       createdAt: new Date().toISOString(),
       passwordHash: password,
       status: 'active',
+      emailConfirmed: isConfirmed,
+      emailConfirmedAt: isConfirmed ? new Date().toISOString() : undefined,
       ...additionalData
     };
 
@@ -317,8 +330,20 @@ export const authService = {
       termsAccepted: newUser.termsAccepted,
       termsAcceptedAt: newUser.termsAcceptedAt,
       termsVersion: newUser.termsVersion,
-      status: newUser.status || 'active'
+      status: newUser.status || 'active',
+      emailConfirmed: newUser.emailConfirmed,
+      emailConfirmedAt: newUser.emailConfirmedAt
     };
+
+    // Gera token e envia e-mail de confirmação automaticamente caso não seja admin
+    if (!isConfirmed) {
+      try {
+        const securityToken = authSecurityService.createToken(newUser.id, newUser.email, 'email_confirmation');
+        await emailService.sendEmailConfirmation(safeProfile, securityToken.token);
+      } catch (e) {
+        console.error('Erro ao gerar token/enviar e-mail de confirmação:', e);
+      }
+    }
 
     setStored(STORAGE_KEYS.CURRENT_USER, safeProfile);
     window.dispatchEvent(new Event('folha_auth_changed'));
@@ -352,7 +377,9 @@ export const authService = {
             role: profile?.role || data.user.user_metadata?.role || 'reader',
             avatarUrl: profile?.avatar_url || data.user.user_metadata?.avatar_url,
             interests: profile?.interests || data.user.user_metadata?.interests || ['Política', 'Cidades'],
-            createdAt: data.user.created_at
+            createdAt: data.user.created_at,
+            emailConfirmed: true,
+            emailConfirmedAt: data.user.created_at
           };
 
           return { user: userProfile, error: null };
@@ -398,7 +425,9 @@ export const authService = {
       termsAccepted: found.termsAccepted,
       termsAcceptedAt: found.termsAcceptedAt,
       termsVersion: found.termsVersion,
-      status: found.status || 'active'
+      status: found.status || 'active',
+      emailConfirmed: found.emailConfirmed ?? (found.role === 'admin'),
+      emailConfirmedAt: found.emailConfirmedAt
     };
 
     setStored(STORAGE_KEYS.CURRENT_USER, safeProfile);
@@ -452,22 +481,190 @@ export const authService = {
     window.dispatchEvent(new Event('folha_auth_changed'));
   },
 
-  async resetPassword(email: string): Promise<{ success: boolean; message: string }> {
+  // 1. CONFIRMAÇÃO DE E-MAIL VIA TOKEN SEGURO
+  async confirmEmail(tokenString: string): Promise<{ success: boolean; message: string; user?: UserProfile }> {
+    const verification = authSecurityService.verifyToken(tokenString, 'email_confirmation');
+    if (!verification.valid || !verification.token) {
+      return { success: false, message: verification.message };
+    }
+
+    const token = verification.token;
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const userIndex = users.findIndex(u => u.id === token.userId || u.email.toLowerCase() === token.email.toLowerCase());
+
+    if (userIndex === -1) {
+      return { success: false, message: 'Conta de usuário correspondente ao token não foi encontrada.' };
+    }
+
+    // Atualiza o estado da conta para confirmada
+    const nowIso = new Date().toISOString();
+    users[userIndex].emailConfirmed = true;
+    users[userIndex].emailConfirmedAt = nowIso;
+    setStored(STORAGE_KEYS.USERS, users);
+
+    // Invalida o token para impedir reutilização
+    authSecurityService.consumeToken(tokenString);
+
+    // Se o usuário logado atualmente for este mesmo usuário, sincroniza a sessão
+    const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+    if (currentUser && (currentUser.id === token.userId || currentUser.email.toLowerCase() === token.email.toLowerCase())) {
+      const updatedCurrent: UserProfile = {
+        ...currentUser,
+        emailConfirmed: true,
+        emailConfirmedAt: nowIso
+      };
+      setStored(STORAGE_KEYS.CURRENT_USER, updatedCurrent);
+    }
+
+    window.dispatchEvent(new Event('folha_auth_changed'));
+
+    return { 
+      success: true, 
+      message: 'Seu endereço de e-mail foi confirmado com sucesso! Sua conta está 100% ativada.',
+      user: users[userIndex]
+    };
+  },
+
+  // 2. REENVIO DE E-MAIL DE CONFIRMAÇÃO COM LIMITADOR DE FREQUÊNCIA
+  async resendConfirmationEmail(email: string): Promise<{ success: boolean; message: string; remainingSeconds?: number }> {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      return { success: false, message: 'Informe um endereço de e-mail válido.' };
+    }
+
+    const rateCheck = checkEmailRateLimit(trimmedEmail, 'email_confirmation', 60);
+    if (!rateCheck.allowed) {
+      return { 
+        success: false, 
+        message: `Por segurança, aguarde mais ${rateCheck.remainingSeconds} segundos antes de solicitar um novo link.`,
+        remainingSeconds: rateCheck.remainingSeconds
+      };
+    }
+
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const found = users.find(u => u.email.toLowerCase() === trimmedEmail);
+
+    if (found && !found.emailConfirmed) {
+      try {
+        const securityToken = authSecurityService.createToken(found.id, found.email, 'email_confirmation');
+        await emailService.sendResendConfirmation(found, securityToken.token);
+      } catch (err) {
+        console.error('Erro ao reenviar e-mail de confirmação:', err);
+      }
+    }
+
+    // Mensagem neutra para proteção de privacidade
+    return {
+      success: true,
+      message: 'Se existir uma conta cadastrada com este endereço com confirmação pendente, enviamos um novo link de confirmação para sua caixa de entrada.'
+    };
+  },
+
+  // 3. SOLICITAÇÃO DE RECUPERAÇÃO DE SENHA (ESQUECI MINHA SENHA)
+  async resetPassword(email: string): Promise<{ success: boolean; message: string; remainingSeconds?: number }> {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      return { success: false, message: 'Informe um e-mail válido.' };
+    }
+
     if (isSupabaseConfigured() && supabase) {
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
           redirectTo: window.location.origin
         });
         if (error) return { success: false, message: error.message };
-        return { success: true, message: 'Link de redefinição enviado para o e-mail!' };
+        return { 
+          success: true, 
+          message: 'Se existir uma conta associada a esse endereço, você receberá um e-mail com as instruções para redefinir sua senha.' 
+        };
       } catch (err: any) {
         return { success: false, message: err.message };
       }
     }
 
+    const rateCheck = checkEmailRateLimit(trimmedEmail, 'password_reset', 60);
+    if (!rateCheck.allowed) {
+      return { 
+        success: false, 
+        message: `Aguarde ${rateCheck.remainingSeconds} segundos para solicitar outro link de recuperação de senha.`,
+        remainingSeconds: rateCheck.remainingSeconds
+      };
+    }
+
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const found = users.find(u => u.email.toLowerCase() === trimmedEmail);
+
+    if (found) {
+      try {
+        const securityToken = authSecurityService.createToken(found.id, found.email, 'password_reset');
+        await emailService.sendPasswordReset(found, securityToken.token);
+      } catch (err) {
+        console.error('Erro ao gerar token/enviar e-mail de recuperação:', err);
+      }
+    }
+
+    // Mensagem neutra de segurança conforme exigência
     return {
       success: true,
-      message: 'Instruções de redefinição de senha foram simuladas para ' + email
+      message: 'Se existir uma conta associada a esse endereço, você receberá um e-mail com as instruções para redefinir sua senha.'
+    };
+  },
+
+  // 4. VERIFICAÇÃO DO TOKEN DE REDEFINIÇÃO DE SENHA
+  verifyResetToken(tokenString: string): { valid: boolean; message: string; email?: string } {
+    const verification = authSecurityService.verifyToken(tokenString, 'password_reset');
+    return {
+      valid: verification.valid,
+      message: verification.message,
+      email: verification.token?.email
+    };
+  },
+
+  // 5. CONCLUSÃO DA REDEFINIÇÃO COM ATUALIZAÇÃO SEGURA DA SENHA
+  async completePasswordReset(tokenString: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, message: 'A nova senha deve ter no mínimo 6 caracteres.' };
+    }
+
+    const verification = authSecurityService.verifyToken(tokenString, 'password_reset');
+    if (!verification.valid || !verification.token) {
+      return { success: false, message: verification.message };
+    }
+
+    const token = verification.token;
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const userIndex = users.findIndex(u => u.id === token.userId || u.email.toLowerCase() === token.email.toLowerCase());
+
+    if (userIndex === -1) {
+      return { success: false, message: 'Usuário não encontrado para atualizar a senha.' };
+    }
+
+    // Atualiza a senha no registro do usuário
+    users[userIndex].passwordHash = newPassword;
+    // Opcionalmente confirma o e-mail também caso estivesse pendente
+    users[userIndex].emailConfirmed = true;
+    if (!users[userIndex].emailConfirmedAt) {
+      users[userIndex].emailConfirmedAt = new Date().toISOString();
+    }
+    setStored(STORAGE_KEYS.USERS, users);
+
+    // Consome e invalida o token para uso único
+    authSecurityService.consumeToken(tokenString);
+
+    // Envia e-mail de notificação de segurança de senha alterada
+    try {
+      await emailService.sendPasswordChangedNotification(users[userIndex]);
+    } catch (e) {
+      console.warn('Erro ao disparar aviso de senha alterada:', e);
+    }
+
+    // Invalida sessão ativa por segurança para exigir novo login
+    setStored(STORAGE_KEYS.CURRENT_USER, null);
+    window.dispatchEvent(new Event('folha_auth_changed'));
+
+    return {
+      success: true,
+      message: 'Sua senha foi redefinida com sucesso! Você já pode entrar com a nova senha.'
     };
   }
 };
@@ -1144,6 +1341,11 @@ export const classifiedsService = {
   // Cadastro e Edição com Validações de Segurança
   async saveClassified(itemData: Partial<ClassifiedItem>, user: UserProfile): Promise<ClassifiedItem> {
     if (!user) throw new Error('Usuário não autenticado.');
+
+    // Bloqueio de segurança obrigatório: validação nas regras de segurança do sistema
+    if (user.role !== 'admin' && !user.emailConfirmed) {
+      throw new Error('Para publicar classificados, confirme primeiro seu endereço de e-mail. Enviamos uma mensagem com o link de confirmação para o endereço cadastrado.');
+    }
 
     // Limitar rigorosamente upload a 3 imagens
     const sanitizedImages = (itemData.images || []).slice(0, 3);

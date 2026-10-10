@@ -48,7 +48,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   initialMode = 'login',
   reasonMessage
 }) => {
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'resend'>(initialMode);
   const [accountType, setAccountType] = useState<AccountType>('pf');
   
   // Login
@@ -81,6 +81,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [registeredUnconfirmedUser, setRegisteredUnconfirmedUser] = useState<UserProfile | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  React.useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   if (!isOpen) return null;
 
@@ -212,11 +221,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (res.error) {
           setError(res.error);
         } else if (res.user) {
-          setSuccessMessage(`Cadastro concluído com sucesso! Bem-vindo, ${res.user.fullName}.`);
-          setTimeout(() => {
-            onSuccess(res.user!);
-            onClose();
-          }, 800);
+          if (res.user.role === 'admin' || res.user.emailConfirmed) {
+            setSuccessMessage(`Cadastro concluído com sucesso! Bem-vindo, ${res.user.fullName}.`);
+            setTimeout(() => {
+              onSuccess(res.user!);
+              onClose();
+            }, 800);
+          } else {
+            // Conta criada em estado pendente de confirmação
+            setRegisteredUnconfirmedUser(res.user);
+          }
         }
       } else if (mode === 'forgot') {
         if (!email.trim() || !email.includes('@')) {
@@ -225,11 +239,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           return;
         }
 
-        const res = await authService.resetPassword(email);
+        const res = await authService.resetPassword(email.trim());
         if (res.success) {
           setSuccessMessage(res.message);
         } else {
           setError(res.message);
+        }
+      } else if (mode === 'resend') {
+        if (!email.trim() || !email.includes('@')) {
+          setError('Informe o e-mail cadastrado.');
+          setLoading(false);
+          return;
+        }
+
+        const res = await authService.resendConfirmationEmail(email.trim());
+        if (res.success) {
+          setSuccessMessage(res.message);
+          setResendCooldown(60);
+        } else {
+          setError(res.message);
+          if (res.remainingSeconds) {
+            setResendCooldown(res.remainingSeconds);
+          }
         }
       }
     } catch (err: any) {
@@ -279,18 +310,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <h3 className="text-xl font-black uppercase tracking-tight">
-              {mode === 'login' && 'Entrar na Conta'}
-              {mode === 'register' && 'Criar Cadastro Público'}
-              {mode === 'forgot' && 'Recuperar Senha'}
+              {registeredUnconfirmedUser && 'Confirmação de E-mail'}
+              {!registeredUnconfirmedUser && mode === 'login' && 'Entrar na Conta'}
+              {!registeredUnconfirmedUser && mode === 'register' && 'Criar Cadastro Público'}
+              {!registeredUnconfirmedUser && mode === 'forgot' && 'Recuperar Senha'}
+              {!registeredUnconfirmedUser && mode === 'resend' && 'Reenviar Confirmação'}
             </h3>
             <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-              {mode === 'login' && 'Acesse para publicar notícias, gerenciar publicidade ou anunciar nos classificados.'}
-              {mode === 'register' && 'Cadastre-se gratuitamente para publicar classificados e participar do portal.'}
-              {mode === 'forgot' && 'Digite seu e-mail para receber as instruções de redefinição.'}
+              {registeredUnconfirmedUser && 'Sua conta foi criada! Confirme seu e-mail para ativar todas as funções.'}
+              {!registeredUnconfirmedUser && mode === 'login' && 'Acesse para publicar notícias, gerenciar publicidade ou anunciar nos classificados.'}
+              {!registeredUnconfirmedUser && mode === 'register' && 'Cadastre-se gratuitamente para publicar classificados e participar do portal.'}
+              {!registeredUnconfirmedUser && mode === 'forgot' && 'Digite seu e-mail para receber as instruções de redefinição.'}
+              {!registeredUnconfirmedUser && mode === 'resend' && 'Digite seu e-mail cadastrado para receber um novo link de confirmação.'}
             </p>
 
             {/* Aviso especial quando acionado por fluxo de publicação */}
-            {reasonMessage && (
+            {reasonMessage && !registeredUnconfirmedUser && (
               <div className="mt-3 p-2.5 bg-[#0056a4]/30 border border-[#0056a4] rounded-xl flex items-center gap-2 text-xs text-blue-100">
                 <ShieldCheck className="w-4 h-4 text-blue-300 shrink-0" />
                 <span>{reasonMessage}</span>
@@ -298,34 +333,109 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
           </div>
 
-          {/* Abas Alternadoras */}
-          <div className="flex border-b border-gray-100 bg-gray-50/70 shrink-0">
-            <button
-              type="button"
-              onClick={() => { setMode('login'); setError(null); }}
-              className={`flex-1 py-3 text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-b-2 ${
-                mode === 'login'
-                  ? 'border-[#0056a4] text-[#0056a4] bg-white shadow-xs'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              Já tenho conta (Entrar)
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode('register'); setError(null); }}
-              className={`flex-1 py-3 text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-b-2 ${
-                mode === 'register'
-                  ? 'border-[#0056a4] text-[#0056a4] bg-white shadow-xs'
-                  : 'border-transparent text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              Criar Nova Conta
-            </button>
-          </div>
+          {/* Abas Alternadoras (Aparecem quando não está no aviso pós-cadastro) */}
+          {!registeredUnconfirmedUser && (
+            <div className="flex border-b border-gray-100 bg-gray-50/70 shrink-0">
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(null); setSuccessMessage(null); }}
+                className={`flex-1 py-3 text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-b-2 ${
+                  mode === 'login' || mode === 'forgot' || mode === 'resend'
+                    ? 'border-[#0056a4] text-[#0056a4] bg-white shadow-xs'
+                    : 'border-transparent text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                Já tenho conta (Entrar)
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode('register'); setError(null); setSuccessMessage(null); }}
+                className={`flex-1 py-3 text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-b-2 ${
+                  mode === 'register'
+                    ? 'border-[#0056a4] text-[#0056a4] bg-white shadow-xs'
+                    : 'border-transparent text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                Criar Nova Conta
+              </button>
+            </div>
+          )}
 
           {/* Formulário com rolagem interna */}
           <div className="p-5 sm:p-6 overflow-y-auto space-y-4">
+            {registeredUnconfirmedUser ? (
+              <div className="text-center py-2 space-y-4 animate-in fade-in">
+                <div className="w-16 h-16 bg-blue-50 text-[#0056a4] rounded-2xl flex items-center justify-center mx-auto border border-blue-200 shadow-sm animate-in zoom-in-50">
+                  <Mail className="w-8 h-8" />
+                </div>
+
+                <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-900 text-[10px] font-black uppercase tracking-wider inline-block">
+                  Ativação de Conta Pendente
+                </span>
+
+                <h4 className="text-xl font-black uppercase tracking-tight text-gray-900">
+                  Quase Lá! Confirme Seu E-mail
+                </h4>
+
+                <p className="text-xs text-gray-600 leading-relaxed max-w-sm mx-auto">
+                  Enviamos um e-mail com o link de confirmação para <strong className="text-gray-900">{registeredUnconfirmedUser.email}</strong> com o botão <strong>Confirmar meu e-mail</strong>. Por favor, clique nele para liberar a publicação de classificados.
+                </p>
+
+                {successMessage && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-start gap-2.5 text-left">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span>{successMessage}</span>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2.5 text-left">
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                  <button
+                    type="button"
+                    disabled={loading || resendCooldown > 0}
+                    onClick={async () => {
+                      setLoading(true);
+                      setError(null);
+                      setSuccessMessage(null);
+                      try {
+                        const res = await authService.resendConfirmationEmail(registeredUnconfirmedUser.email);
+                        setSuccessMessage(res.message);
+                        if (res.success) setResendCooldown(60);
+                        else if (res.remainingSeconds) setResendCooldown(res.remainingSeconds);
+                      } catch (e: any) {
+                        setError(e.message || 'Erro ao reenviar.');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                    className="flex-1 py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    {resendCooldown > 0 ? `Aguarde (${resendCooldown}s)` : 'Reenviar E-mail de Confirmação'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegisteredUnconfirmedUser(null);
+                      setMode('login');
+                      setError(null);
+                      setSuccessMessage(null);
+                    }}
+                    className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Ir para o Login
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2.5 animate-shake">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -391,6 +501,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         title={showPassword ? 'Ocultar senha' : 'Ver senha'}
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <div className="text-right mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { setMode('resend'); setError(null); setSuccessMessage(null); }}
+                        className="text-[11px] text-[#0056a4] hover:underline font-semibold cursor-pointer"
+                      >
+                        Não confirmou seu e-mail? Reenviar link
                       </button>
                     </div>
                   </div>
@@ -709,6 +828,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       className="w-full pl-10 pr-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
                     />
                   </div>
+                  <div className="text-right mt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setMode('login'); setError(null); setSuccessMessage(null); }}
+                      className="text-[11px] text-[#0056a4] hover:underline font-bold cursor-pointer"
+                    >
+                      &larr; Voltar para o Login
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* MODO REENVIAR CONFIRMAÇÃO DE E-MAIL */}
+              {mode === 'resend' && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    E-mail da Conta
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="seuemail@exemplo.com"
+                      className="w-full pl-10 pr-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
+                    Enviaremos um novo link de confirmação válido por 24 horas caso exista uma conta pendente.
+                  </p>
+                  <div className="text-right mt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setMode('login'); setError(null); setSuccessMessage(null); }}
+                      className="text-[11px] text-[#0056a4] hover:underline font-bold cursor-pointer"
+                    >
+                      &larr; Voltar para o Login
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -723,7 +883,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 )}
                 {mode === 'login' && 'Entrar no Portal'}
                 {mode === 'register' && 'Concluir Cadastro Seguro'}
-                {mode === 'forgot' && 'Enviar Instruções'}
+                {mode === 'forgot' && 'Enviar Instruções de Redefinição'}
+                {mode === 'resend' && (resendCooldown > 0 ? `Aguarde (${resendCooldown}s)` : 'Reenviar E-mail de Confirmação')}
               </button>
             </form>
 
@@ -753,8 +914,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
+      </div>
+    </div>
       </div>
 
       {/* Modal de Leitura dos Termos */}

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Trash2, Camera, AlertCircle, CheckCircle2, Briefcase, Plus, Image as ImageIcon } from 'lucide-react';
+import { 
+  X, Upload, Trash2, Camera, AlertCircle, CheckCircle2, Briefcase, Plus, 
+  Image as ImageIcon, Mail, ShieldAlert, RotateCw, ArrowLeft, Send
+} from 'lucide-react';
 import { ClassifiedItem, ClassifiedSection, ClassifiedType, PriceType, UserProfile, ClassifiedCategory } from '../../types/database';
-import { classifiedsService } from '../../lib/supabase';
+import { classifiedsService, authService } from '../../lib/supabase';
 
 interface ClassifiedFormModalProps {
   isOpen: boolean;
@@ -9,6 +12,7 @@ interface ClassifiedFormModalProps {
   currentUser: UserProfile;
   initialData?: ClassifiedItem | null;
   onSuccess: (saved: ClassifiedItem) => void;
+  onOpenMyClassifieds?: () => void;
 }
 
 export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
@@ -16,7 +20,8 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
   onClose,
   currentUser,
   initialData,
-  onSuccess
+  onSuccess,
+  onOpenMyClassifieds
 }) => {
   const [section, setSection] = useState<ClassifiedSection>(initialData?.section || 'produtos_servicos');
   const [type, setType] = useState<ClassifiedType>(initialData?.type || 'vendo');
@@ -28,6 +33,11 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
   const [city, setCity] = useState(initialData?.city || 'Estância');
   const [state, setState] = useState(initialData?.state || 'SE');
   const [advertiserName, setAdvertiserName] = useState(initialData?.advertiserName || currentUser.fullName);
+  
+  // Estado de reenvio de confirmação
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendStatusMessage, setResendStatusMessage] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [phone, setPhone] = useState(initialData?.phone || '');
   
   // Imagens: Limite estrito de no máximo 3 fotografias
@@ -191,6 +201,105 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
       setLoading(false);
     }
   };
+
+  const handleResendConfirmation = async () => {
+    if (resendCooldown > 0 || resendingEmail) return;
+    setResendingEmail(true);
+    setResendStatusMessage(null);
+    try {
+      const res = await authService.resendConfirmationEmail(currentUser.email);
+      setResendStatusMessage(res.message);
+      if (res.success) {
+        setResendCooldown(60);
+      } else if (res.remainingSeconds) {
+        setResendCooldown(res.remainingSeconds);
+      }
+    } catch (e: any) {
+      setResendStatusMessage(e.message || 'Erro ao reenviar e-mail de confirmação.');
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
+  if (!isOpen) return null;
+
+  // BLOQUEIO DE SEGURANÇA OBRIGATÓRIO: Usuário sem confirmação de e-mail não pode publicar
+  if (currentUser.role !== 'admin' && !currentUser.emailConfirmed) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+        <div className="bg-white rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-gray-100 relative text-center animate-in zoom-in-95 duration-200">
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-200 shadow-xs">
+            <Mail className="w-8 h-8" />
+          </div>
+
+          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black uppercase tracking-wider inline-block mb-3">
+            Confirmação de E-mail Obrigatória
+          </span>
+
+          <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-2">
+            Validação de E-mail Pendente
+          </h3>
+
+          <p className="text-sm text-gray-600 leading-relaxed max-w-md mx-auto mb-4">
+            Para publicar classificados, confirme primeiro seu endereço de e-mail. Enviamos uma mensagem com o link de confirmação para o endereço cadastrado.
+          </p>
+
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl mb-6 text-xs text-gray-600">
+            Endereço cadastrado: <strong className="text-gray-900">{currentUser.email}</strong>
+          </div>
+
+          {resendStatusMessage && (
+            <div className="p-3.5 mb-5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2.5 text-left animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{resendStatusMessage}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={handleResendConfirmation}
+              disabled={resendingEmail || resendCooldown > 0}
+              className="flex-1 py-3 px-4 bg-[#0056a4] hover:bg-[#004482] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+            >
+              {resendingEmail ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              {resendCooldown > 0 ? `Aguarde (${resendCooldown}s)` : 'Reenviar e-mail de confirmação'}
+            </button>
+
+            <button
+              onClick={() => {
+                onClose();
+                if (onOpenMyClassifieds) {
+                  onOpenMyClassifieds();
+                }
+              }}
+              className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar para meus classificados
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
