@@ -675,10 +675,14 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bg-gray-900 text-white p-4 flex items-center justify-between border-b border-gray-800">
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-[#0056a4]" />
-                <span className="text-xs font-black uppercase tracking-wider">
-                  Pré-visualização da Matéria no Portal
+              <div className="flex items-center gap-3">
+                <img
+                  src="/vetor.svg"
+                  alt="Folha da Região"
+                  className="h-7 w-auto max-w-[180px] object-contain bg-white/10 px-2 py-0.5 rounded"
+                />
+                <span className="text-xs font-black uppercase tracking-wider text-gray-300">
+                  Pré-visualização da Matéria
                 </span>
               </div>
               <button

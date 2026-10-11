@@ -214,15 +214,21 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Logotipo Oficial da Folha da Região (Substituído de texto para imagem) */}
             <button
               onClick={onGoHome}
-              className="flex items-center group transition-opacity hover:opacity-90 cursor-pointer text-left shrink-0"
+              className="flex items-center group transition-opacity hover:opacity-95 cursor-pointer text-left shrink-0"
               title={`${portalSettings.officialName || 'Folha da Região'} - Página Inicial`}
               aria-label={`${portalSettings.officialName || 'Folha da Região'} - Ir para página inicial`}
             >
               <img
-                src={portalSettings.customLogoUrl || '/logo-folha.svg'}
+                src={portalSettings.customLogoUrl || '/vetor.svg'}
                 alt={portalSettings.officialName || 'Folha da Região'}
-                className="h-9 sm:h-10 md:h-12 lg:h-13 w-auto max-w-[170px] sm:max-w-[210px] md:max-w-[260px] lg:max-w-[300px] object-contain select-none"
+                className="h-10 sm:h-12 md:h-14 lg:h-16 w-auto max-w-[220px] sm:max-w-[260px] md:max-w-[320px] lg:max-w-[380px] object-contain select-none"
                 referrerPolicy="no-referrer"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (!target.src.endsWith('/vetor.svg')) {
+                    target.src = '/vetor.svg';
+                  }
+                }}
               />
             </button>
           </div>

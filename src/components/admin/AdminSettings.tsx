@@ -3,7 +3,8 @@ import {
   Building2, Phone, Mail, FileText, Globe, Share2, 
   Save, RotateCcw, CheckCircle2, AlertCircle, Eye, 
   MapPin, Clock, MessageSquare, Shield, Sliders, ExternalLink,
-  Info, Sparkles, ChevronRight, Check, Upload, Image as ImageIcon, Trash2
+  Info, Sparkles, ChevronRight, Check, Upload, Image as ImageIcon, Trash2,
+  Link as LinkIcon
 } from 'lucide-react';
 import { PortalSettings } from '../../types/database';
 import { portalSettingsService } from '../../lib/supabase';
@@ -21,6 +22,7 @@ export const AdminSettings: React.FC = () => {
   const [notice, setNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [activeInstSubTab, setActiveInstSubTab] = useState<'sobreNos' | 'expediente' | 'privacidade'>('sobreNos');
+  const [logoUrlInput, setLogoUrlInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Carrega configurações
@@ -65,7 +67,33 @@ export const AdminSettings: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    showNotification('Logomarca padrão (/logo-folha.svg) restaurada.', 'success');
+    setLogoUrlInput('');
+    showNotification('Logomarca oficial (/vetor.svg) restaurada.', 'success');
+  };
+
+  // Aplica URL de imagem ou link do GitHub (incluindo tratamento para links do GitHub e identificadores de anexos)
+  const handleApplyLogoUrl = () => {
+    if (!logoUrlInput.trim()) {
+      showNotification('Informe uma URL de imagem válida ou link do GitHub.', 'error');
+      return;
+    }
+    let cleanUrl = logoUrlInput.trim();
+
+    // Se o usuário colou apenas o hash (ex: SHA commit ou asset ID de 40 caracteres hex)
+    if (/^[a-f0-9]{40}$/i.test(cleanUrl)) {
+      cleanUrl = `https://github.com/user-attachments/assets/${cleanUrl}`;
+    }
+
+    // Conversão automática de links do visualizador do GitHub para raw
+    if (cleanUrl.includes('github.com') && cleanUrl.includes('/blob/')) {
+      cleanUrl = cleanUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+    } else if (cleanUrl.includes('github.com') && !cleanUrl.includes('raw.githubusercontent.com') && !cleanUrl.includes('/assets/')) {
+      if (!cleanUrl.includes('raw=true')) {
+        cleanUrl += cleanUrl.includes('?') ? '&raw=true' : '?raw=true';
+      }
+    }
+    setSettings(prev => ({ ...prev, customLogoUrl: cleanUrl }));
+    showNotification('URL da logomarca aplicada! Clique em "Salvar Alterações" para confirmar ou envie o arquivo diretamente.', 'success');
   };
 
   // Atualiza número do WhatsApp e formata o link dinamicamente
@@ -273,9 +301,12 @@ export const AdminSettings: React.FC = () => {
               <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <img
-                    src={settings.customLogoUrl || '/logo-folha.svg'}
+                    src={settings.customLogoUrl || '/vetor.svg'}
                     alt={settings.officialName || 'Folha da Região'}
                     className="h-10 md:h-12 w-auto max-w-[260px] object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/vetor.svg';
+                    }}
                   />
                   {settings.logoBadgeText && (
                     <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded">
@@ -304,7 +335,7 @@ export const AdminSettings: React.FC = () => {
                   </h4>
                 </div>
                 <span className="text-[10px] text-blue-700 bg-blue-100/70 font-bold px-2 py-0.5 rounded-full">
-                  {settings.customLogoUrl ? 'Logomarca Personalizada Ativa' : 'Logomarca Padrão Ativa (/logo-folha.svg)'}
+                  {settings.customLogoUrl && settings.customLogoUrl !== '/vetor.svg' ? 'Logomarca Personalizada Ativa' : 'Logomarca Oficial Ativa (/vetor.svg)'}
                 </span>
               </div>
 
@@ -312,35 +343,67 @@ export const AdminSettings: React.FC = () => {
                 A imagem da logomarca substitui o texto tradicional no topo do site tanto em computadores quanto em celulares, mantendo as cores originais, nitidez e o link direto para a página inicial.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleLogoFileUpload}
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                  className="hidden"
-                  id="logo-upload-input"
-                />
-                <label
-                  htmlFor="logo-upload-input"
-                  className="px-4 py-2.5 bg-[#0056a4] hover:bg-[#004382] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  Enviar Imagem da Logomarca (PNG, JPG, SVG)
-                </label>
-
-                {settings.customLogoUrl && (
-                  <button
-                    type="button"
-                    onClick={handleRemoveCustomLogo}
-                    className="px-3.5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              {/* Duas Formas de Inserir a Imagem: Arquivo Direto ou Link do GitHub */}
+              <div className="space-y-3 pt-1">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleLogoFileUpload}
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    className="hidden"
+                    id="logo-upload-input"
+                  />
+                  <label
+                    htmlFor="logo-upload-input"
+                    className="px-4 py-2.5 bg-[#0056a4] hover:bg-[#004382] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Restaurar Logomarca Oficial Padrão
-                  </button>
-                )}
+                    <Upload className="w-3.5 h-3.5" />
+                    Enviar Arquivo do Computador/Celular
+                  </label>
+
+                  {settings.customLogoUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCustomLogo}
+                      className="px-3.5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Restaurar Logomarca Oficial Padrão
+                    </button>
+                  )}
+                </div>
+
+                {/* Opção para anexar link direto do GitHub ou URL de imagem */}
+                <div className="pt-2 border-t border-blue-100/80">
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <LinkIcon className="w-3 h-3 text-[#0056a4]" />
+                    Ou informe o link da imagem anexada no GitHub / URL da Web:
+                  </label>
+                  <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                    <input
+                      type="url"
+                      value={logoUrlInput}
+                      onChange={(e) => setLogoUrlInput(e.target.value)}
+                      placeholder="Ex: https://raw.githubusercontent.com/usuario/repo/main/logo.png ou link do GitHub"
+                      className="flex-1 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4]/10 focus:border-[#0056a4] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyLogoUrl}
+                      className="px-4 py-2 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      Aplicar Link
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Links do tipo <code className="bg-white/60 px-1 py-0.5 rounded text-gray-600">github.com/.../blob/...</code> são convertidos automaticamente para exibição direta.
+                  </p>
+                </div>
               </div>
-              <span className="text-[10px] text-gray-400 block">
+
+              <span className="text-[10px] text-gray-400 block pt-1">
                 Formatos recomendados: PNG transparente, SVG ou JPEG de alta resolução (máx. 5MB). A imagem é redimensionada proporcionalmente sem distorções.
               </span>
             </div>

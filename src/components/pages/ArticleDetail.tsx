@@ -83,14 +83,22 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-4xl animate-in fade-in duration-300">
-      {/* Botão Voltar & Breadcrumb */}
-      <div className="flex items-center justify-between gap-4 mb-6 pb-3 border-b border-gray-100">
+      {/* Botão Voltar, Logomarca Oficial & Controles */}
+      <div className="flex items-center justify-between gap-4 mb-6 pb-3 border-b border-gray-100 flex-wrap">
         <button
           onClick={onBack}
           className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-gray-600 hover:text-[#0056a4] transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar às Notícias
+        </button>
+
+        <button onClick={onBack} className="hidden sm:flex items-center cursor-pointer hover:opacity-90 transition-opacity" title="Folha da Região - Ir para início">
+          <img
+            src="/vetor.svg"
+            alt="Folha da Região"
+            className="h-8 md:h-9 w-auto max-w-[220px] object-contain"
+          />
         </button>
 
         <div className="flex items-center gap-2 text-xs font-bold text-gray-500">

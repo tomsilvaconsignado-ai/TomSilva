@@ -51,14 +51,14 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="space-y-6">
             <button onClick={onGoHome} className="inline-block group text-left cursor-pointer">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl font-black tracking-tighter text-[#0056a4] uppercase font-sans">
-                  {settings.officialName.split(' ')[0]} <span className="text-gray-900">{settings.officialName.split(' ').slice(1).join(' ')}</span>
-                </span>
-                {settings.logoBadgeText && (
-                  <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded">
-                    {settings.logoBadgeText}
-                  </span>
-                )}
+                <img
+                  src={settings.customLogoUrl || '/vetor.svg'}
+                  alt={settings.officialName || 'Folha da Região'}
+                  className="h-10 w-auto max-w-[220px] object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/vetor.svg';
+                  }}
+                />
               </div>
               <p className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase group-hover:text-[#0056a4] transition-colors">
                 {settings.tagline}
