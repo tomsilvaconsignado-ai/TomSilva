@@ -6,6 +6,7 @@ import {
 import { Article, ArticleStatus, CategoryItem } from '../../types/database';
 import { newsService } from '../../lib/supabase';
 import { INITIAL_CATEGORIES } from '../../data/initialData';
+import { sanitizeHtml } from '../../lib/assets';
 
 interface AdminManageArticlesProps {
   articles: Article[];
@@ -343,7 +344,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
 
               <div 
                 className="prose prose-sm max-w-none text-gray-800 leading-relaxed pt-2"
-                dangerouslySetInnerHTML={{ __html: viewingArticle.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(viewingArticle.content) }}
               />
             </div>
 

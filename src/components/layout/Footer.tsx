@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Phone, MapPin, Send, CheckCircle2, Shield, Clock } from 'lucide-react';
 import { newsletterService, portalSettingsService } from '../../lib/supabase';
 import { PortalSettings } from '../../types/database';
+import { getAssetUrl } from '../../lib/assets';
 
 interface FooterProps {
   onOpenInstitutional: (page: 'sobre-nos' | 'expediente' | 'privacidade' | 'anuncie-conosco') => void;
@@ -52,11 +53,15 @@ export const Footer: React.FC<FooterProps> = ({
             <button onClick={onGoHome} className="inline-block group text-left cursor-pointer">
               <div className="flex items-center gap-2 mb-2">
                 <img
-                  src={settings.customLogoUrl || '/vetor.svg'}
+                  src={getAssetUrl(settings.customLogoUrl || 'vetor.svg')}
                   alt={settings.officialName || 'Folha da Região'}
                   className="h-10 w-auto max-w-[220px] object-contain"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/vetor.svg';
+                    const target = e.target as HTMLImageElement;
+                    const fallbackUrl = getAssetUrl('vetor.svg');
+                    if (target.src !== fallbackUrl) {
+                      target.src = fallbackUrl;
+                    }
                   }}
                 />
               </div>

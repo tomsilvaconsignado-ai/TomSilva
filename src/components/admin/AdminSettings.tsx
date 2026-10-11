@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { PortalSettings } from '../../types/database';
 import { portalSettingsService } from '../../lib/supabase';
+import { getAssetUrl } from '../../lib/assets';
 
 type SettingsSection = 
   | 'identity'        // Identidade e Slogan
@@ -301,11 +302,15 @@ export const AdminSettings: React.FC = () => {
               <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <img
-                    src={settings.customLogoUrl || '/vetor.svg'}
+                    src={getAssetUrl(settings.customLogoUrl || 'vetor.svg')}
                     alt={settings.officialName || 'Folha da Região'}
                     className="h-10 md:h-12 w-auto max-w-[260px] object-contain"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/vetor.svg';
+                      const target = e.target as HTMLImageElement;
+                      const fallback = getAssetUrl('vetor.svg');
+                      if (target.src !== fallback) {
+                        target.src = fallback;
+                      }
                     }}
                   />
                   {settings.logoBadgeText && (

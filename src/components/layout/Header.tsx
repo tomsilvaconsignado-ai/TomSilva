@@ -6,6 +6,7 @@ import { NotificationBell } from '../notifications/NotificationBell';
 import { AdItem, CategorySlug, UserProfile, PortalSettings } from '../../types/database';
 import { INITIAL_CATEGORIES } from '../../data/initialData';
 import { portalSettingsService } from '../../lib/supabase';
+import { getAssetUrl } from '../../lib/assets';
 
 interface HeaderProps {
   currentCategory: CategorySlug;
@@ -219,14 +220,15 @@ export const Header: React.FC<HeaderProps> = ({
               aria-label={`${portalSettings.officialName || 'Folha da Região'} - Ir para página inicial`}
             >
               <img
-                src={portalSettings.customLogoUrl || '/vetor.svg'}
+                src={getAssetUrl(portalSettings.customLogoUrl || 'vetor.svg')}
                 alt={portalSettings.officialName || 'Folha da Região'}
                 className="h-10 sm:h-12 md:h-14 lg:h-16 w-auto max-w-[220px] sm:max-w-[260px] md:max-w-[320px] lg:max-w-[380px] object-contain select-none"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  if (!target.src.endsWith('/vetor.svg')) {
-                    target.src = '/vetor.svg';
+                  const fallbackUrl = getAssetUrl('vetor.svg');
+                  if (target.src !== fallbackUrl) {
+                    target.src = fallbackUrl;
                   }
                 }}
               />

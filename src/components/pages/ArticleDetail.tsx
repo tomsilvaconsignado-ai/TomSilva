@@ -4,6 +4,7 @@ import { Article, Comment, UserProfile, AdItem } from '../../types/database';
 import { commentsService, newsService } from '../../lib/supabase';
 import { ArticleCard, formatRelativeTime } from '../news/ArticleCard';
 import { AdSlot } from '../news/AdSlot';
+import { getAssetUrl, sanitizeHtml } from '../../lib/assets';
 
 interface ArticleDetailProps {
   article: Article;
@@ -95,9 +96,16 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
 
         <button onClick={onBack} className="hidden sm:flex items-center cursor-pointer hover:opacity-90 transition-opacity" title="Folha da Região - Ir para início">
           <img
-            src="/vetor.svg"
+            src={getAssetUrl('vetor.svg')}
             alt="Folha da Região"
             className="h-8 md:h-9 w-auto max-w-[220px] object-contain"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              const fallback = getAssetUrl('logo-folha.svg');
+              if (target.src !== fallback) {
+                target.src = fallback;
+              }
+            }}
           />
         </button>
 
@@ -249,7 +257,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
           className={`prose prose-lg max-w-none text-gray-800 leading-relaxed space-y-4 pt-4 ${
             fontSize === 'large' ? 'text-lg md:text-xl' : fontSize === 'xlarge' ? 'text-xl md:text-2xl' : 'text-base md:text-lg'
           }`}
-          dangerouslySetInnerHTML={{ __html: article.content }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
         />
 
         {/* Publicidade dentro da matéria */}

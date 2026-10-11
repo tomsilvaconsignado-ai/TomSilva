@@ -7,6 +7,7 @@ import {
 import { Article, ArticleStatus, UserProfile } from '../../types/database';
 import { newsService } from '../../lib/supabase';
 import { INITIAL_CATEGORIES } from '../../data/initialData';
+import { getAssetUrl, sanitizeHtml } from '../../lib/assets';
 
 interface AdminAddArticleProps {
   currentUser: UserProfile;
@@ -677,9 +678,16 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
             <div className="bg-gray-900 text-white p-4 flex items-center justify-between border-b border-gray-800">
               <div className="flex items-center gap-3">
                 <img
-                  src="/vetor.svg"
+                  src={getAssetUrl('vetor.svg')}
                   alt="Folha da Região"
                   className="h-7 w-auto max-w-[180px] object-contain bg-white/10 px-2 py-0.5 rounded"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    const fallback = getAssetUrl('logo-folha.svg');
+                    if (target.src !== fallback) {
+                      target.src = fallback;
+                    }
+                  }}
                 />
                 <span className="text-xs font-black uppercase tracking-wider text-gray-300">
                   Pré-visualização da Matéria
@@ -725,7 +733,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
 
               <div 
                 className="prose prose-lg max-w-none text-gray-800 leading-relaxed space-y-4"
-                dangerouslySetInnerHTML={{ __html: content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
               />
             </div>
           </div>

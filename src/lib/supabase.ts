@@ -1880,7 +1880,7 @@ export const DEFAULT_PORTAL_SETTINGS: PortalSettings = {
   // 1. Identidade e Slogan
   officialName: 'Folha da Região',
   shortName: 'Folha da Região',
-  customLogoUrl: '/vetor.svg',
+  customLogoUrl: 'vetor.svg',
   tagline: 'A NOTÍCIA ONDE VOCÊ ESTIVER',
   presentationPhrase: 'Jornalismo independente, ágil e com credibilidade em Sergipe',
   shortInstitutionalText: 'O portal Folha da Região é comprometido com a verdade e a informação de qualidade para todo o estado de Sergipe.',
@@ -1958,15 +1958,15 @@ export const DEFAULT_PORTAL_SETTINGS: PortalSettings = {
 export const portalSettingsService = {
   getSettingsSync(): PortalSettings {
     const stored = getStored<Partial<PortalSettings>>(STORAGE_KEYS.PORTAL_SETTINGS, {});
-    // Se o logo gravado for inválido ou o hash transitório do GitHub, garante /vetor.svg
+    // Se o logo gravado for inválido ou o hash transitório do GitHub, garante vetor.svg
     let effectiveLogo = stored.customLogoUrl;
     if (effectiveLogo && (effectiveLogo.includes('39f8b6c0') || !effectiveLogo.trim())) {
-      effectiveLogo = '/vetor.svg';
+      effectiveLogo = 'vetor.svg';
     }
     return {
       ...DEFAULT_PORTAL_SETTINGS,
       ...stored,
-      customLogoUrl: effectiveLogo || DEFAULT_PORTAL_SETTINGS.customLogoUrl || '/vetor.svg',
+      customLogoUrl: effectiveLogo || DEFAULT_PORTAL_SETTINGS.customLogoUrl || 'vetor.svg',
       institutionalPages: {
         ...DEFAULT_PORTAL_SETTINGS.institutionalPages,
         ...(stored.institutionalPages || {}),
