@@ -228,11 +228,11 @@ export default function App() {
 
   // Anúncios específicos
   const isAdActive = (a: AdItem) => a.status === 'active' || (a.status === undefined && a.active);
-  const headerAd = ads.find(a => a.placement === 'header' && isAdActive(a));
-  const feedAd = ads.find(a => a.placement === 'feed' && isAdActive(a));
-  const sidebarAds = ads.filter(a => a.placement === 'sidebar' && isAdActive(a));
-  const articleAd = ads.find(a => a.placement === 'article' && isAdActive(a));
-  const footerAd = ads.find(a => a.placement === 'footer' && isAdActive(a));
+  const headerAds = ads.filter(a => a.placement === 'header');
+  const feedAds = ads.filter(a => a.placement === 'feed');
+  const sidebarAds = ads.filter(a => a.placement === 'sidebar');
+  const articleAds = ads.filter(a => a.placement === 'article');
+  const footerAds = ads.filter(a => a.placement === 'footer');
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-[#0056a4] selection:text-white flex flex-col">
@@ -245,7 +245,7 @@ export default function App() {
         onOpenAdmin={handleOpenAdminLogin}
         currentUser={currentUser}
         onSignOut={handleSignOut}
-        headerAd={headerAd}
+        headerAds={headerAds}
         onGoHome={() => {
           setViewMode('home');
           setSelectedArticle(null);
@@ -284,7 +284,7 @@ export default function App() {
             onOpenAuth={() => handleOpenAuth('login')}
             onBack={() => setViewMode('home')}
             onSelectArticle={handleSelectArticle}
-            articleAd={articleAd}
+            articleAds={articleAds}
           />
         )}
 
@@ -387,9 +387,9 @@ export default function App() {
                           onSelectArticle={handleSelectArticle}
                         />
                         {/* Inserção de publicidade intercalada no feed como no original */}
-                        {idx === 2 && feedAd && (
-                          <div className="py-4 border-b border-gray-100 flex justify-center">
-                            <AdSlot ad={feedAd} />
+                        {idx === 2 && (
+                          <div className="py-4 border-b border-gray-100 flex justify-center w-full">
+                            <AdSlot placement="feed" ads={feedAds} />
                           </div>
                         )}
                       </React.Fragment>
@@ -410,11 +410,9 @@ export default function App() {
 
               {/* COLUNA LATERAL (4 Colunas) */}
               <aside className="lg:col-span-4 space-y-8">
-                {/* Anúncios da Barra Lateral */}
-                <div className="space-y-6">
-                  {sidebarAds.slice(0, 3).map((ad) => (
-                    <AdSlot key={ad.id} ad={ad} />
-                  ))}
+                {/* Espaço Publicitário da Coluna Lateral Direita (Sidebar) */}
+                <div>
+                  <AdSlot placement="sidebar" ads={sidebarAds} />
                 </div>
 
                 {/* Widget Mais Lidas */}
@@ -434,13 +432,6 @@ export default function App() {
                     ))}
                   </div>
                 </section>
-
-                {/* Restante dos Anúncios da Barra Lateral */}
-                <div className="space-y-6">
-                  {sidebarAds.slice(3).map((ad) => (
-                    <AdSlot key={ad.id} ad={ad} />
-                  ))}
-                </div>
 
                 {/* Widget Newsletter Folha News */}
                 <section className="bg-gray-900 text-white p-6 md:p-8 rounded-xl shadow-lg relative overflow-hidden">
@@ -504,11 +495,9 @@ export default function App() {
       />
 
       {/* Banner Publicitário de Rodapé */}
-      {footerAd && (
-        <div className="container mx-auto px-4 py-4 max-w-5xl">
-          <AdSlot ad={footerAd} />
-        </div>
-      )}
+      <div className="container mx-auto px-4 py-4 max-w-5xl">
+        <AdSlot placement="footer" ads={footerAds} />
+      </div>
 
       {/* Modal de Autenticação (Login / Cadastro / Recuperação) */}
       <AuthModal

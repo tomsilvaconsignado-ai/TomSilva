@@ -133,6 +133,14 @@ export interface CategoryItem {
 
 export type AdPlacement = 'header' | 'feed' | 'sidebar' | 'article' | 'footer';
 export type AdStatus = 'active' | 'paused' | 'ended';
+export type PlacementMode = 'fixed' | 'carousel';
+
+export interface PlacementSetting {
+  placement: AdPlacement;
+  mode: PlacementMode;
+  isPaused?: boolean;
+  defaultDurationSeconds?: number;
+}
 
 export interface AdItem {
   id: string;
@@ -149,6 +157,16 @@ export interface AdItem {
   startDate?: string;
   endDate?: string;
   createdAt: string;
+
+  // Configurações individuais do carrossel e métricas
+  altText?: string;
+  displayOrder?: number;         // 1, 2 ou 3 na sequência do espaço
+  durationSeconds?: number;      // Duração de exibição do slide (padrão 5 segundos)
+  openInNewTab?: boolean;        // Se true, abre em nova aba
+  campaignId?: string;           // Identificador interno da campanha
+  campaignName?: string;         // Nome da campanha publicitária
+  impressionsCount?: number;     // Contagem de exibições/impressões confirmadas
+  clicksCount?: number;          // Contagem de cliques confirmados
 }
 
 export interface Comment {

@@ -14,6 +14,7 @@ interface ArticleDetailProps {
   onBack: () => void;
   onSelectArticle: (article: Article) => void;
   articleAd?: AdItem;
+  articleAds?: AdItem[];
 }
 
 export const ArticleDetail: React.FC<ArticleDetailProps> = ({
@@ -23,7 +24,8 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   onOpenAuth,
   onBack,
   onSelectArticle,
-  articleAd
+  articleAd,
+  articleAds
 }) => {
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
   const [copied, setCopied] = useState(false);
@@ -261,11 +263,9 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
         />
 
         {/* Publicidade dentro da matéria */}
-        {articleAd && (
-          <div className="my-8 pt-4 border-t border-gray-100">
-            <AdSlot ad={articleAd} />
-          </div>
-        )}
+        <div className="my-8 pt-4 border-t border-gray-100">
+          <AdSlot placement="article" ads={articleAds} ad={articleAd} />
+        </div>
       </article>
 
       {/* Seção de Comentários */}

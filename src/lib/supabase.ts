@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { 
-  Article, AdItem, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
+  Article, AdItem, AdPlacement, AdStatus, PlacementSetting, PlacementMode, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
   ClassifiedItem, ClassifiedCategory, ClassifiedReport, ClassifiedsSettings,
   ClassifiedSection, ClassifiedType, ClassifiedStatus, PortalSettings
 } from '../types/database';
@@ -66,7 +66,8 @@ const STORAGE_KEYS = {
   CLASSIFIED_REPORTS: 'folha_classified_reports_v1',
   CLASSIFIED_SETTINGS: 'folha_classified_settings_v1',
   USER_AUDIT_LOGS: 'folha_user_audit_logs_v1',
-  PORTAL_SETTINGS: 'folha_portal_settings_v1'
+  PORTAL_SETTINGS: 'folha_portal_settings_v1',
+  ADS_SETTINGS: 'folha_ads_settings_v1'
 };
 
 const getStored = <T>(key: string, defaultValue: T): T => {
@@ -928,9 +929,50 @@ export const newsService = {
 };
 
 // ==========================================
-// SERVIÇO DE PUBLICIDADE
+// SERVIÇO DE PUBLICIDADE E CARROSSEL POR ESPAÇO
 // ==========================================
+export const DEFAULT_PLACEMENT_SETTINGS: Record<AdPlacement, PlacementSetting> = {
+  header: { placement: 'header', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 },
+  feed: { placement: 'feed', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 },
+  sidebar: { placement: 'sidebar', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 },
+  article: { placement: 'article', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 },
+  footer: { placement: 'footer', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 }
+};
+
 export const adsService = {
+  // Retorna configurações de modo (fixo vs carrossel) e status para os 5 espaços
+  getPlacementSettings(): Record<AdPlacement, PlacementSetting> {
+    const stored = getStored<Partial<Record<AdPlacement, PlacementSetting>>>(
+      STORAGE_KEYS.ADS_SETTINGS, 
+      {}
+    );
+    return {
+      header: { ...DEFAULT_PLACEMENT_SETTINGS.header, ...(stored.header || {}) },
+      feed: { ...DEFAULT_PLACEMENT_SETTINGS.feed, ...(stored.feed || {}) },
+      sidebar: { ...DEFAULT_PLACEMENT_SETTINGS.sidebar, ...(stored.sidebar || {}) },
+      article: { ...DEFAULT_PLACEMENT_SETTINGS.article, ...(stored.article || {}) },
+      footer: { ...DEFAULT_PLACEMENT_SETTINGS.footer, ...(stored.footer || {}) }
+    };
+  },
+
+  async savePlacementSetting(placement: AdPlacement, update: Partial<PlacementSetting>): Promise<PlacementSetting> {
+    const current = this.getPlacementSettings();
+    const updated: PlacementSetting = {
+      ...current[placement],
+      ...update,
+      placement
+    };
+    const newSettings = {
+      ...current,
+      [placement]: updated
+    };
+    setStored(STORAGE_KEYS.ADS_SETTINGS, newSettings);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement } }));
+    }
+    return updated;
+  },
+
   async getAds(): Promise<AdItem[]> {
     if (isSupabaseConfigured() && supabase) {
       try {
@@ -938,7 +980,7 @@ export const adsService = {
           .from('ads')
           .select('*')
           .eq('active', true)
-          .order('created_at', { ascending: false });
+          .order('display_order', { ascending: true });
 
         if (!error && data && data.length > 0) {
           return data.map((item: any) => ({
@@ -952,48 +994,174 @@ export const adsService = {
             aspectRatio: item.aspect_ratio || '1 / 1',
             maxWidth: item.max_width,
             active: item.active,
-            createdAt: item.created_at
+            status: item.status || 'active',
+            startDate: item.start_date,
+            endDate: item.end_date,
+            createdAt: item.created_at,
+            altText: item.alt_text || item.title,
+            displayOrder: item.display_order || 1,
+            durationSeconds: item.duration_seconds || 5,
+            openInNewTab: item.open_in_new_tab ?? true,
+            campaignId: item.campaign_id,
+            campaignName: item.campaign_name,
+            impressionsCount: item.impressions_count || 0,
+            clicksCount: item.clicks_count || 0
           }));
         }
       } catch (err) {
-        console.warn('Erro ao carregar anúncios do Supabase', err);
+        console.warn('Erro ao carregar anúncios do Supabase, utilizando armazenamento local', err);
       }
     }
 
-    return getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
+    const rawAds = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
+    // Normaliza dados para garantir campos de carrossel em anúncios legados
+    return rawAds.map(ad => ({
+      ...ad,
+      status: ad.status || (ad.active ? 'active' : 'paused'),
+      durationSeconds: ad.durationSeconds || 5,
+      displayOrder: ad.displayOrder || 1,
+      openInNewTab: ad.openInNewTab ?? true,
+      altText: ad.altText || ad.title,
+      impressionsCount: ad.impressionsCount || 0,
+      clicksCount: ad.clicksCount || 0
+    }));
+  },
+
+  async getAllAds(): Promise<AdItem[]> {
+    return this.getAds();
+  },
+
+  // Retorna os anúncios de um espaço específico ordenados pela ordem de exibição
+  async getAdsByPlacement(placement: AdPlacement): Promise<AdItem[]> {
+    const all = await this.getAds();
+    return all
+      .filter(a => a.placement === placement)
+      .sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1));
   },
 
   async saveAd(ad: Omit<AdItem, 'id' | 'createdAt'> & { id?: string }): Promise<AdItem> {
-    const ads = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
+    const ads = await this.getAds();
 
     if (ad.id) {
+      // Edição de anúncio existente
       const index = ads.findIndex(a => a.id === ad.id);
       if (index !== -1) {
-        ads[index] = { ...ads[index], ...ad };
+        const oldAd = ads[index];
+        // Se mudou de placement, verifica limite de 3 no novo placement
+        if (oldAd.placement !== ad.placement) {
+          const adsInNewPlacement = ads.filter(a => a.placement === ad.placement && a.id !== ad.id);
+          if (adsInNewPlacement.length >= 3) {
+            throw new Error(`O limite máximo de 3 anúncios para o espaço ${ad.placement} já foi atingido. Edite ou remova um anúncio existente antes de transferir outro.`);
+          }
+        }
+        ads[index] = {
+          ...oldAd,
+          ...ad,
+          displayOrder: ad.displayOrder || oldAd.displayOrder || 1,
+          durationSeconds: Math.max(2, Math.min(60, Number(ad.durationSeconds) || 5)),
+          openInNewTab: ad.openInNewTab ?? true,
+          altText: ad.altText || ad.title
+        };
         setStored(STORAGE_KEYS.ADS, ads);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: ad.placement } }));
+        }
         return ads[index];
       }
     }
 
+    // Criação de novo anúncio: REGRA OBRIGATÓRIA - LIMITE DE ATÉ 3 ANÚNCIOS POR ESPAÇO
+    const adsInPlacement = ads.filter(a => a.placement === ad.placement);
+    if (adsInPlacement.length >= 3) {
+      throw new Error(`Limite de 3 anúncios atingido para este espaço (${ad.placement}). Para adicionar um novo patrocinador, edite ou exclua um dos anúncios existentes.`);
+    }
+
+    const nextOrder = adsInPlacement.length + 1;
     const newAd: AdItem = {
       id: 'ad-' + Math.random().toString(36).substring(2, 9),
       ...ad,
+      displayOrder: ad.displayOrder || nextOrder,
+      durationSeconds: Math.max(2, Math.min(60, Number(ad.durationSeconds) || 5)),
+      openInNewTab: ad.openInNewTab ?? true,
+      altText: ad.altText || ad.title,
+      impressionsCount: 0,
+      clicksCount: 0,
       createdAt: new Date().toISOString()
     };
 
-    ads.unshift(newAd);
+    ads.push(newAd);
     setStored(STORAGE_KEYS.ADS, ads);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: ad.placement } }));
+    }
     return newAd;
   },
 
-  async getAllAds(): Promise<AdItem[]> {
-    return getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
+  async deleteAd(id: string): Promise<void> {
+    const ads = await this.getAds();
+    const targetAd = ads.find(a => a.id === id);
+    const filtered = ads.filter(a => a.id !== id);
+    
+    // Reajusta ordens (1, 2) dos que sobraram no mesmo espaço
+    if (targetAd) {
+      let orderIndex = 1;
+      filtered
+        .filter(a => a.placement === targetAd.placement)
+        .sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1))
+        .forEach(a => {
+          a.displayOrder = orderIndex++;
+        });
+    }
+
+    setStored(STORAGE_KEYS.ADS, filtered);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: targetAd?.placement } }));
+    }
   },
 
-  async deleteAd(id: string): Promise<void> {
-    const ads = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
-    const filtered = ads.filter(a => a.id !== id);
-    setStored(STORAGE_KEYS.ADS, filtered);
+  // Altera a ordem de exibição dos slides (1, 2 ou 3) de um espaço
+  async reorderAds(placement: AdPlacement, orderedIds: string[]): Promise<void> {
+    const ads = await this.getAds();
+    orderedIds.forEach((id, index) => {
+      const found = ads.find(a => a.id === id && a.placement === placement);
+      if (found) {
+        found.displayOrder = index + 1;
+      }
+    });
+    setStored(STORAGE_KEYS.ADS, ads);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement } }));
+    }
+  },
+
+  // Registra impressão confiável (quando o slide é ativado na tela)
+  recordImpression(adId: string): void {
+    if (!adId || typeof window === 'undefined') return;
+    try {
+      const ads = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
+      const ad = ads.find(a => a.id === adId);
+      if (ad) {
+        ad.impressionsCount = (ad.impressionsCount || 0) + 1;
+        setStored(STORAGE_KEYS.ADS, ads);
+      }
+    } catch {
+      // Não interrompe a navegação
+    }
+  },
+
+  // Registra clique no banner
+  recordClick(adId: string): void {
+    if (!adId || typeof window === 'undefined') return;
+    try {
+      const ads = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
+      const ad = ads.find(a => a.id === adId);
+      if (ad) {
+        ad.clicksCount = (ad.clicksCount || 0) + 1;
+        setStored(STORAGE_KEYS.ADS, ads);
+      }
+    } catch {
+      // Não interrompe a navegação
+    }
   }
 };
 

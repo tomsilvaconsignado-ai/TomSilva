@@ -17,6 +17,7 @@ interface HeaderProps {
   currentUser: UserProfile | null;
   onSignOut: () => void;
   headerAd?: AdItem;
+  headerAds?: AdItem[];
   onGoHome: () => void;
   onSelectArticleSlug: (slug: string) => void;
   onOpenMyClassifieds?: () => void;
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onSignOut,
   headerAd,
+  headerAds,
   onGoHome,
   onSelectArticleSlug,
   onOpenMyClassifieds
@@ -237,7 +239,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Banner de Topo 728x90 */}
           <div className="hidden lg:flex flex-1 justify-center max-w-[728px]">
-            {headerAd && <AdSlot ad={headerAd} />}
+            <AdSlot placement="header" ads={headerAds} ad={headerAd} />
           </div>
 
           {/* Campo de Busca & Usuário Mobile */}
@@ -311,7 +313,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Banner no Mobile */}
         <div className="lg:hidden w-full py-2 border-t border-gray-50 overflow-hidden">
-          {headerAd && <AdSlot ad={headerAd} />}
+          <AdSlot placement="header" ads={headerAds} ad={headerAd} />
         </div>
 
         {/* Menu Mobile Dropdown */}
