@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Building2, Phone, Mail, FileText, Globe, Share2, 
   Save, RotateCcw, CheckCircle2, AlertCircle, Eye, 
   MapPin, Clock, MessageSquare, Shield, Sliders, ExternalLink,
-  Info, Sparkles, ChevronRight, Check
+  Info, Sparkles, ChevronRight, Check, Upload, Image as ImageIcon, Trash2
 } from 'lucide-react';
 import { PortalSettings } from '../../types/database';
 import { portalSettingsService } from '../../lib/supabase';
@@ -21,6 +21,7 @@ export const AdminSettings: React.FC = () => {
   const [notice, setNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [activeInstSubTab, setActiveInstSubTab] = useState<'sobreNos' | 'expediente' | 'privacidade'>('sobreNos');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Carrega configurações
   useEffect(() => {
@@ -30,6 +31,41 @@ export const AdminSettings: React.FC = () => {
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotice({ message, type });
     setTimeout(() => setNotice(null), 4000);
+  };
+
+  // Upload da Logomarca Oficial
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showNotification('Selecione um arquivo de imagem válido (PNG, JPG, SVG, WEBP).', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification('A imagem deve ter no máximo 5MB.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Data = reader.result as string;
+      setSettings(prev => ({ ...prev, customLogoUrl: base64Data }));
+      showNotification('Logomarca carregada com sucesso! Clique em "Salvar Alterações" para gravar.', 'success');
+    };
+    reader.onerror = () => {
+      showNotification('Erro ao processar imagem.', 'error');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveCustomLogo = () => {
+    setSettings(prev => ({ ...prev, customLogoUrl: undefined }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    showNotification('Logomarca padrão (/logo-folha.svg) restaurada.', 'success');
   };
 
   // Atualiza número do WhatsApp e formata o link dinamicamente
@@ -223,33 +259,90 @@ export const AdminSettings: React.FC = () => {
               </p>
             </div>
 
-            {/* Prévia ao vivo da Identidade */}
-            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
+            {/* Prévia ao vivo da Identidade e Logomarca */}
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
                   <Eye className="w-3.5 h-3.5 text-[#0056a4]" />
-                  Prévia em Tempo Real (Cabeçalho & Rodapé)
+                  Prévia em Tempo Real (Cabeçalho Público)
                 </span>
                 <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                   Ao vivo
                 </span>
               </div>
-              <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-xs">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black tracking-tighter text-[#0056a4] uppercase font-sans">
-                    {settings.officialName}
-                  </span>
-                  <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded">
-                    {settings.logoBadgeText || 'ONLINE'}
-                  </span>
+              <div className="bg-white p-4 rounded-lg border border-gray-100 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={settings.customLogoUrl || '/logo-folha.svg'}
+                    alt={settings.officialName || 'Folha da Região'}
+                    className="h-10 md:h-12 w-auto max-w-[260px] object-contain"
+                  />
+                  {settings.logoBadgeText && (
+                    <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded">
+                      {settings.logoBadgeText}
+                    </span>
+                  )}
                 </div>
-                <p className="text-[10px] font-black tracking-[0.22em] text-gray-400 uppercase mt-1">
-                  {settings.tagline || 'A NOTÍCIA ONDE VOCÊ ESTIVER'}
-                </p>
-                <p className="text-xs text-gray-600 mt-2 italic">
-                  "{settings.presentationPhrase}"
-                </p>
+                <div className="text-center md:text-right">
+                  <p className="text-[10px] font-black tracking-[0.22em] text-gray-400 uppercase">
+                    {settings.tagline || 'A NOTÍCIA ONDE VOCÊ ESTIVER'}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1 italic">
+                    "{settings.presentationPhrase}"
+                  </p>
+                </div>
               </div>
+            </div>
+
+            {/* Gerenciamento da Logomarca Oficial do Cabeçalho */}
+            <div className="p-5 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 rounded-2xl border border-blue-100 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-[#0056a4]" />
+                  <h4 className="text-xs font-black text-gray-900 uppercase tracking-tight">
+                    Logomarca Oficial do Cabeçalho
+                  </h4>
+                </div>
+                <span className="text-[10px] text-blue-700 bg-blue-100/70 font-bold px-2 py-0.5 rounded-full">
+                  {settings.customLogoUrl ? 'Logomarca Personalizada Ativa' : 'Logomarca Padrão Ativa (/logo-folha.svg)'}
+                </span>
+              </div>
+
+              <p className="text-xs text-gray-600 leading-relaxed">
+                A imagem da logomarca substitui o texto tradicional no topo do site tanto em computadores quanto em celulares, mantendo as cores originais, nitidez e o link direto para a página inicial.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleLogoFileUpload}
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="hidden"
+                  id="logo-upload-input"
+                />
+                <label
+                  htmlFor="logo-upload-input"
+                  className="px-4 py-2.5 bg-[#0056a4] hover:bg-[#004382] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Enviar Imagem da Logomarca (PNG, JPG, SVG)
+                </label>
+
+                {settings.customLogoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveCustomLogo}
+                    className="px-3.5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Restaurar Logomarca Oficial Padrão
+                  </button>
+                )}
+              </div>
+              <span className="text-[10px] text-gray-400 block">
+                Formatos recomendados: PNG transparente, SVG ou JPEG de alta resolução (máx. 5MB). A imagem é redimensionada proporcionalmente sem distorções.
+              </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

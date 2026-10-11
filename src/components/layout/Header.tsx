@@ -211,24 +211,19 @@ export const Header: React.FC<HeaderProps> = ({
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
 
-            {/* Logotipo da Folha da Região */}
+            {/* Logotipo Oficial da Folha da Região (Substituído de texto para imagem) */}
             <button
               onClick={onGoHome}
-              className="flex flex-col items-start group transition-opacity hover:opacity-90 cursor-pointer text-left"
+              className="flex items-center group transition-opacity hover:opacity-90 cursor-pointer text-left shrink-0"
+              title={`${portalSettings.officialName || 'Folha da Região'} - Página Inicial`}
+              aria-label={`${portalSettings.officialName || 'Folha da Região'} - Ir para página inicial`}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-2xl md:text-3xl font-black tracking-tighter text-[#0056a4] uppercase font-sans">
-                  {portalSettings.officialName.split(' ')[0]} <span className="text-gray-900">{portalSettings.officialName.split(' ').slice(1).join(' ')}</span>
-                </span>
-                {portalSettings.logoBadgeText && (
-                  <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded">
-                    {portalSettings.logoBadgeText}
-                  </span>
-                )}
-              </div>
-              <p className="text-[8px] md:text-[11px] font-black tracking-[0.2em] md:tracking-[0.25em] text-gray-400 uppercase mt-1 group-hover:text-[#0056a4] transition-colors whitespace-nowrap">
-                {portalSettings.tagline}
-              </p>
+              <img
+                src={portalSettings.customLogoUrl || '/logo-folha.svg'}
+                alt={portalSettings.officialName || 'Folha da Região'}
+                className="h-9 sm:h-10 md:h-12 lg:h-13 w-auto max-w-[170px] sm:max-w-[210px] md:max-w-[260px] lg:max-w-[300px] object-contain select-none"
+                referrerPolicy="no-referrer"
+              />
             </button>
           </div>
 

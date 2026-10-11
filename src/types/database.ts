@@ -249,6 +249,7 @@ export interface PortalSettings {
   shortInstitutionalText: string; // Texto institucional curto
   portalDescription: string; // Descrição utilizada na identificação do portal
   logoBadgeText: string; // Ex: "ONLINE"
+  customLogoUrl?: string; // URL ou Base64 da imagem da logomarca oficial
 
   // 2. Contatos do Portal & Visibilidade
   contactEmail: string;
