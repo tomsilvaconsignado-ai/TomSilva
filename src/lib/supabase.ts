@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { 
   Article, AdItem, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
   ClassifiedItem, ClassifiedCategory, ClassifiedReport, ClassifiedsSettings,
-  ClassifiedSection, ClassifiedType, ClassifiedStatus
+  ClassifiedSection, ClassifiedType, ClassifiedStatus, PortalSettings
 } from '../types/database';
 import { INITIAL_ARTICLES, INITIAL_ADS } from '../data/initialData';
 import { 
@@ -65,7 +65,8 @@ const STORAGE_KEYS = {
   CLASSIFIED_CATEGORIES: 'folha_classified_cats_v1',
   CLASSIFIED_REPORTS: 'folha_classified_reports_v1',
   CLASSIFIED_SETTINGS: 'folha_classified_settings_v1',
-  USER_AUDIT_LOGS: 'folha_user_audit_logs_v1'
+  USER_AUDIT_LOGS: 'folha_user_audit_logs_v1',
+  PORTAL_SETTINGS: 'folha_portal_settings_v1'
 };
 
 const getStored = <T>(key: string, defaultValue: T): T => {
@@ -1869,6 +1870,133 @@ export const classifiedsService = {
       target.status = status;
       setStored(STORAGE_KEYS.CLASSIFIED_REPORTS, reports);
     }
+  }
+};
+
+// ==========================================
+// CONFIGURAÇÕES DO PORTAL & CONTEÚDO INSTITUCIONAL
+// ==========================================
+export const DEFAULT_PORTAL_SETTINGS: PortalSettings = {
+  // 1. Identidade e Slogan
+  officialName: 'Folha da Região',
+  shortName: 'Folha da Região',
+  tagline: 'A NOTÍCIA ONDE VOCÊ ESTIVER',
+  presentationPhrase: 'Jornalismo independente, ágil e com credibilidade em Sergipe',
+  shortInstitutionalText: 'O portal Folha da Região é comprometido com a verdade e a informação de qualidade para todo o estado de Sergipe.',
+  portalDescription: 'Portal de notícias e classificados de Estância e de todo o estado de Sergipe.',
+  logoBadgeText: 'ONLINE',
+
+  // 2. Contatos do Portal & Visibilidade
+  contactEmail: 'itallomarketing@gmail.com',
+  showContactEmail: true,
+  contactPhone: '(79) 99977-6199',
+  showContactPhone: true,
+  whatsappNumber: '(79) 99977-6199',
+  whatsappLink: 'https://wa.me/5579999776199',
+  showWhatsapp: true,
+  commercialAddress: 'Rua Divaldo Carvalho Costa, 304 B, 1º Andar',
+  showCommercialAddress: true,
+  city: 'Estância',
+  state: 'SE',
+  openingHours: 'Segunda a Sexta, das 08h às 18h',
+  showOpeningHours: true,
+
+  // 3. Informações Institucionais do Rodapé
+  footerPresentation: 'O portal Folha da Região é comprometido com a verdade e a informação de qualidade para todo o estado de Sergipe.',
+  footerAboutText: 'Cobertura em tempo real dos 75 municípios sergipanos, com política, cidades, economia, polícia e classificados.',
+  footerClosingPhrase: 'A notícia onde você estiver.',
+  copyrightText: 'Folha da Região Sergipe. Todos os direitos reservados.',
+  referenceYear: '2026',
+  responsibleCompany: 'Folha da Região Comunicação & Publicidade LTDA',
+  additionalFooterInfo: 'Fundado em Estância - Sergipe',
+
+  // 4. Redes Sociais
+  facebookUrl: 'https://www.facebook.com/folhadaregiaose/?locale=pt_BR',
+  showFacebook: true,
+  instagramUrl: 'https://www.instagram.com/folhadaregiaose',
+  showInstagram: true,
+  twitterUrl: '',
+  showTwitter: false,
+  youtubeUrl: '',
+  showYoutube: false,
+
+  // 5. Páginas Institucionais
+  institutionalPages: {
+    sobreNos: {
+      title: 'Sobre a Folha da Região',
+      leadParagraph: 'A Folha da Região consolidou-se como a principal referência jornalística de Estância e de todo o estado de Sergipe. Nascido com o propósito de levar informação ágil, ética e com apuração rigorosa, nosso portal conecta os cidadãos aos acontecimentos que moldam a sociedade.',
+      historyParagraphs: [
+        'Com mais de uma década de presença comunicacional na região Sul e em todo o território sergipano, o portal acompanha diariamente as transformações econômicas, culturais e políticas.',
+        'Nossa redação atua com independência e responsabilidade cívica, assegurando a pluralidade de vozes e a verdade apurada.'
+      ],
+      mission: 'Informar com imparcialidade, verdade e independência, promovendo o debate construtivo e o desenvolvimento regional.',
+      values: 'Compromisso com o leitor, checagem de fatos, respeito à diversidade e valorização da cultura sergipana.',
+      coverage: 'Presente diariamente nos 75 municípios de Sergipe e com audiência em todo o território nacional.'
+    },
+    expediente: {
+      directorName: 'Ítallo Nascimento',
+      directorRole: 'Direção Geral & Editor-Chefe',
+      directorEmail: 'itallomarketing@gmail.com',
+      commercialDept: 'Departamento Comercial & Marketing',
+      commercialContact: '(79) 99977-6199',
+      newsroomLocations: 'Aracaju, Estância, Lagarto e Itabaiana',
+      coverageHours: 'Cobertura estadual 24 horas',
+      administrativeHeadquarters: 'Rua Divaldo Carvalho Costa, 304 B, 1º Andar, Estância - Sergipe'
+    },
+    privacidade: {
+      introText: 'A Folha da Região Online respeita a privacidade de seus leitores e usuários e cumpre as disposições da Lei Geral de Proteção de Dados Pessoais (LGPD - Lei nº 13.709/2018).',
+      dataCollectionText: 'Coletamos informações cadastrais básicas (nome e e-mail) exclusivamente quando fornecidas voluntariamente para fins de autenticação, publicação de classificados ou subscrição da newsletter.',
+      securityText: 'Os dados de usuários e credenciais são gerenciados com proteção e criptografia de ponta a ponta, garantindo que suas senhas e dados confidenciais nunca sejam expostos.',
+      cookiesText: 'Utilizamos cookies estritamente para métricas estatísticas de visualização, sessão do usuário e preferências de leitura.',
+      userRightsText: 'O titular dos dados tem o direito de solicitar a qualquer momento a confirmação, retificação ou exclusão de suas informações da nossa base.',
+      dpoContact: 'itallomarketing@gmail.com'
+    }
+  }
+};
+
+export const portalSettingsService = {
+  getSettingsSync(): PortalSettings {
+    const stored = getStored<Partial<PortalSettings>>(STORAGE_KEYS.PORTAL_SETTINGS, {});
+    return {
+      ...DEFAULT_PORTAL_SETTINGS,
+      ...stored,
+      institutionalPages: {
+        ...DEFAULT_PORTAL_SETTINGS.institutionalPages,
+        ...(stored.institutionalPages || {}),
+        sobreNos: {
+          ...DEFAULT_PORTAL_SETTINGS.institutionalPages.sobreNos,
+          ...(stored.institutionalPages?.sobreNos || {})
+        },
+        expediente: {
+          ...DEFAULT_PORTAL_SETTINGS.institutionalPages.expediente,
+          ...(stored.institutionalPages?.expediente || {})
+        },
+        privacidade: {
+          ...DEFAULT_PORTAL_SETTINGS.institutionalPages.privacidade,
+          ...(stored.institutionalPages?.privacidade || {})
+        }
+      }
+    };
+  },
+
+  async getSettings(): Promise<PortalSettings> {
+    return this.getSettingsSync();
+  },
+
+  async saveSettings(newSettings: PortalSettings): Promise<PortalSettings> {
+    const updated: PortalSettings = {
+      ...newSettings,
+      updatedAt: new Date().toISOString()
+    };
+    setStored(STORAGE_KEYS.PORTAL_SETTINGS, updated);
+    window.dispatchEvent(new CustomEvent('folha_portal_settings_updated', { detail: updated }));
+    return updated;
+  },
+
+  async resetToDefaults(): Promise<PortalSettings> {
+    setStored(STORAGE_KEYS.PORTAL_SETTINGS, DEFAULT_PORTAL_SETTINGS);
+    window.dispatchEvent(new CustomEvent('folha_portal_settings_updated', { detail: DEFAULT_PORTAL_SETTINGS }));
+    return DEFAULT_PORTAL_SETTINGS;
   }
 };
 

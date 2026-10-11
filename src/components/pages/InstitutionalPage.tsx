@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Mail, Phone, MapPin, Send, CheckCircle2, ShieldCheck, Award, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Mail, Phone, MapPin, Send, CheckCircle2, ShieldCheck, Award, Users, ExternalLink } from 'lucide-react';
+import { portalSettingsService } from '../../lib/supabase';
+import { PortalSettings } from '../../types/database';
 
 interface InstitutionalPageProps {
   page: 'sobre-nos' | 'expediente' | 'privacidade' | 'anuncie-conosco';
@@ -7,6 +9,7 @@ interface InstitutionalPageProps {
 }
 
 export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBack }) => {
+  const [settings, setSettings] = useState<PortalSettings>(() => portalSettingsService.getSettingsSync());
   const [adForm, setAdForm] = useState({
     company: '',
     contactName: '',
@@ -16,6 +19,14 @@ export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBa
     message: ''
   });
   const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setSettings(portalSettingsService.getSettingsSync());
+    };
+    window.addEventListener('folha_portal_settings_updated', handleUpdate);
+    return () => window.removeEventListener('folha_portal_settings_updated', handleUpdate);
+  }, []);
 
   const handleAdSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +41,10 @@ export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBa
       message: ''
     });
   };
+
+  const sobre = settings.institutionalPages.sobreNos;
+  const exped = settings.institutionalPages.expediente;
+  const priv = settings.institutionalPages.privacidade;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl animate-in fade-in duration-300">
@@ -47,33 +62,41 @@ export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBa
           <div className="flex items-center gap-3">
             <span className="w-3 h-8 bg-[#0056a4] rounded"></span>
             <h1 className="text-3xl font-black uppercase tracking-tight text-gray-900">
-              Sobre a Folha da Região
+              {sobre.title || `Sobre a ${settings.officialName}`}
             </h1>
           </div>
-          <p className="text-base text-gray-700 leading-relaxed">
-            A <strong>Folha da Região</strong> consolidou-se como a principal referência jornalística de Estância e de todo o estado de Sergipe. Nascido com o propósito de levar informação ágil, ética e com apuração rigorosa, nosso portal conecta os cidadãos aos acontecimentos que moldam a sociedade.
+          <p className="text-base text-gray-700 leading-relaxed font-medium">
+            {sobre.leadParagraph}
           </p>
+
+          {sobre.historyParagraphs && sobre.historyParagraphs.length > 0 && (
+            <div className="space-y-3 pt-2 text-sm text-gray-600 leading-relaxed">
+              {sobre.historyParagraphs.map((par, i) => (
+                <p key={i}>{par}</p>
+              ))}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
             <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
               <Award className="w-8 h-8 text-[#0056a4] mb-3" />
               <h3 className="font-black text-sm uppercase text-gray-900 mb-2">Missão</h3>
               <p className="text-xs text-gray-600 leading-relaxed">
-                Informar com imparcialidade, verdade e independência, promovendo o debate construtivo e o desenvolvimento regional.
+                {sobre.mission}
               </p>
             </div>
             <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
               <ShieldCheck className="w-8 h-8 text-emerald-600 mb-3" />
               <h3 className="font-black text-sm uppercase text-gray-900 mb-2">Valores</h3>
               <p className="text-xs text-gray-600 leading-relaxed">
-                Compromisso com o leitor, checagem de fatos, respeito à diversidade e valorização da cultura sergipana.
+                {sobre.values}
               </p>
             </div>
             <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
               <Users className="w-8 h-8 text-amber-500 mb-3" />
               <h3 className="font-black text-sm uppercase text-gray-900 mb-2">Alcance</h3>
               <p className="text-xs text-gray-600 leading-relaxed">
-                Presente diariamente nos 75 municípios de Sergipe e com audiência em todo o território nacional.
+                {sobre.coverage}
               </p>
             </div>
           </div>
@@ -90,33 +113,53 @@ export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBa
             </h1>
           </div>
           <p className="text-sm text-gray-600 leading-relaxed">
-            Estrutura editorial e administrativa da Folha da Região Online Sergipe.
+            Estrutura editorial e administrativa da {settings.officialName} {settings.logoBadgeText ? `(${settings.logoBadgeText})` : ''} - Sergipe.
           </p>
 
           <div className="space-y-4 pt-4 border-t border-gray-100 text-sm">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs font-black uppercase text-gray-400">Direção Geral & Editor-Chefe</p>
-                <p className="font-bold text-gray-900 text-base mt-1">Ítallo Nascimento</p>
-                <p className="text-xs text-gray-500">itallomarketing@gmail.com</p>
+                <p className="text-xs font-black uppercase text-gray-400">
+                  {exped.directorRole || 'Direção Geral & Editor-Chefe'}
+                </p>
+                <p className="font-bold text-gray-900 text-base mt-1">
+                  {exped.directorName || 'Ítallo Nascimento'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {exped.directorEmail || settings.contactEmail}
+                </p>
               </div>
 
               <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-xs font-black uppercase text-gray-400">Departamento Comercial & Marketing</p>
-                <p className="font-bold text-gray-900 text-base mt-1">Equipe Folha da Região</p>
-                <p className="text-xs text-gray-500">(79) 99977-6199</p>
+                <p className="text-xs font-black uppercase text-gray-400">
+                  {exped.commercialDept || 'Departamento Comercial & Marketing'}
+                </p>
+                <p className="font-bold text-gray-900 text-base mt-1">
+                  {settings.officialName}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {exped.commercialContact || settings.contactPhone || settings.whatsappNumber}
+                </p>
               </div>
 
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-xs font-black uppercase text-gray-400">Sede Administrativa</p>
-                <p className="font-bold text-gray-900 text-base mt-1">Estância - Sergipe</p>
-                <p className="text-xs text-gray-500">Rua Divaldo Carvalho Costa, 304 B, 1º Andar</p>
+                <p className="font-bold text-gray-900 text-base mt-1">
+                  {settings.city} - {settings.state}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {exped.administrativeHeadquarters || settings.commercialAddress}
+                </p>
               </div>
 
               <div className="p-4 bg-gray-50 rounded-lg">
                 <p className="text-xs font-black uppercase text-gray-400">Redação & Correspondentes</p>
-                <p className="font-bold text-gray-900 text-base mt-1">Aracaju, Estância, Lagarto e Itabaiana</p>
-                <p className="text-xs text-gray-500">Cobertura estadual 24 horas</p>
+                <p className="font-bold text-gray-900 text-base mt-1">
+                  {exped.newsroomLocations || 'Aracaju, Estância, Lagarto e Itabaiana'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {exped.coverageHours || 'Cobertura estadual 24 horas'}
+                </p>
               </div>
             </div>
           </div>
@@ -135,20 +178,35 @@ export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBa
 
           <div className="space-y-4 text-sm text-gray-700 leading-relaxed">
             <p>
-              A <strong>Folha da Região Online</strong> respeita a privacidade de seus leitores e usuários e cumpre as disposições da Lei Geral de Proteção de Dados Pessoais (LGPD - Lei nº 13.709/2018).
+              {priv.introText}
             </p>
             <h3 className="font-black text-gray-900 text-base uppercase">1. Coleta de Dados</h3>
             <p>
-              Coletamos informações cadastrais básicas (nome e e-mail) exclusivamente quando fornecidas voluntariamente para fins de autenticação, comentários em notícias ou subscrição da newsletter.
+              {priv.dataCollectionText}
             </p>
-            <h3 className="font-black text-gray-900 text-base uppercase">2. Segurança e Supabase</h3>
+            <h3 className="font-black text-gray-900 text-base uppercase">2. Segurança e Criptografia</h3>
             <p>
-              Os dados de usuários e credenciais são gerenciados com criptografia de ponta a ponta através da infraestrutura de autenticação do Supabase, garantindo que suas senhas nunca sejam armazenadas em texto plano.
+              {priv.securityText}
             </p>
             <h3 className="font-black text-gray-900 text-base uppercase">3. Cookies e Métricas</h3>
             <p>
-              Utilizamos cookies para métricas de visualização e preferências de leitura (como tamanho de texto e sessão).
+              {priv.cookiesText}
             </p>
+            <h3 className="font-black text-gray-900 text-base uppercase">4. Direitos do Titular</h3>
+            <p>
+              {priv.userRightsText}
+            </p>
+            {priv.dpoContact && (
+              <div className="p-4 bg-blue-50/60 rounded-xl border border-blue-100 mt-4">
+                <p className="text-xs font-black uppercase text-[#0056a4]">Encarregado de Proteção de Dados (DPO)</p>
+                <p className="text-xs text-gray-700 mt-1">
+                  Para solicitações relativas à privacidade, contate:{' '}
+                  <a href={`mailto:${priv.dpoContact}`} className="font-bold text-[#0056a4] hover:underline">
+                    {priv.dpoContact}
+                  </a>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -160,11 +218,11 @@ export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBa
             <div className="flex items-center gap-3 mb-2">
               <span className="w-3 h-8 bg-red-600 rounded"></span>
               <h1 className="text-3xl font-black uppercase tracking-tight text-gray-900">
-                Anuncie na Folha da Região
+                Anuncie na {settings.officialName}
               </h1>
             </div>
             <p className="text-sm text-gray-600">
-              Coloque sua marca em evidência para milhares de leitores qualificados em todo o estado de Sergipe.
+              Coloque sua marca em evidência para milhares de leitores qualificados em todo o estado de {settings.state === 'SE' ? 'Sergipe' : settings.state}.
             </p>
           </div>
 
@@ -189,7 +247,7 @@ export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBa
                   required
                   value={adForm.company}
                   onChange={(e) => setAdForm({ ...adForm, company: e.target.value })}
-                  placeholder="Ex: Auto Peças Estância"
+                  placeholder={`Ex: Auto Peças ${settings.city}`}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4] focus:ring-2 focus:ring-[#0056a4]/10"
                 />
               </div>
@@ -208,30 +266,30 @@ export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBa
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                     Telefone / WhatsApp
                   </label>
                   <input
-                    type="tel"
+                    type="text"
                     required
                     value={adForm.phone}
                     onChange={(e) => setAdForm({ ...adForm, phone: e.target.value })}
-                    placeholder="(79) 99999-9999"
+                    placeholder="(00) 00000-0000"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4] focus:ring-2 focus:ring-[#0056a4]/10"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                    E-mail Comercial
+                    E-mail
                   </label>
                   <input
                     type="email"
                     required
                     value={adForm.email}
                     onChange={(e) => setAdForm({ ...adForm, email: e.target.value })}
-                    placeholder="comercial@empresa.com"
+                    placeholder="contato@empresa.com"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4] focus:ring-2 focus:ring-[#0056a4]/10"
                   />
                 </div>
@@ -246,69 +304,92 @@ export const InstitutionalPage: React.FC<InstitutionalPageProps> = ({ page, onBa
                   onChange={(e) => setAdForm({ ...adForm, placement: e.target.value })}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4] focus:ring-2 focus:ring-[#0056a4]/10"
                 >
-                  <option value="header">Super Banner Topo (728x90) - Máxima Visibilidade</option>
-                  <option value="sidebar">Banner Lateral / Vídeo Feed (Quadrado 1:1 ou Vertical 1:2)</option>
-                  <option value="feed">Vídeo Intercalado no Feed de Notícias (16:9)</option>
-                  <option value="article">Publieditorial / Matéria Patrocinada Exclusiva</option>
+                  <option value="header">Super Banner Topo (728x90)</option>
+                  <option value="sidebar">Quadrado Barra Lateral (300x250 / 300x600)</option>
+                  <option value="in_content">Banner Entre Notícias (728x90)</option>
+                  <option value="classifieds">Destaque nos Classificados</option>
+                  <option value="custom">Campanha Personalizada / Publieditorial</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Mensagem Adicional
+                  Mensagem / Objetivo da Campanha
                 </label>
                 <textarea
-                  rows={3}
+                  rows={4}
                   value={adForm.message}
                   onChange={(e) => setAdForm({ ...adForm, message: e.target.value })}
-                  placeholder="Conte um pouco sobre seus objetivos de campanha..."
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4] focus:ring-2 focus:ring-[#0056a4]/10 resize-none"
+                  placeholder="Conte-nos brevemente o objetivo da campanha ou tire suas dúvidas..."
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4] focus:ring-2 focus:ring-[#0056a4]/10 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#0056a4] hover:bg-[#004482] text-white font-black uppercase tracking-widest text-xs rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-lg transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Send className="w-4 h-4" />
-                Solicitar Proposta Comercial
+                Enviar Solicitação Comercial
               </button>
             </form>
 
-            {/* Informações de Contato Direto */}
-            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-6">
-              <h3 className="font-black text-sm uppercase text-gray-900 border-l-4 border-[#0056a4] pl-3">
-                Atendimento Imediato
-              </h3>
+            <div className="space-y-6 bg-gray-50 p-6 md:p-8 rounded-2xl border border-gray-100 flex flex-col justify-between">
+              <div className="space-y-4">
+                <h3 className="font-black text-sm uppercase text-gray-900 tracking-wider">
+                  Canais Diretos de Atendimento Comercial
+                </h3>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Para propostas sob medida, planos mensais ou patrocínios especiais, nossa equipe atende diretamente:
+                </p>
 
-              <div className="space-y-4 text-sm text-gray-700">
-                <div className="flex items-start gap-3">
-                  <Phone className="w-5 h-5 text-[#0056a4] shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-xs uppercase text-gray-400">Comercial</p>
-                    <p className="font-bold text-base text-gray-900">(79) 99977-6199</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-[#0056a4] shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-xs uppercase text-gray-400">E-mail</p>
-                    <p className="font-bold text-base text-gray-900">itallomarketing@gmail.com</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-[#0056a4] shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-xs uppercase text-gray-400">Sede</p>
-                    <p className="text-xs text-gray-600">Rua Divaldo Carvalho Costa, 304 B 1º Andar Estância SE</p>
-                  </div>
+                <div className="space-y-3 pt-2">
+                  {settings.contactEmail && (
+                    <div className="flex items-center gap-3 text-xs">
+                      <Mail className="w-4 h-4 text-[#0056a4] shrink-0" />
+                      <span className="font-bold text-gray-800">{settings.contactEmail}</span>
+                    </div>
+                  )}
+                  {settings.contactPhone && (
+                    <div className="flex items-center gap-3 text-xs">
+                      <Phone className="w-4 h-4 text-[#0056a4] shrink-0" />
+                      <span className="font-bold text-gray-800">{settings.contactPhone}</span>
+                    </div>
+                  )}
+                  {settings.whatsappNumber && (
+                    <div className="flex items-center gap-3 text-xs">
+                      <div className="w-4 h-4 text-green-600 shrink-0">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.7 8.38 8.38 0 0 1 3.8.9L21 3z"></path>
+                        </svg>
+                      </div>
+                      <a 
+                        href={settings.whatsappLink || `https://wa.me/55${settings.whatsappNumber.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-green-700 hover:underline flex items-center gap-1"
+                      >
+                        {settings.whatsappNumber} (WhatsApp)
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
+                  {settings.commercialAddress && (
+                    <div className="flex items-start gap-3 text-xs">
+                      <MapPin className="w-4 h-4 text-[#0056a4] mt-0.5 shrink-0" />
+                      <span className="text-gray-700">
+                        {settings.commercialAddress}, {settings.city} - {settings.state}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg text-xs text-[#0056a4]">
-                💡 <strong>Dica Comercial:</strong> Anúncios em vídeo vertical e gifs animados no feed alcançam em média 3.8x mais interações de clientes na região sul de Sergipe.
+              <div className="p-4 bg-white rounded-xl border border-gray-200/80">
+                <p className="text-[10px] font-black uppercase text-gray-400">Público Qualificado</p>
+                <p className="text-xs text-gray-700 mt-1 font-medium">
+                  Audiência diária em todos os 75 municípios de Sergipe com lealdade de leitura e alta taxa de engajamento regional.
+                </p>
               </div>
             </div>
           </div>

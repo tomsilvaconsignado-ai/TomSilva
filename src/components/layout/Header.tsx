@@ -3,8 +3,9 @@ import { Search, Menu, X, User, Shield, LogOut, ChevronDown, Bell, Tag } from 'l
 import { TopBar } from './TopBar';
 import { AdSlot } from '../news/AdSlot';
 import { NotificationBell } from '../notifications/NotificationBell';
-import { AdItem, CategorySlug, UserProfile } from '../../types/database';
+import { AdItem, CategorySlug, UserProfile, PortalSettings } from '../../types/database';
 import { INITIAL_CATEGORIES } from '../../data/initialData';
+import { portalSettingsService } from '../../lib/supabase';
 
 interface HeaderProps {
   currentCategory: CategorySlug;
@@ -36,6 +37,15 @@ export const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [portalSettings, setPortalSettings] = useState<PortalSettings>(() => portalSettingsService.getSettingsSync());
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      setPortalSettings(portalSettingsService.getSettingsSync());
+    };
+    window.addEventListener('folha_portal_settings_updated', handleUpdate);
+    return () => window.removeEventListener('folha_portal_settings_updated', handleUpdate);
+  }, []);
 
   // Formatar data em português
   const formattedDate = new Intl.DateTimeFormat('pt-BR', {
@@ -79,30 +89,34 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-4">
             {/* Redes Sociais */}
             <div className="flex items-center gap-3">
-              <a
-                href="https://www.facebook.com/folhadaregiaose/?locale=pt_BR"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center text-white cursor-pointer hover:bg-[#0056a4] transition-all shadow-sm"
-                title="Facebook"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
-                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
-                </svg>
-              </a>
-              <a
-                href="https://www.instagram.com/folhadaregiaose"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center text-white cursor-pointer hover:bg-[#0056a4] transition-all shadow-sm"
-                title="Instagram"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
-                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                </svg>
-              </a>
+              {portalSettings.showFacebook && portalSettings.facebookUrl && (
+                <a
+                  href={portalSettings.facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center text-white cursor-pointer hover:bg-[#0056a4] transition-all shadow-sm"
+                  title="Facebook"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+                    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+                  </svg>
+                </a>
+              )}
+              {portalSettings.showInstagram && portalSettings.instagramUrl && (
+                <a
+                  href={portalSettings.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center text-white cursor-pointer hover:bg-[#0056a4] transition-all shadow-sm"
+                  title="Instagram"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                  </svg>
+                </a>
+              )}
             </div>
 
             {/* Usuário ou Login */}
@@ -204,14 +218,16 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <div className="flex items-center gap-2">
                 <span className="text-2xl md:text-3xl font-black tracking-tighter text-[#0056a4] uppercase font-sans">
-                  FOLHA <span className="text-gray-900">DA REGIÃO</span>
+                  {portalSettings.officialName.split(' ')[0]} <span className="text-gray-900">{portalSettings.officialName.split(' ').slice(1).join(' ')}</span>
                 </span>
-                <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded">
-                  ONLINE
-                </span>
+                {portalSettings.logoBadgeText && (
+                  <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded">
+                    {portalSettings.logoBadgeText}
+                  </span>
+                )}
               </div>
               <p className="text-[8px] md:text-[11px] font-black tracking-[0.2em] md:tracking-[0.25em] text-gray-400 uppercase mt-1 group-hover:text-[#0056a4] transition-colors whitespace-nowrap">
-                A NOTÍCIA ONDE VOCÊ ESTIVER
+                {portalSettings.tagline}
               </p>
             </button>
           </div>

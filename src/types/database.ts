@@ -239,3 +239,80 @@ export interface ClassifiedsSettings {
   requireApproval: boolean;
   defaultValidityDays: number;
 }
+
+export interface PortalSettings {
+  // 1. Identidade e Slogan
+  officialName: string;
+  shortName: string;
+  tagline: string; // Slogan principal (ex: "A NOTÍCIA ONDE VOCÊ ESTIVER")
+  presentationPhrase: string; // Frase de apresentação
+  shortInstitutionalText: string; // Texto institucional curto
+  portalDescription: string; // Descrição utilizada na identificação do portal
+  logoBadgeText: string; // Ex: "ONLINE"
+
+  // 2. Contatos do Portal & Visibilidade
+  contactEmail: string;
+  showContactEmail: boolean;
+  contactPhone: string;
+  showContactPhone: boolean;
+  whatsappNumber: string; // Ex: "(79) 99977-6199" ou "(79) 99910-0495"
+  whatsappLink: string; // Ex: "https://wa.me/5579999776199" (atualizado junto)
+  showWhatsapp: boolean;
+  commercialAddress: string;
+  showCommercialAddress: boolean;
+  city: string;
+  state: string;
+  openingHours: string; // Horário de atendimento
+  showOpeningHours: boolean;
+
+  // 3. Informações Institucionais do Rodapé
+  footerPresentation: string; // Apresentação institucional no rodapé
+  footerAboutText: string; // Texto sobre o portal
+  footerClosingPhrase: string; // Frase de encerramento
+  copyrightText: string; // Texto de direitos autorais
+  referenceYear: string; // Ano de referência (ex: "2026")
+  responsibleCompany: string; // Nome da empresa responsável (ex: "Folha da Região Comunicação LTDA")
+  additionalFooterInfo: string;
+
+  // 4. Redes Sociais
+  facebookUrl: string;
+  showFacebook: boolean;
+  instagramUrl: string;
+  showInstagram: boolean;
+  twitterUrl?: string;
+  showTwitter?: boolean;
+  youtubeUrl?: string;
+  showYoutube?: boolean;
+
+  // 5. Páginas Institucionais Editáveis
+  institutionalPages: {
+    sobreNos: {
+      title: string;
+      leadParagraph: string;
+      historyParagraphs: string[];
+      mission: string;
+      values: string;
+      coverage: string;
+    };
+    expediente: {
+      directorName: string;
+      directorRole: string;
+      directorEmail: string;
+      commercialDept: string;
+      commercialContact: string;
+      newsroomLocations: string;
+      coverageHours: string;
+      administrativeHeadquarters: string;
+    };
+    privacidade: {
+      introText: string;
+      dataCollectionText: string;
+      securityText: string;
+      cookiesText: string;
+      userRightsText: string;
+      dpoContact: string;
+    };
+  };
+
+  updatedAt?: string;
+}
