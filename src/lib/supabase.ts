@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { 
-  Article, AdItem, UserProfile, UserRole, Comment, NewsletterSubscriber, NotificationItem,
+  Article, AdItem, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
   ClassifiedItem, ClassifiedCategory, ClassifiedReport, ClassifiedsSettings,
   ClassifiedSection, ClassifiedType, ClassifiedStatus
 } from '../types/database';
@@ -64,7 +64,8 @@ const STORAGE_KEYS = {
   CLASSIFIEDS: 'folha_classifieds_v1',
   CLASSIFIED_CATEGORIES: 'folha_classified_cats_v1',
   CLASSIFIED_REPORTS: 'folha_classified_reports_v1',
-  CLASSIFIED_SETTINGS: 'folha_classified_settings_v1'
+  CLASSIFIED_SETTINGS: 'folha_classified_settings_v1',
+  USER_AUDIT_LOGS: 'folha_user_audit_logs_v1'
 };
 
 const getStored = <T>(key: string, defaultValue: T): T => {
@@ -96,11 +97,20 @@ const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
     role: 'admin',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
     interests: ['Política', 'Cidades', 'Eventos', 'Brasil'],
-    createdAt: new Date().toISOString(),
+    createdAt: new Date('2026-01-01T00:00:00.000Z').toISOString(),
     passwordHash: 'Folha@1234',
     emailConfirmed: true,
     emailConfirmedAt: '2026-01-01T00:00:00.000Z',
-    status: 'active'
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 99977-6199',
+    city: 'Estância',
+    state: 'SE',
+    cpf: '123.456.789-00',
+    isLegalAge: true,
+    termsAccepted: true,
+    termsAcceptedAt: '2026-01-01T00:00:00.000Z',
+    termsVersion: 'v2.1'
   },
   {
     id: 'user-reader-1',
@@ -109,11 +119,66 @@ const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
     role: 'reader',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
     interests: ['Política', 'Cidades', 'Esporte'],
-    createdAt: new Date().toISOString(),
+    createdAt: new Date('2026-01-15T10:30:00.000Z').toISOString(),
     passwordHash: 'leitor123',
     emailConfirmed: true,
-    emailConfirmedAt: '2026-01-01T00:00:00.000Z',
-    status: 'active'
+    emailConfirmedAt: '2026-01-15T10:35:00.000Z',
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 99881-2233',
+    city: 'Aracaju',
+    state: 'SE',
+    cpf: '234.567.890-11',
+    isLegalAge: true,
+    termsAccepted: true,
+    termsAcceptedAt: '2026-01-15T10:30:00.000Z',
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'user-pj-1',
+    email: 'comercial@imobiliariasergipana.com.br',
+    fullName: 'Imobiliária Sergipana Ltda',
+    role: 'reader',
+    avatarUrl: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=100&h=100&fit=crop',
+    interests: ['Cidades', 'Brasil'],
+    createdAt: new Date('2026-02-01T14:20:00.000Z').toISOString(),
+    passwordHash: 'imob2026',
+    emailConfirmed: true,
+    emailConfirmedAt: '2026-02-01T14:25:00.000Z',
+    status: 'active',
+    accountType: 'pj',
+    phone: '(79) 98765-4321',
+    city: 'Estância',
+    state: 'SE',
+    companyName: 'Imobiliária Sergipana Ltda',
+    tradeName: 'Sergipe Imóveis & Terrenos',
+    cnpj: '12.345.678/0001-90',
+    legalRepresentative: 'Roberto Almeida Santos',
+    representativeCpf: '345.678.901-22',
+    termsAccepted: true,
+    termsAcceptedAt: '2026-02-01T14:20:00.000Z',
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'user-pending-1',
+    email: 'marina.novaes@gmail.com',
+    fullName: 'Marina Novaes',
+    role: 'reader',
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
+    interests: ['Eventos', 'Cidades'],
+    createdAt: new Date('2026-03-10T09:15:00.000Z').toISOString(),
+    passwordHash: 'marina2026',
+    emailConfirmed: false,
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 99112-3344',
+    city: 'Itabaiana',
+    state: 'SE',
+    cpf: '456.789.012-33',
+    isLegalAge: true,
+    termsAccepted: true,
+    termsAcceptedAt: '2026-03-10T09:15:00.000Z',
+    termsVersion: 'v2.1'
   }
 ];
 
@@ -932,10 +997,15 @@ export const adsService = {
 };
 
 // ==========================================
-// SERVIÇO DE GERENCIAMENTO DE USUÁRIOS
+// SERVIÇO DE GERENCIAMENTO E MODERAÇÃO DE USUÁRIOS
 // ==========================================
 export const usersService = {
-  async getAllUsers(): Promise<UserProfile[]> {
+  async getAllUsers(adminUser?: UserProfile): Promise<UserProfile[]> {
+    // Verificação de permissão: somente administradores autorizados
+    if (adminUser && adminUser.role !== 'admin' && adminUser.role !== 'editor') {
+      throw new Error('Acesso restrito. Apenas administradores autorizados podem consultar os usuários do portal.');
+    }
+
     const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
     return users.map(u => ({
       id: u.id,
@@ -959,35 +1029,257 @@ export const usersService = {
       termsAccepted: u.termsAccepted,
       termsAcceptedAt: u.termsAcceptedAt,
       termsVersion: u.termsVersion,
-      status: u.status || 'active'
+      status: (u.status || 'active') as UserStatus,
+      moderationReason: u.moderationReason,
+      moderationAt: u.moderationAt,
+      moderatedBy: u.moderatedBy,
+      emailConfirmed: u.emailConfirmed ?? (u.role === 'admin'),
+      emailConfirmedAt: u.emailConfirmedAt
     }));
   },
 
-  async updateUserRole(userId: string, newRole: UserRole): Promise<void> {
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const idx = users.findIndex(u => u.id === userId);
-    if (idx !== -1) {
-      users[idx].role = newRole;
-      setStored(STORAGE_KEYS.USERS, users);
+  async getUserClassifiedsCount(userId: string): Promise<{ total: number; published: number; pending: number; rejected: number }> {
+    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
+    const userItems = items.filter(i => i.userId === userId);
+    return {
+      total: userItems.length,
+      published: userItems.filter(i => i.status === 'published').length,
+      pending: userItems.filter(i => i.status === 'pending').length,
+      rejected: userItems.filter(i => i.status === 'rejected').length
+    };
+  },
+
+  async getUserReports(userId: string): Promise<ClassifiedReport[]> {
+    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
+    const userClassifiedIds = new Set(items.filter(i => i.userId === userId).map(i => i.id));
+    const allReports = getStored<ClassifiedReport[]>(STORAGE_KEYS.CLASSIFIED_REPORTS, []);
+    return allReports.filter(r => userClassifiedIds.has(r.classifiedId));
+  },
+
+  async getAuditLogs(userId?: string): Promise<UserAuditLog[]> {
+    const logs = getStored<UserAuditLog[]>(STORAGE_KEYS.USER_AUDIT_LOGS, []);
+    if (userId) {
+      return logs.filter(l => l.userId === userId);
     }
+    return logs;
+  },
+
+  async recordAudit(logData: Omit<UserAuditLog, 'id' | 'createdAt'>): Promise<UserAuditLog> {
+    const logs = getStored<UserAuditLog[]>(STORAGE_KEYS.USER_AUDIT_LOGS, []);
+    const newLog: UserAuditLog = {
+      id: 'log-' + Math.random().toString(36).substring(2, 9),
+      ...logData,
+      createdAt: new Date().toISOString()
+    };
+    logs.unshift(newLog);
+    setStored(STORAGE_KEYS.USER_AUDIT_LOGS, logs);
+    return newLog;
+  },
+
+  async moderateUserStatus(
+    targetUserId: string,
+    newStatus: UserStatus,
+    reason: string,
+    adminUser: UserProfile
+  ): Promise<UserProfile> {
+    if (!adminUser || adminUser.role !== 'admin') {
+      throw new Error('Apenas administradores gerais possuem permissão para moderar contas.');
+    }
+
+    if (!reason || reason.trim().length < 5) {
+      throw new Error('É obrigatório registrar uma justificativa clara (mínimo de 5 caracteres) para moderar a conta.');
+    }
+
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const target = users.find(u => u.id === targetUserId);
+
+    if (!target) {
+      throw new Error('Usuário não encontrado.');
+    }
+
+    // Proteção rigorosa: Não permitir bloquear ou suspender a própria conta
+    if (target.id === adminUser.id) {
+      throw new Error('Você não pode alterar o status ou aplicar restrições à sua própria conta de administrador.');
+    }
+
+    // Proteção rigorosa: O administrador principal não pode ser bloqueado
+    if (target.email.toLowerCase() === 'tomsilvaconsignado@gmail.com') {
+      throw new Error('A conta do administrador principal é protegida pelo sistema e não pode ser suspensa ou bloqueada.');
+    }
+
+    const previousStatus = (target.status || 'active') as UserStatus;
+    target.status = newStatus;
+    target.moderationReason = reason.trim();
+    target.moderationAt = new Date().toISOString();
+    target.moderatedBy = adminUser.fullName;
+
+    setStored(STORAGE_KEYS.USERS, users);
+
+    // Registra auditoria com segurança
+    await this.recordAudit({
+      userId: target.id,
+      userEmail: target.email,
+      userName: target.fullName,
+      adminId: adminUser.id,
+      adminEmail: adminUser.email,
+      adminName: adminUser.fullName,
+      action: newStatus === 'active' ? 'reactivate' : newStatus === 'suspended' ? 'suspend' : 'block',
+      previousStatus,
+      newStatus,
+      reason: reason.trim()
+    });
+
+    // Se o usuário afetado estiver na sessão local atual de alguém, sincroniza
     const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-    if (current && current.id === userId) {
+    if (current && current.id === targetUserId) {
+      current.status = newStatus;
+      current.moderationReason = reason.trim();
+      setStored(STORAGE_KEYS.CURRENT_USER, current);
+      window.dispatchEvent(new Event('folha_auth_changed'));
+    }
+
+    return {
+      id: target.id,
+      email: target.email,
+      fullName: target.fullName,
+      role: target.role,
+      avatarUrl: target.avatarUrl,
+      createdAt: target.createdAt,
+      accountType: target.accountType,
+      phone: target.phone,
+      city: target.city,
+      state: target.state,
+      cpf: target.cpf,
+      isLegalAge: target.isLegalAge,
+      companyName: target.companyName,
+      tradeName: target.tradeName,
+      cnpj: target.cnpj,
+      legalRepresentative: target.legalRepresentative,
+      representativeCpf: target.representativeCpf,
+      termsAccepted: target.termsAccepted,
+      termsAcceptedAt: target.termsAcceptedAt,
+      termsVersion: target.termsVersion,
+      status: target.status,
+      moderationReason: target.moderationReason,
+      moderationAt: target.moderationAt,
+      moderatedBy: target.moderatedBy,
+      emailConfirmed: target.emailConfirmed,
+      emailConfirmedAt: target.emailConfirmedAt
+    };
+  },
+
+  async updateUserRoleProtected(
+    targetUserId: string,
+    newRole: UserRole,
+    reason: string,
+    adminUser: UserProfile
+  ): Promise<void> {
+    if (!adminUser || adminUser.role !== 'admin') {
+      throw new Error('Apenas o Administrador Geral pode alterar privilégios de acesso.');
+    }
+
+    if (!reason || reason.trim().length < 5) {
+      throw new Error('É obrigatório registrar uma justificativa para alteração de privilégio administrativo.');
+    }
+
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const target = users.find(u => u.id === targetUserId);
+
+    if (!target) {
+      throw new Error('Usuário não encontrado.');
+    }
+
+    if (target.email.toLowerCase() === 'tomsilvaconsignado@gmail.com' && newRole !== 'admin') {
+      throw new Error('Os privilégios da conta do Administrador Geral não podem ser revogados.');
+    }
+
+    const oldRole = target.role;
+    target.role = newRole;
+    setStored(STORAGE_KEYS.USERS, users);
+
+    await this.recordAudit({
+      userId: target.id,
+      userEmail: target.email,
+      userName: target.fullName,
+      adminId: adminUser.id,
+      adminEmail: adminUser.email,
+      adminName: adminUser.fullName,
+      action: 'change_role',
+      reason: `Alteração de papel de "${oldRole}" para "${newRole}". Motivo: ${reason.trim()}`
+    });
+
+    const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+    if (current && current.id === targetUserId) {
       current.role = newRole;
       setStored(STORAGE_KEYS.CURRENT_USER, current);
       window.dispatchEvent(new Event('folha_auth_changed'));
     }
   },
 
-  async toggleUserStatus(userId: string): Promise<'active' | 'suspended'> {
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const idx = users.findIndex(u => u.id === userId);
-    if (idx !== -1) {
-      const nextStatus: 'active' | 'suspended' = (users[idx].status || 'active') === 'active' ? 'suspended' : 'active';
-      users[idx].status = nextStatus;
-      setStored(STORAGE_KEYS.USERS, users);
-      return nextStatus;
+  async adminResendConfirmation(targetUserId: string, adminUser: UserProfile): Promise<{ success: boolean; message: string }> {
+    if (!adminUser || (adminUser.role !== 'admin' && adminUser.role !== 'editor')) {
+      throw new Error('Acesso não autorizado.');
     }
-    return 'active';
+
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const target = users.find(u => u.id === targetUserId);
+
+    if (!target) {
+      throw new Error('Usuário não encontrado.');
+    }
+
+    const res = await authService.resendConfirmationEmail(target.email);
+
+    if (res.success) {
+      await this.recordAudit({
+        userId: target.id,
+        userEmail: target.email,
+        userName: target.fullName,
+        adminId: adminUser.id,
+        adminEmail: adminUser.email,
+        adminName: adminUser.fullName,
+        action: 'resend_confirmation',
+        reason: 'Reenvio de link de confirmação solicitado via painel administrativo.'
+      });
+    }
+
+    return res;
+  },
+
+  async adminForceConfirmEmail(targetUserId: string, adminUser: UserProfile): Promise<void> {
+    if (!adminUser || adminUser.role !== 'admin') {
+      throw new Error('Apenas o Administrador Geral pode validar manualmente o e-mail de um usuário.');
+    }
+
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const target = users.find(u => u.id === targetUserId);
+
+    if (!target) {
+      throw new Error('Usuário não encontrado.');
+    }
+
+    target.emailConfirmed = true;
+    target.emailConfirmedAt = new Date().toISOString();
+    setStored(STORAGE_KEYS.USERS, users);
+
+    await this.recordAudit({
+      userId: target.id,
+      userEmail: target.email,
+      userName: target.fullName,
+      adminId: adminUser.id,
+      adminEmail: adminUser.email,
+      adminName: adminUser.fullName,
+      action: 'confirm_email',
+      reason: 'Confirmação manual de e-mail realizada pelo administrador após validação direta.'
+    });
+
+    const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+    if (current && current.id === targetUserId) {
+      current.emailConfirmed = true;
+      current.emailConfirmedAt = target.emailConfirmedAt;
+      setStored(STORAGE_KEYS.CURRENT_USER, current);
+      window.dispatchEvent(new Event('folha_auth_changed'));
+    }
   }
 };
 
@@ -1363,6 +1655,10 @@ export const classifiedsService = {
     if (!user) throw new Error('Usuário não autenticado.');
 
     // Bloqueio de segurança obrigatório: validação nas regras de segurança do sistema
+    if (user.status === 'suspended' || user.status === 'blocked') {
+      throw new Error('Sua conta está com restrição administrativa e não pode publicar ou editar anúncios. Entre em contato com a moderação para revisão.');
+    }
+
     if (user.role !== 'admin' && !user.emailConfirmed) {
       throw new Error('Para publicar classificados, confirme primeiro seu endereço de e-mail. Enviamos uma mensagem com o link de confirmação para o endereço cadastrado.');
     }

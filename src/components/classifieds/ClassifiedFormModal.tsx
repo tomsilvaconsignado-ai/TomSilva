@@ -230,6 +230,62 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
 
   if (!isOpen) return null;
 
+  // BLOQUEIO DE SEGURANÇA: Conta suspensa ou bloqueada não pode publicar
+  if (currentUser.status === 'suspended' || currentUser.status === 'blocked') {
+    const isSuspended = currentUser.status === 'suspended';
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+        <div className="bg-white rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-gray-100 relative text-center animate-in zoom-in-95 duration-200">
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-200 shadow-xs">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+
+          <span className="px-3 py-1 rounded-full bg-red-100 text-red-900 text-[10px] font-black uppercase tracking-wider inline-block mb-3">
+            {isSuspended ? 'Conta Temporariamente Suspensa' : 'Conta Bloqueada por Moderação'}
+          </span>
+
+          <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-2">
+            Publicação Bloqueada
+          </h3>
+
+          <p className="text-sm text-gray-600 leading-relaxed max-w-md mx-auto mb-4">
+            Sua conta está com restrição administrativa e não pode publicar ou gerenciar classificados no momento.
+          </p>
+
+          {currentUser.moderationReason && (
+            <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl mb-6 text-xs text-left text-red-900">
+              <p className="font-bold uppercase tracking-wider text-[10px] text-red-600 mb-1">Motivo registrado pela moderação:</p>
+              <p className="italic">"{currentUser.moderationReason}"</p>
+            </div>
+          )}
+
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl mb-6 text-xs text-gray-600 text-left space-y-1">
+            <p className="font-bold text-gray-800">Como solicitar revisão da decisão?</p>
+            <p>Entre em contato com nossa equipe pelo e-mail <a href="mailto:itallomarketing@gmail.com" className="text-[#0056a4] font-bold underline">itallomarketing@gmail.com</a> ou pelo WhatsApp oficial do portal.</p>
+          </div>
+
+          <button
+            onClick={() => {
+              onClose();
+              if (onOpenMyClassifieds) onOpenMyClassifieds();
+            }}
+            className="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar para meus classificados
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // BLOQUEIO DE SEGURANÇA OBRIGATÓRIO: Usuário sem confirmação de e-mail não pode publicar
   if (currentUser.role !== 'admin' && !currentUser.emailConfirmed) {
     return (

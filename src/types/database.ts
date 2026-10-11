@@ -1,5 +1,21 @@
 export type UserRole = 'admin' | 'editor' | 'reader';
 export type AccountType = 'pf' | 'pj';
+export type UserStatus = 'active' | 'suspended' | 'blocked';
+
+export interface UserAuditLog {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  adminId: string;
+  adminEmail: string;
+  adminName: string;
+  action: 'suspend' | 'reactivate' | 'block' | 'resend_confirmation' | 'confirm_email' | 'change_role';
+  previousStatus?: UserStatus;
+  newStatus?: UserStatus;
+  reason: string;
+  createdAt: string;
+}
 
 export interface UserProfile {
   id: string;
@@ -27,7 +43,10 @@ export interface UserProfile {
   termsAccepted?: boolean;
   termsAcceptedAt?: string;
   termsVersion?: string;
-  status?: 'active' | 'suspended';
+  status?: UserStatus;
+  moderationReason?: string;
+  moderationAt?: string;
+  moderatedBy?: string;
   // Confirmação de E-mail
   emailConfirmed?: boolean;
   emailConfirmedAt?: string;
