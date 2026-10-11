@@ -16,6 +16,7 @@ import { EmailNotificationToast } from './components/notifications/EmailNotifica
 import { ArticleDetail } from './components/pages/ArticleDetail';
 import { InstitutionalPage } from './components/pages/InstitutionalPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { AdminLoginModal } from './components/admin/AdminLoginModal';
 import { ClassifiedList } from './components/classifieds/ClassifiedList';
 import { ClassifiedDetail } from './components/classifieds/ClassifiedDetail';
 import { ClassifiedFormModal } from './components/classifieds/ClassifiedFormModal';
@@ -43,11 +44,14 @@ export default function App() {
   const [isMyClassifiedsOpen, setIsMyClassifiedsOpen] = useState(false);
   const [editingClassified, setEditingClassified] = useState<ClassifiedItem | null>(null);
   
-  // Modal de Autenticação
+  // Modal de Autenticação Pública
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [authReasonMessage, setAuthReasonMessage] = useState<string | undefined>(undefined);
   const [pendingActionAfterAuth, setPendingActionAfterAuth] = useState<'create_classified' | null>(null);
+
+  // Modal de Autenticação Administrativa Exclusiva (Acesso Restrito)
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   
   // Modais de Segurança (Confirmação de E-mail, Redefinição de Senha e Caixa de E-mails)
   const [emailConfirmToken, setEmailConfirmToken] = useState<string | null>(null);
@@ -168,6 +172,15 @@ export default function App() {
     setIsAuthModalOpen(true);
   };
 
+  const handleOpenAdminLogin = () => {
+    if (currentUser?.role === 'admin' || currentUser?.role === 'editor') {
+      setViewMode('admin');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setIsAdminLoginOpen(true);
+    }
+  };
+
   const handleSignOut = async () => {
     await authService.signOut();
     setCurrentUser(null);
@@ -229,13 +242,7 @@ export default function App() {
         onSelectCategory={handleSelectCategory}
         onSearch={handleSearch}
         onOpenAuth={handleOpenAuth}
-        onOpenAdmin={() => {
-          if (currentUser?.role === 'admin' || currentUser?.role === 'editor') {
-            setViewMode('admin');
-          } else {
-            handleOpenAuth('login');
-          }
-        }}
+        onOpenAdmin={handleOpenAdminLogin}
         currentUser={currentUser}
         onSignOut={handleSignOut}
         headerAd={headerAd}
@@ -479,13 +486,7 @@ export default function App() {
       {/* Footer Fixo */}
       <Footer
         onOpenInstitutional={handleOpenInstitutional}
-        onOpenAdmin={() => {
-          if (currentUser?.role === 'admin' || currentUser?.role === 'editor') {
-            setViewMode('admin');
-          } else {
-            handleOpenAuth('login');
-          }
-        }}
+        onOpenAdmin={handleOpenAdminLogin}
         onGoHome={() => {
           setViewMode('home');
           setSelectedArticle(null);
@@ -529,6 +530,18 @@ export default function App() {
               setIsClassifiedFormOpen(true);
             }, 300);
           }
+        }}
+      />
+
+      {/* Modal Exclusivo de Login Administrativo (Acesso Restrito) */}
+      <AdminLoginModal
+        isOpen={isAdminLoginOpen}
+        onClose={() => setIsAdminLoginOpen(false)}
+        onSuccess={(adminUser) => {
+          setCurrentUser(adminUser);
+          setIsAdminLoginOpen(false);
+          setViewMode('admin');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
 

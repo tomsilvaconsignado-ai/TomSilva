@@ -318,7 +318,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </h3>
             <p className="text-xs text-gray-400 mt-1 leading-relaxed">
               {registeredUnconfirmedUser && 'Sua conta foi criada! Confirme seu e-mail para ativar todas as funções.'}
-              {!registeredUnconfirmedUser && mode === 'login' && 'Acesse para publicar notícias, gerenciar publicidade ou anunciar nos classificados.'}
+              {!registeredUnconfirmedUser && mode === 'login' && 'Acesse sua conta pessoal para anunciar nos classificados e gerenciar suas publicações.'}
               {!registeredUnconfirmedUser && mode === 'register' && 'Cadastre-se gratuitamente para publicar classificados e participar do portal.'}
               {!registeredUnconfirmedUser && mode === 'forgot' && 'Digite seu e-mail para receber as instruções de redefinição.'}
               {!registeredUnconfirmedUser && mode === 'resend' && 'Digite seu e-mail cadastrado para receber um novo link de confirmação.'}
@@ -888,29 +888,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </form>
 
-            {/* Atalho de Demonstração / Acesso Rápido */}
+            {/* Atalho de Demonstração para Testes de Leitor */}
             <div className="pt-3 border-t border-gray-100">
               <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 text-center">
-                Acesso Rápido para Testes
+                Acesso Rápido para Testes Públicos
               </p>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => fillDemoAccount('admin')}
-                  className="flex-1 py-2 px-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  title="Login como Administrador (tomsilvaconsignado@gmail.com)"
-                >
-                  <Shield className="w-3.5 h-3.5 text-red-600" />
-                  Editor / Admin
-                </button>
-                <button
-                  type="button"
                   onClick={() => fillDemoAccount('reader')}
-                  className="flex-1 py-2 px-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  title="Login como Leitor (leitor@folhadaregiao.com.br)"
+                  className="w-full py-2 px-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  title="Preencher conta de usuário comum para testes rápidos"
                 >
                   <User className="w-3.5 h-3.5 text-blue-600" />
-                  Leitor Comum
+                  Preencher com Conta de Leitor (leitor@folhadaregiao.com.br)
                 </button>
               </div>
             </div>

@@ -66,8 +66,9 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
             <div className="flex items-center gap-3 border-l border-gray-100 pl-5">
               <button
-                onClick={currentUser?.role === 'admin' || currentUser?.role === 'editor' ? onOpenAdmin : () => onOpenAuth('login')}
+                onClick={onOpenAdmin}
                 className="hover:text-[#0056a4] transition-colors font-bold uppercase tracking-widest flex items-center gap-1 cursor-pointer"
+                title="Acesso exclusivo para administradores e editores"
               >
                 <Shield className="w-3 h-3 text-[#0056a4]" />
                 Acesso Restrito

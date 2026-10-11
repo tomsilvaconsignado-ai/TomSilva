@@ -436,6 +436,26 @@ export const authService = {
     return { user: safeProfile, error: null };
   },
 
+  async signInAdmin(email: string, password: string): Promise<AuthResponse> {
+    const res = await this.signIn(email, password);
+    if (res.error) {
+      return res;
+    }
+    if (!res.user) {
+      return { user: null, error: 'Credenciais inválidas.' };
+    }
+    // Verificação estrita de permissão administrativa
+    if (res.user.role !== 'admin' && res.user.role !== 'editor') {
+      // Faz logout preventivo pois o usuário tentou acessar um painel não autorizado
+      await this.signOut();
+      return { 
+        user: null, 
+        error: 'Acesso negado. Esta credencial não possui privilégios de administração ou edição no portal.' 
+      };
+    }
+    return res;
+  },
+
   async updateInterests(userId: string, newInterests: string[]): Promise<UserProfile | null> {
     const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
     if (!currentUser) return null;

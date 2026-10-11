@@ -41,6 +41,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
 
+  // Verificação estrita de autorização no painel
+  if (currentUser?.role !== 'admin' && currentUser?.role !== 'editor') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-xl border border-gray-200 space-y-4">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto border border-red-200">
+            <Shield className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+            Acesso Restrito Não Autorizado
+          </h2>
+          <p className="text-xs text-gray-600 leading-relaxed">
+            Seu perfil atual de usuário não possui privilégios de administrador ou editor.
+            Apenas profissionais autorizados da Folha da Região podem acessar o painel de controle.
+          </p>
+          <div className="pt-2">
+            <button
+              onClick={onBackToPortal}
+              className="w-full py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+            >
+              Voltar para o Portal
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Cálculos de Métricas
   const totalViews = articles.reduce((acc, a) => acc + (a.viewsCount || 0), 0);
   const publishedArticles = articles.filter(a => (a.status || 'published') === 'published').length;
