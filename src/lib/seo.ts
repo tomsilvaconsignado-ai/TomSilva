@@ -42,7 +42,7 @@ export const getArticleCanonicalUrl = (slug: string, customOrigin?: string): str
 /**
  * Garante que a URL da imagem seja pública, absoluta e adequada para prévias
  */
-export const getAbsoluteImageUrl = (imageUrl?: string, customOrigin?: string): string => {
+export const getAbsoluteImageUrl = (imageUrl?: string, customOrigin?: string, articleSlugOrId?: string): string => {
   let origin = customOrigin;
   if (!origin && typeof window !== 'undefined' && window.location?.origin) {
     origin = window.location.origin;
@@ -57,6 +57,14 @@ export const getAbsoluteImageUrl = (imageUrl?: string, customOrigin?: string): s
   }
 
   const cleanUrl = imageUrl.trim();
+
+  // Se for imagem codificada em Base64, fornece endpoint do servidor para WhatsApp baixar via HTTP
+  if (cleanUrl.startsWith('data:image/')) {
+    if (articleSlugOrId) {
+      return `${origin}/api/article-image/${encodeURIComponent(articleSlugOrId)}`;
+    }
+    return `${origin}/og-image.png`;
+  }
 
   // Se já for URL absoluta (http/https), retorna diretamente
   if (/^https?:\/\//i.test(cleanUrl)) {
@@ -92,7 +100,7 @@ export const getWhatsAppShareData = (article: Article, customOrigin?: string) =>
  */
 export const generateOpenGraphHtml = (article: Article, origin: string): string => {
   const canonicalUrl = getArticleCanonicalUrl(article.slug, origin);
-  const imageUrl = getAbsoluteImageUrl(article.imageUrl, origin);
+  const imageUrl = getAbsoluteImageUrl(article.imageUrl, origin, article.slug || article.id);
   const portalName = 'Folha da Região';
   
   // Resumo/Descrição: subtítulo ou primeiros 160 caracteres do texto
@@ -188,7 +196,7 @@ export const updateClientHeadForArticle = (article: Article) => {
 
   const origin = window.location.origin;
   const canonicalUrl = getArticleCanonicalUrl(article.slug, origin);
-  const imageUrl = getAbsoluteImageUrl(article.imageUrl, origin);
+  const imageUrl = getAbsoluteImageUrl(article.imageUrl, origin, article.slug || article.id);
   const portalName = 'Folha da Região';
   const pageTitle = `${article.title} - ${portalName}`;
   const rawDesc = article.subtitle?.trim() || stripHtml(article.content);

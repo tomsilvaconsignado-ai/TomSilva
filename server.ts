@@ -129,7 +129,7 @@ async function startServer() {
         return res.status(400).json({ error: 'Dados da notícia inválidos' });
       }
 
-      const existingIndex = serverArticles.findIndex(a => a.id === article.id || a.slug === article.slug);
+      const existingIndex = serverArticles.findIndex(a => a.id === article.id || a.slug.toLowerCase() === article.slug.toLowerCase());
       if (existingIndex !== -1) {
         serverArticles[existingIndex] = {
           ...serverArticles[existingIndex],
@@ -144,6 +144,79 @@ async function startServer() {
     } catch (err: any) {
       console.error('Erro ao sincronizar notícia no servidor:', err);
       return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // API para sincronizar lote de notícias do cliente
+  app.post('/api/sync-all-articles', (req: Request, res: Response) => {
+    try {
+      const incoming = req.body as Article[];
+      if (Array.isArray(incoming) && incoming.length > 0) {
+        const mergedMap = new Map<string, Article>();
+        serverArticles.forEach(a => mergedMap.set(a.slug.toLowerCase(), a));
+        incoming.forEach(a => mergedMap.set(a.slug.toLowerCase(), a));
+        serverArticles = Array.from(mergedMap.values());
+        saveServerArticlesCache();
+      }
+      return res.json({ success: true, count: serverArticles.length });
+    } catch (err: any) {
+      console.error('Erro ao sincronizar lote de notícias no servidor:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // API para remover notícia excluída do cache do servidor
+  app.delete('/api/sync-article/:id', (req: Request, res: Response) => {
+    try {
+      const id = req.params.id;
+      serverArticles = serverArticles.filter(a => a.id !== id && a.slug.toLowerCase() !== id.toLowerCase());
+      saveServerArticlesCache();
+      return res.json({ success: true, count: serverArticles.length });
+    } catch (err: any) {
+      console.error('Erro ao excluir notícia no servidor:', err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Endpoint para servir imagem pública da notícia (inclusive decodificando Base64 para WhatsApp e redes sociais)
+  app.get('/api/article-image/:identifier', (req: Request, res: Response) => {
+    try {
+      const identifier = decodeURIComponent(req.params.identifier).trim();
+      const article = serverArticles.find(
+        a => a.slug.toLowerCase() === identifier.toLowerCase() || a.id === identifier
+      );
+
+      if (article && article.imageUrl) {
+        const img = article.imageUrl.trim();
+        if (img.startsWith('data:image/')) {
+          const matches = img.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+          if (matches && matches.length === 3) {
+            const mimeType = matches[1];
+            const buffer = Buffer.from(matches[2], 'base64');
+            res.setHeader('Content-Type', mimeType);
+            res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+            return res.send(buffer);
+          }
+        } else if (/^https?:\/\//i.test(img)) {
+          return res.redirect(302, img);
+        } else {
+          const filePath = path.resolve(__dirname, 'public', img.replace(/^\/+/, ''));
+          if (fs.existsSync(filePath)) {
+            return res.sendFile(filePath);
+          }
+        }
+      }
+
+      // Fallback para a imagem institucional
+      const fallbackPath = path.resolve(__dirname, 'public', 'og-image.png');
+      if (fs.existsSync(fallbackPath)) {
+        res.setHeader('Content-Type', 'image/png');
+        return res.sendFile(fallbackPath);
+      }
+      return res.status(404).send('Imagem não encontrada');
+    } catch (e: any) {
+      console.error('Erro ao servir imagem da notícia:', e);
+      return res.status(500).send('Erro interno ao servir imagem');
     }
   });
 

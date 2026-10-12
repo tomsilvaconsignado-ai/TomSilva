@@ -794,10 +794,21 @@ export const newsService = {
     }
 
     const localArticles = getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
-    return localArticles.map(a => ({
+    const resolved = localArticles.map(a => ({
       ...a,
       status: a.status || 'published'
     }));
+
+    // Sincroniza em segundo plano com o servidor SSR para metadados Open Graph
+    if (typeof fetch !== 'undefined') {
+      fetch('/api/sync-all-articles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(resolved)
+      }).catch(() => {});
+    }
+
+    return resolved;
   },
 
   async getArticleBySlug(slug: string): Promise<Article | null> {
@@ -917,6 +928,12 @@ export const newsService = {
     const articles = getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
     const filtered = articles.filter(a => a.id !== id);
     setStored(STORAGE_KEYS.ARTICLES, filtered);
+
+    if (typeof fetch !== 'undefined') {
+      fetch(`/api/sync-article/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      }).catch(() => {});
+    }
 
     if (isSupabaseConfigured() && supabase) {
       await supabase.from('articles').delete().eq('id', id);
