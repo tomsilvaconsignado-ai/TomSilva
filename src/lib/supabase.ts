@@ -839,6 +839,15 @@ export const newsService = {
           }).eq('id', updated.id);
         }
 
+        // Sincroniza com o servidor para OpenGraph instantâneo
+        if (typeof fetch !== 'undefined') {
+          fetch('/api/sync-article', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updated)
+          }).catch(() => {});
+        }
+
         return updated;
       }
     }
@@ -890,6 +899,15 @@ export const newsService = {
         author: newArticle.author,
         created_at: newArticle.createdAt
       }]);
+    }
+
+    // Sincroniza com o servidor para OpenGraph instantâneo
+    if (typeof fetch !== 'undefined') {
+      fetch('/api/sync-article', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newArticle)
+      }).catch(() => {});
     }
 
     return newArticle;

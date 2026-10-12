@@ -25,6 +25,7 @@ import { Article, AdItem, CategorySlug, UserProfile, ClassifiedItem } from './ty
 import { newsService, adsService, authService, newsletterService, notificationsService } from './lib/supabase';
 import { INITIAL_ARTICLES, INITIAL_ADS } from './data/initialData';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
+import { updateClientHeadForArticle } from './lib/seo';
 
 export default function App() {
   const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
@@ -79,6 +80,21 @@ export default function App() {
     if (user) {
       notificationsService.seedInitialNotificationsIfEmpty(user, arts);
     }
+
+    // Identifica se a página foi acessada diretamente por link permanente de notícia
+    const windowSlug = (window as any).__INITIAL_ARTICLE_SLUG__;
+    const pathMatch = window.location.pathname.match(/^\/(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
+    const searchSlug = new URLSearchParams(window.location.search).get('noticia') || new URLSearchParams(window.location.search).get('slug');
+    const initialSlug = windowSlug || (pathMatch ? decodeURIComponent(pathMatch[1]) : searchSlug);
+
+    if (initialSlug) {
+      const found = arts.find(a => a.slug.toLowerCase() === initialSlug.toLowerCase() || a.id === initialSlug);
+      if (found && found.status !== 'draft') {
+        setSelectedArticle(found);
+        setViewMode('article');
+        updateClientHeadForArticle(found);
+      }
+    }
   };
 
   useEffect(() => {
@@ -97,9 +113,55 @@ export default function App() {
     return () => window.removeEventListener('folha_auth_changed', handleAuthChange);
   }, []);
 
+  // Monitora navegação pelo histórico do navegador (botões Voltar e Avançar)
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathMatch = window.location.pathname.match(/^\/(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
+      const searchSlug = new URLSearchParams(window.location.search).get('noticia') || new URLSearchParams(window.location.search).get('slug');
+      const slug = pathMatch ? decodeURIComponent(pathMatch[1]) : searchSlug;
+
+      if (slug && articles.length > 0) {
+        const found = articles.find(a => a.slug.toLowerCase() === slug.toLowerCase() || a.id === slug);
+        if (found && found.status !== 'draft') {
+          setSelectedArticle(found);
+          setViewMode('article');
+          updateClientHeadForArticle(found);
+          return;
+        }
+      }
+
+      if (window.location.pathname === '/' || !slug) {
+        setSelectedArticle(null);
+        setViewMode('home');
+        document.title = 'Folha da Região - A notícia onde você estiver';
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [articles]);
+
   const handleSelectArticle = (art: Article) => {
     setSelectedArticle(art);
     setViewMode('article');
+    // Atualiza a URL canônica na barra de endereços do navegador
+    if (window.location.pathname !== `/noticia/${encodeURIComponent(art.slug)}`) {
+      window.history.pushState({ articleSlug: art.slug }, '', `/noticia/${encodeURIComponent(art.slug)}`);
+    }
+    updateClientHeadForArticle(art);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleGoHome = () => {
+    setViewMode('home');
+    setSelectedArticle(null);
+    setSelectedClassified(null);
+    setCurrentCategory('todos');
+    setSearchQuery('');
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/');
+    }
+    document.title = 'Folha da Região - A notícia onde você estiver';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -246,13 +308,7 @@ export default function App() {
         currentUser={currentUser}
         onSignOut={handleSignOut}
         headerAds={headerAds}
-        onGoHome={() => {
-          setViewMode('home');
-          setSelectedArticle(null);
-          setSelectedClassified(null);
-          setCurrentCategory('todos');
-          setSearchQuery('');
-        }}
+        onGoHome={handleGoHome}
         onSelectArticleSlug={(slug) => {
           const found = articles.find(a => a.slug === slug);
           if (found) {
@@ -282,7 +338,7 @@ export default function App() {
             allArticles={articles}
             currentUser={currentUser}
             onOpenAuth={() => handleOpenAuth('login')}
-            onBack={() => setViewMode('home')}
+            onBack={handleGoHome}
             onSelectArticle={handleSelectArticle}
             articleAds={articleAds}
           />
@@ -478,13 +534,7 @@ export default function App() {
       <Footer
         onOpenInstitutional={handleOpenInstitutional}
         onOpenAdmin={handleOpenAdminLogin}
-        onGoHome={() => {
-          setViewMode('home');
-          setSelectedArticle(null);
-          setSelectedClassified(null);
-          setCurrentCategory('todos');
-          setSearchQuery('');
-        }}
+        onGoHome={handleGoHome}
         onOpenClassifieds={() => {
           setCurrentCategory('classificados');
           setViewMode('classifieds');

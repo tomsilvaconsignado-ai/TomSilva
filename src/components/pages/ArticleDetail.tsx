@@ -5,6 +5,7 @@ import { commentsService, newsService } from '../../lib/supabase';
 import { ArticleCard, formatRelativeTime } from '../news/ArticleCard';
 import { AdSlot } from '../news/AdSlot';
 import { getAssetUrl, sanitizeHtml } from '../../lib/assets';
+import { getArticleCanonicalUrl, getWhatsAppShareData, updateClientHeadForArticle } from '../../lib/seo';
 
 interface ArticleDetailProps {
   article: Article;
@@ -38,26 +39,42 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   useEffect(() => {
     // Rola para o topo ao abrir notícia
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Atualiza metadados dinâmicos e título no cliente
+    updateClientHeadForArticle(article);
     // Incrementa contagem de visualizações
     newsService.incrementViews(article.id);
     // Carrega comentários
     commentsService.getComments(article.id).then(setComments);
   }, [article.id]);
 
-  const handleShare = (platform: 'whatsapp' | 'facebook' | 'twitter' | 'copy') => {
-    const url = window.location.href;
-    const title = article.title;
+  const handleShare = async (platform: 'whatsapp' | 'facebook' | 'twitter' | 'copy') => {
+    const canonicalUrl = getArticleCanonicalUrl(article.slug);
+    const title = article.title.trim();
 
     if (platform === 'whatsapp') {
-      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${title} - ${url}`)}`, '_blank');
+      const shareData = getWhatsAppShareData(article);
+      window.open(shareData.whatsappUrl, '_blank', 'noopener,noreferrer');
     } else if (platform === 'facebook') {
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(canonicalUrl)}`, '_blank', 'noopener,noreferrer');
     } else if (platform === 'twitter') {
-      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`, '_blank');
-    } else {
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
+      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(canonicalUrl)}`, '_blank', 'noopener,noreferrer');
+    } else if (platform === 'copy') {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(canonicalUrl);
+        } else {
+          const input = document.createElement('input');
+          input.value = canonicalUrl;
+          document.body.appendChild(input);
+          input.select();
+          document.execCommand('copy');
+          document.body.removeChild(input);
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3500);
+      } catch (err) {
+        console.warn('Erro ao copiar link da notícia:', err);
+      }
     }
   };
 
@@ -246,10 +263,14 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             </button>
             <button
               onClick={() => handleShare('copy')}
-              className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer border ${
+                copied 
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-black' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-800 border-transparent'
+              }`}
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : null}
-              {copied ? 'Copiado!' : 'Copiar Link'}
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : null}
+              {copied ? 'Link copiado com sucesso!' : 'Copiar Link'}
             </button>
           </div>
         </div>
