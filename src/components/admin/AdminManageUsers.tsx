@@ -128,6 +128,50 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
     error: null
   });
 
+  // Modal para Chave de Serviço service_role no Servidor
+  const [serviceKeyModal, setServiceKeyModal] = useState<{
+    isOpen: boolean;
+    keyInput: string;
+    submitting: boolean;
+    error: string | null;
+  }>({
+    isOpen: false,
+    keyInput: '',
+    submitting: false,
+    error: null
+  });
+
+  const handleSaveServiceKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!serviceKeyModal.keyInput.trim()) {
+      setServiceKeyModal(prev => ({ ...prev, error: 'Cole a chave service_role do Supabase.' }));
+      return;
+    }
+    setServiceKeyModal(prev => ({ ...prev, submitting: true, error: null }));
+    try {
+      const resp = await fetch('/api/admin/save-service-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-role': currentUser.role,
+          'x-admin-email': currentUser.email
+        },
+        body: JSON.stringify({
+          serviceRoleKey: serviceKeyModal.keyInput.trim()
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error || 'Não foi possível validar a chave.');
+      }
+      setNotice({ message: data.message || 'Chave administrativa ativada com sucesso no servidor!', type: 'success' });
+      setServiceKeyModal({ isOpen: false, keyInput: '', submitting: false, error: null });
+      await loadUsers();
+    } catch (err: any) {
+      setServiceKeyModal(prev => ({ ...prev, submitting: false, error: err?.message || 'Falha ao salvar chave.' }));
+    }
+  };
+
   // Carregar Lista de Usuários
   const loadUsers = async () => {
     setLoading(true);
@@ -478,6 +522,15 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setServiceKeyModal({ isOpen: true, keyInput: '', submitting: false, error: null })}
+            className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border border-emerald-200"
+            title="Conectar chave service_role do Supabase para sincronização direta do Supabase Auth"
+          >
+            <Key className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Chave service_role</span>
+          </button>
+
           <button
             onClick={handleOpenFullAudit}
             className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl flex items-center gap-2 transition-all cursor-pointer border border-gray-200"
@@ -1805,6 +1858,100 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                     <>
                       <Send className="w-3.5 h-3.5" />
                       <span>Enviar E-mail</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Conexão Segura da Chave service_role (Somente Servidor) */}
+      {serviceKeyModal.isOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gray-900 text-white p-5 sm:p-6 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-tight">
+                    Conectar Chave service_role (Servidor)
+                  </h3>
+                  <p className="text-[11px] text-gray-400">
+                    Sincronização profunda direta com auth.users do Supabase Auth
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setServiceKeyModal({ isOpen: false, keyInput: '', submitting: false, error: null })}
+                className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveServiceKey} className="p-6 space-y-4">
+              {serviceKeyModal.error && (
+                <div className="p-3.5 bg-red-50 rounded-xl border border-red-200 text-xs font-bold text-red-900 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{serviceKeyModal.error}</span>
+                </div>
+              )}
+
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 leading-relaxed space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-amber-700" />
+                  Armazenamento Seguro no Servidor
+                </p>
+                <p className="text-[11px] text-amber-800">
+                  A chave <strong>service_role</strong> concede acesso administrativo total ao Supabase Auth para listar usuários não confirmados. Ela fica gravada <strong>exclusivamente no servidor</strong> e nunca é exposta no navegador ou código público.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Chave Secreta service_role do Supabase:
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={serviceKeyModal.keyInput}
+                  onChange={(e) => setServiceKeyModal(prev => ({ ...prev, keyInput: e.target.value }))}
+                  placeholder="Cole aqui a chave service_role (encontrada no Supabase em Project Settings -> API -> Project API keys -> service_role secret)"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono resize-none focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setServiceKeyModal({ isOpen: false, keyInput: '', submitting: false, error: null })}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={serviceKeyModal.submitting}
+                  className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {serviceKeyModal.submitting ? (
+                    <>
+                      <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Validando no Supabase...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Validar & Ativar no Servidor</span>
                     </>
                   )}
                 </button>

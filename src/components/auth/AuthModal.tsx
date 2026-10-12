@@ -815,7 +815,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {mode === 'forgot' && (
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">
-                    E-mail Cadastrado
+                    E-mail Cadastrado para Recuperação
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
@@ -828,6 +828,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       className="w-full pl-10 pr-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
                     />
                   </div>
+                  <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">
+                    Informe seu e-mail cadastrado. Enviaremos as instruções oficiais de recuperação de senha com link seguro. Caso não localize na caixa de entrada, verifique também sua pasta de <strong>Spam / Lixo Eletrônico</strong>.
+                  </p>
                   <div className="text-right mt-2">
                     <button
                       type="button"

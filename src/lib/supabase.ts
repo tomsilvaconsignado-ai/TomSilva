@@ -852,34 +852,38 @@ export const authService = {
   async resetPassword(email: string): Promise<{ success: boolean; message: string; remainingSeconds?: number }> {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail || !trimmedEmail.includes('@')) {
-      return { success: false, message: 'Informe um e-mail válido.' };
-    }
-
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
-        const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-          redirectTo: `${origin}/#reset-password`
-        });
-        if (error) return { success: false, message: error.message };
-        return { 
-          success: true, 
-          message: 'Se existir uma conta associada a esse endereço, você receberá um e-mail com as instruções para redefinir sua senha.' 
-        };
-      } catch (err: any) {
-        return { success: false, message: err.message };
-      }
+      return { success: false, message: 'Informe um e-mail válido para recuperação.' };
     }
 
     const rateCheck = checkEmailRateLimit(trimmedEmail, 'password_reset', 60);
     if (!rateCheck.allowed) {
       return { 
         success: false, 
-        message: `Aguarde ${rateCheck.remainingSeconds} segundos para solicitar outro link de recuperação de senha.`,
+        message: `Por motivos de segurança, aguarde mais ${rateCheck.remainingSeconds} segundos antes de solicitar um novo link de recuperação de senha.`,
         remainingSeconds: rateCheck.remainingSeconds
       };
     }
 
+    let supabaseError: string | null = null;
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
+        // URL limpa sem fragmento hash '#' para compatibilidade total com a whitelist de Redirect URLs do Supabase
+        const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+          redirectTo: `${origin}/?action=reset-password`
+        });
+        if (error) {
+          console.warn('Aviso: supabase.auth.resetPasswordForEmail:', error.message);
+          supabaseError = error.message;
+        }
+      } catch (err: any) {
+        console.warn('Erro ao chamar resetPasswordForEmail no Supabase:', err);
+        supabaseError = err.message;
+      }
+    }
+
+    // Se a conta existir na base local/servidor, prepara também envio pelo serviço do portal
     const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
     const found = users.find(u => u.email.toLowerCase() === trimmedEmail);
 
@@ -888,14 +892,22 @@ export const authService = {
         const securityToken = authSecurityService.createToken(found.id, found.email, 'password_reset');
         await emailService.sendPasswordReset(found, securityToken.token);
       } catch (err) {
-        console.error('Erro ao gerar token/enviar e-mail de recuperação:', err);
+        console.error('Erro ao gerar token/enviar e-mail de recuperação pelo portal:', err);
       }
     }
 
-    // Mensagem neutra de segurança conforme exigência
+    // Se houve erro específico de limite de envio do Supabase
+    if (supabaseError && (supabaseError.toLowerCase().includes('rate limit') || supabaseError.toLowerCase().includes('frequency') || supabaseError.toLowerCase().includes('too many'))) {
+      return {
+        success: false,
+        message: 'Limite de tentativas de recuperação atingido. Por segurança, aguarde alguns minutos antes de solicitar novamente.'
+      };
+    }
+
+    // Mensagem amigável e segura, orientando a verificar spam/lixo eletrônico
     return {
       success: true,
-      message: 'Se existir uma conta associada a esse endereço, você receberá um e-mail com as instruções para redefinir sua senha.'
+      message: 'Solicitação de recuperação enviada com sucesso! Se existir uma conta associada a este e-mail, você receberá um link em instantes. Por favor, verifique sua caixa de entrada e a pasta de spam (lixo eletrônico).'
     };
   },
 
@@ -920,26 +932,36 @@ export const authService = {
   // 5. CONCLUSÃO DA REDEFINIÇÃO COM ATUALIZAÇÃO SEGURA DA SENHA
   async completePasswordReset(tokenString: string, newPassword: string): Promise<{ success: boolean; message: string }> {
     if (!newPassword || newPassword.length < 6) {
-      return { success: false, message: 'A nova senha deve ter no mínimo 6 caracteres.' };
+      return { success: false, message: 'A nova senha deve possuir no mínimo 6 caracteres.' };
     }
 
-    // Se o Supabase estiver ativo, atualiza a senha no Supabase Auth
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
-        if (error) {
-          console.warn('Aviso ao atualizar senha no Supabase:', error.message);
+    // Se for fluxo de recuperação do Supabase ou Supabase estiver configurado
+    if (tokenString === 'supabase_recovery' || (isSupabaseConfigured() && supabase)) {
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          const { error } = await supabase.auth.updateUser({ password: newPassword });
+          if (error) {
+            console.error('Erro ao atualizar senha no Supabase Auth:', error);
+            return {
+              success: false,
+              message: error.message || 'Não foi possível redefinir a senha no Supabase. O link pode ter expirado.'
+            };
+          }
+          if (tokenString === 'supabase_recovery') {
+            return {
+              success: true,
+              message: 'Sua senha foi redefinida com sucesso! Você já pode entrar com a nova senha.'
+            };
+          }
+        } catch (sbErr: any) {
+          if (tokenString === 'supabase_recovery') {
+            return {
+              success: false,
+              message: sbErr?.message || 'Erro de conexão ao atualizar senha no Supabase.'
+            };
+          }
         }
-      } catch (sbErr) {
-        console.warn('Erro ao atualizar senha no Supabase:', sbErr);
       }
-    }
-
-    if (tokenString === 'supabase_recovery') {
-      return {
-        success: true,
-        message: 'Sua senha foi redefinida com sucesso! Você já pode entrar com a nova senha.'
-      };
     }
 
     const verification = authSecurityService.verifyToken(tokenString, 'password_reset');
@@ -1445,6 +1467,7 @@ export const usersService = {
     }
 
     // 1. Tenta carregar do backend (integra Supabase Auth Admin API + Perfis + Persistência Servidor)
+    let fetchedUsers: UserProfile[] = [];
     try {
       const response = await fetch('/api/admin/users', {
         headers: {
@@ -1455,15 +1478,76 @@ export const usersService = {
       if (response.ok) {
         const result = await response.json();
         if (result.success && Array.isArray(result.users)) {
-          setStored(STORAGE_KEYS.USERS, result.users);
-          return result.users;
+          fetchedUsers = result.users;
         }
       }
     } catch (e) {
       console.warn('Aviso: Backend /api/admin/users não respondeu, utilizando cache local:', e);
     }
 
-    // 2. Fallback para armazenamento local
+    // 2. Mescla com tabela profiles remota do Supabase para garantir que nenhum cadastro seja omitido
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: remoteProfiles, error: profErr } = await supabase.from('profiles').select('*');
+        if (!profErr && Array.isArray(remoteProfiles) && remoteProfiles.length > 0) {
+          const userMap = new Map<string, UserProfile>();
+          fetchedUsers.forEach(u => userMap.set(u.email.toLowerCase(), u));
+
+          remoteProfiles.forEach((p: any) => {
+            const mapped: UserProfile = {
+              id: p.id,
+              email: p.email,
+              fullName: p.full_name || p.email?.split('@')[0] || 'Usuário',
+              role: (p.role || 'reader') as UserRole,
+              avatarUrl: p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(p.email || '')}`,
+              interests: p.interests || ['Política', 'Cidades'],
+              createdAt: p.created_at || new Date().toISOString(),
+              accountType: p.account_type || 'pf',
+              phone: p.phone || '',
+              city: p.city || '',
+              state: p.state || 'SE',
+              cpf: p.cpf,
+              cnpj: p.cnpj,
+              companyName: p.company_name,
+              tradeName: p.trade_name,
+              legalRepresentative: p.legal_representative,
+              representativeCpf: p.representative_cpf,
+              termsAccepted: p.terms_accepted ?? true,
+              termsAcceptedAt: p.terms_accepted_at,
+              termsVersion: p.terms_version || 'v2.1',
+              status: (p.status || 'active') as UserStatus,
+              moderationReason: p.moderation_reason,
+              moderationAt: p.moderation_at,
+              moderatedBy: p.moderated_by,
+              emailConfirmed: true, // Se o perfil foi gravado na base
+              hasProfile: true
+            };
+
+            const existing = userMap.get(mapped.email.toLowerCase());
+            if (existing) {
+              userMap.set(mapped.email.toLowerCase(), {
+                ...existing,
+                ...mapped,
+                status: existing.status === 'suspended' || existing.status === 'blocked' ? existing.status : mapped.status
+              });
+            } else {
+              userMap.set(mapped.email.toLowerCase(), mapped);
+            }
+          });
+
+          fetchedUsers = Array.from(userMap.values());
+        }
+      } catch (err) {
+        console.warn('Aviso: Falha ao consultar tabela profiles do Supabase no cliente:', err);
+      }
+    }
+
+    if (fetchedUsers.length > 0) {
+      setStored(STORAGE_KEYS.USERS, fetchedUsers);
+      return fetchedUsers;
+    }
+
+    // 3. Fallback para armazenamento local
     const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
     return users.map(u => ({
       id: u.id,

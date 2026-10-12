@@ -3,7 +3,7 @@ import {
   X, Lock, Eye, EyeOff, CheckCircle2, AlertCircle, 
   ShieldCheck, ArrowRight, KeyRound, Check, RefreshCw 
 } from 'lucide-react';
-import { authService } from '../../lib/supabase';
+import { authService, isSupabaseConfigured, supabase } from '../../lib/supabase';
 
 interface ResetPasswordModalProps {
   isOpen: boolean;
@@ -47,6 +47,15 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
     if (check.valid) {
       setTokenValid(true);
       setUserEmail(check.email);
+
+      // Se for recuperação via Supabase Auth e o e-mail não estiver em cache local, consulta a sessão ativa
+      if (!check.email && isSupabaseConfigured() && supabase) {
+        supabase.auth.getUser().then(({ data }) => {
+          if (data?.user?.email) {
+            setUserEmail(data.user.email);
+          }
+        }).catch(() => {});
+      }
     } else {
       setTokenValid(false);
       setTokenError(check.message);

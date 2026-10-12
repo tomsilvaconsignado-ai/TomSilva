@@ -123,11 +123,54 @@ function saveServerAuditLogsCache() {
   }
 }
 
+// Armazenamento em disco/servidor de segredos do servidor (chave service_role)
+const serverSecretsPath = path.resolve(__dirname, 'data_server_secrets.json');
+
+function getStoredServiceRoleKey(): string {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim()) {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY.trim();
+  }
+  try {
+    if (fs.existsSync(serverSecretsPath)) {
+      const raw = fs.readFileSync(serverSecretsPath, 'utf-8');
+      const data = JSON.parse(raw);
+      if (data?.serviceRoleKey) return data.serviceRoleKey.trim();
+    }
+  } catch {}
+  return '';
+}
+
+function saveStoredServiceRoleKey(key: string) {
+  try {
+    fs.writeFileSync(serverSecretsPath, JSON.stringify({ serviceRoleKey: key.trim() }, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Falha ao salvar chave de serviço do servidor:', e);
+  }
+}
+
+/**
+ * Obtém cliente Supabase padrão (anon) para consultas públicas autorizadas
+ */
+function getSupabaseStandardClient() {
+  let supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+  supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+  const anonKey = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+
+  if (supabaseUrl && anonKey) {
+    try {
+      return createSupabaseClient(supabaseUrl, anonKey);
+    } catch (e) {
+      console.warn('Erro ao inicializar Supabase Client padrão no servidor:', e);
+    }
+  }
+  return null;
+}
+
 /**
  * Obtém cliente administrativo do Supabase utilizando a chave service_role (lado do servidor apenas)
  */
 function getSupabaseAdminClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = getStoredServiceRoleKey();
   let supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
   supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
 
@@ -391,17 +434,106 @@ async function startServer() {
         } catch (err) {
           console.warn('Aviso: Falha ao consultar Supabase Admin API, usando cache sincronizado:', err);
         }
+      } else {
+        // Fallback: se service_role não estiver configurada no servidor, busca perfis da tabela profiles via cliente padrão
+        const stdClient = getSupabaseStandardClient();
+        if (stdClient) {
+          try {
+            const { data: profilesData, error: profErr } = await stdClient.from('profiles').select('*');
+            if (!profErr && Array.isArray(profilesData) && profilesData.length > 0) {
+              source = 'supabase_profiles_table';
+              const userMap = new Map<string, UserProfile>();
+              serverUsers.forEach(u => userMap.set(u.email.toLowerCase(), u));
+              profilesData.forEach((prof: any) => {
+                const mapped: UserProfile = {
+                  id: prof.id,
+                  email: prof.email,
+                  fullName: prof.full_name || prof.email?.split('@')[0] || 'Usuário',
+                  role: (prof.role || 'reader') as UserRole,
+                  avatarUrl: prof.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(prof.email || '')}`,
+                  interests: prof.interests || ['Política', 'Cidades'],
+                  createdAt: prof.created_at || new Date().toISOString(),
+                  lastSignInAt: null,
+                  lastActiveAt: null,
+                  hasProfile: true,
+                  emailConfirmed: true,
+                  emailConfirmedAt: prof.created_at,
+                  status: (prof.status || 'active') as UserStatus,
+                  accountType: prof.account_type || 'pf',
+                  phone: prof.phone || '',
+                  city: prof.city || '',
+                  state: prof.state || 'SE',
+                  cpf: prof.cpf,
+                  cnpj: prof.cnpj,
+                  companyName: prof.company_name,
+                  tradeName: prof.trade_name,
+                  legalRepresentative: prof.legal_representative,
+                  representativeCpf: prof.representative_cpf,
+                  termsAccepted: prof.terms_accepted ?? true,
+                  termsAcceptedAt: prof.terms_accepted_at,
+                  termsVersion: prof.terms_version || 'v2.1',
+                  moderationReason: prof.moderation_reason,
+                  moderationAt: prof.moderation_at,
+                  moderatedBy: prof.moderated_by
+                };
+                userMap.set(mapped.email.toLowerCase(), mapped);
+              });
+              combinedUsers = Array.from(userMap.values());
+              serverUsers = combinedUsers;
+              saveServerUsersCache();
+            }
+          } catch (e) {
+            console.warn('Falha ao consultar tabela profiles do Supabase no servidor:', e);
+          }
+        }
       }
 
       return res.json({
         success: true,
         users: combinedUsers,
         total: combinedUsers.length,
-        source
+        source,
+        hasServiceKey: Boolean(getStoredServiceRoleKey())
       });
     } catch (err: any) {
       console.error('Erro na listagem administrativa de usuários:', err);
       return res.status(500).json({ success: false, error: err.message || 'Erro ao carregar usuários.' });
+    }
+  });
+
+  // 1.1 Configurar Chave service_role de forma estritamente protegida no Servidor
+  app.post('/api/admin/save-service-key', async (req: Request, res: Response) => {
+    try {
+      if (!isAuthorizedAdmin(req)) {
+        return res.status(403).json({ success: false, error: 'Acesso restrito a administradores.' });
+      }
+      const { serviceRoleKey } = req.body;
+      if (!serviceRoleKey || typeof serviceRoleKey !== 'string' || serviceRoleKey.trim().length < 20) {
+        return res.status(400).json({ success: false, error: 'Chave service_role inválida.' });
+      }
+      const trimmedKey = serviceRoleKey.trim();
+      let supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+      supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+
+      const testClient = createSupabaseClient(supabaseUrl, trimmedKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+      });
+
+      const { error } = await testClient.auth.admin.listUsers({ page: 1, perPage: 1 });
+      if (error) {
+        return res.status(400).json({ 
+          success: false, 
+          error: `A chave informada não pôde autenticar no Supabase Auth Admin: ${error.message}` 
+        });
+      }
+
+      saveStoredServiceRoleKey(trimmedKey);
+      return res.json({ 
+        success: true, 
+        message: 'Chave service_role validada e ativada com sucesso! O painel administrativo agora tem acesso direto a todos os cadastros do Supabase Auth.' 
+      });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message || 'Erro ao processar chave.' });
     }
   });
 
