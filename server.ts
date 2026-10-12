@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import nodemailer from 'nodemailer';
 import { INITIAL_ARTICLES } from './src/data/initialData.ts';
 import { Article } from './src/types/database.ts';
 import { generateOpenGraphHtml, getAbsoluteImageUrl, escapeHtml, DEFAULT_PORTAL_DOMAIN } from './src/lib/seo.ts';
@@ -12,6 +13,45 @@ const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
 const isProd = process.env.NODE_ENV === 'production';
+
+/**
+ * Cria ou retorna transportador Nodemailer a partir das configurações recebidas ou variáveis de ambiente
+ */
+function createEmailTransporter(smtpConfig?: {
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  smtpUser?: string;
+  smtpPass?: string;
+}) {
+  const host = (smtpConfig?.smtpHost || process.env.SMTP_HOST || '').trim();
+  const port = Number(smtpConfig?.smtpPort || process.env.SMTP_PORT || 587);
+  const secure = smtpConfig?.smtpSecure !== undefined 
+    ? Boolean(smtpConfig.smtpSecure) 
+    : (process.env.SMTP_SECURE === 'true' || port === 465);
+  const user = (smtpConfig?.smtpUser || process.env.SMTP_USER || '').trim();
+  const pass = (smtpConfig?.smtpPass || process.env.SMTP_PASS || '').trim();
+
+  if (!host || !user || !pass) {
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: {
+      user,
+      pass,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+  });
+}
 
 // Armazenamento em memória das notícias para o servidor SSR de metadados
 let serverArticles: Article[] = [...INITIAL_ARTICLES];
@@ -175,6 +215,131 @@ async function startServer() {
     } catch (err: any) {
       console.error('Erro ao excluir notícia no servidor:', err);
       return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // API para testar conectividade e envio SMTP do portal
+  app.post('/api/test-smtp', async (req: Request, res: Response) => {
+    try {
+      const { testRecipient, smtpConfig } = req.body;
+      if (!testRecipient || !testRecipient.includes('@')) {
+        return res.status(400).json({ success: false, error: 'Informe um endereço de e-mail de destino válido para o teste.' });
+      }
+
+      const transporter = createEmailTransporter(smtpConfig);
+      if (!transporter) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Credenciais SMTP incompletas. Preencha o servidor host, usuário e senha.' 
+        });
+      }
+
+      // Valida a conexão
+      await transporter.verify();
+
+      const fromName = smtpConfig?.fromName || 'Folha da Região';
+      const fromEmail = smtpConfig?.fromEmail || smtpConfig?.smtpUser || 'contato@folhadaregiaoonline.com.br';
+      const fromAddress = `"${fromName}" <${fromEmail}>`;
+
+      const info = await transporter.sendMail({
+        from: fromAddress,
+        to: testRecipient,
+        replyTo: smtpConfig?.replyTo || fromEmail,
+        subject: `[Folha da Região] Teste de Comunicação de E-mail — ${new Date().toLocaleTimeString('pt-BR')}`,
+        text: `Olá!\n\nEste é um e-mail de teste disparado pelo portal Folha da Região para confirmar que as configurações SMTP e de comunicação com os usuários estão funcionando perfeitamente.\n\nData e Hora: ${new Date().toLocaleString('pt-BR')}\nServidor: ${smtpConfig?.smtpHost}\nRemetente: ${fromAddress}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff;">
+            <div style="background-color: #0f172a; padding: 24px; border-bottom: 4px solid #0056a4; color: #ffffff;">
+              <h1 style="margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase;">FOLHA DA REGIÃO</h1>
+              <p style="margin: 4px 0 0 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Teste de Comunicação e SMTP</p>
+            </div>
+            <div style="padding: 28px; color: #334155; line-height: 1.6;">
+              <h2 style="margin-top: 0; color: #0056a4; font-size: 18px;">✅ Conexão de E-mail Estabelecida com Sucesso!</h2>
+              <p>Parabéns! Se você está lendo esta mensagem, o portal <strong>Folha da Região</strong> está conectado e apto a enviar:</p>
+              <ul style="padding-left: 20px; color: #475569;">
+                <li>Instruções de recuperação e redefinição de senha;</li>
+                <li>Confirmação e ativação de contas de usuários;</li>
+                <li>Notificações oficiais e comunicados aos leitores e anunciantes;</li>
+                <li>Mensagens diretas da administração do portal.</li>
+              </ul>
+              <div style="background-color: #f8fafc; border-radius: 8px; padding: 14px; margin: 20px 0; font-size: 12px; color: #64748b; border: 1px solid #e2e8f0;">
+                <strong>Diagnóstico do Envio:</strong><br>
+                • Servidor Host: <code>${escapeHtml(smtpConfig?.smtpHost || '')}</code><br>
+                • Porta: <code>${smtpConfig?.smtpPort || 587}</code> (${smtpConfig?.smtpSecure ? 'SSL Seguro' : 'TLS/STARTTLS'})<br>
+                • Remetente Configurado: <code>${escapeHtml(fromAddress)}</code><br>
+                • Data/Hora do Teste: <code>${new Date().toLocaleString('pt-BR')}</code>
+              </div>
+            </div>
+            <div style="background-color: #f1f5f9; padding: 16px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0;">
+              Folha da Região Online • Sergipe • Mensagem de teste gerada pelo painel administrativo
+            </div>
+          </div>
+        `
+      });
+
+      return res.json({ 
+        success: true, 
+        message: `Conexão SMTP validada e e-mail de teste enviado com sucesso para ${testRecipient}!`,
+        messageId: info.messageId
+      });
+    } catch (err: any) {
+      console.error('Erro no teste SMTP:', err);
+      let friendlyError = err.message || 'Falha ao conectar ao servidor SMTP.';
+      if (err.code === 'EAUTH' || err.responseCode === 535) {
+        friendlyError = 'Falha de autenticação SMTP: Usuário ou senha incorretos. Verifique se o provedor exige uma "Senha de Aplicativo" (como no Gmail/Google Workspace).';
+      } else if (err.code === 'ESOCKET' || err.code === 'ETIMEDOUT') {
+        friendlyError = `Tempo limite esgotado ao conectar ao servidor ${req.body?.smtpConfig?.smtpHost}:${req.body?.smtpConfig?.smtpPort}. Verifique se a porta ou o host estão corretos.`;
+      }
+      return res.status(400).json({ success: false, error: friendlyError, rawError: err.message });
+    }
+  });
+
+  // API para envio de e-mails transacionais (recuperação de senha, ativação, avisos aos usuários)
+  app.post('/api/send-email', async (req: Request, res: Response) => {
+    try {
+      const { to, subject, html, text, fromName, fromEmail, replyTo, smtpConfig } = req.body;
+      if (!to || !to.includes('@') || !subject) {
+        return res.status(400).json({ success: false, error: 'Parâmetros de e-mail inválidos (destinatário e assunto obrigatórios).' });
+      }
+
+      const transporter = createEmailTransporter(smtpConfig);
+
+      // Se o transportador não estiver configurado, aceita a mensagem no modo de simulação/homologação
+      if (!transporter) {
+        return res.json({
+          success: true,
+          delivered: false,
+          simulated: true,
+          message: 'E-mail registrado com sucesso na caixa de saída do portal (servidor SMTP não configurado).'
+        });
+      }
+
+      const senderName = fromName || smtpConfig?.fromName || 'Folha da Região';
+      const senderAddress = fromEmail || smtpConfig?.fromEmail || smtpConfig?.smtpUser || 'contato@folhadaregiaoonline.com.br';
+      const fromFormatted = `"${senderName}" <${senderAddress}>`;
+
+      const info = await transporter.sendMail({
+        from: fromFormatted,
+        to,
+        replyTo: replyTo || smtpConfig?.replyTo || senderAddress,
+        subject,
+        html: html || undefined,
+        text: text || (html ? html.replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ').trim() : '')
+      });
+
+      return res.json({
+        success: true,
+        delivered: true,
+        messageId: info.messageId,
+        message: 'E-mail enviado com sucesso via servidor SMTP.'
+      });
+    } catch (err: any) {
+      console.error('Erro ao enviar e-mail via SMTP:', err);
+      return res.status(500).json({
+        success: false,
+        delivered: false,
+        error: err.message || 'Erro ao despachar e-mail via servidor SMTP.'
+      });
     }
   });
 

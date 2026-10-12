@@ -4,10 +4,11 @@ import {
   AlertCircle, Building2, User, Phone, MapPin, Calendar, 
   Mail, Send, Eye, EyeOff, FileText, ChevronLeft, ChevronRight, 
   RotateCw, Filter, Check, X, Tag, History, AlertTriangle, 
-  Lock, ArrowUpRight, Ban, UserCheck, ShieldCheck
+  Lock, ArrowUpRight, Ban, UserCheck, ShieldCheck, Key
 } from 'lucide-react';
 import { UserProfile, UserRole, UserStatus, UserAuditLog, ClassifiedReport } from '../../types/database';
-import { usersService } from '../../lib/supabase';
+import { usersService, authService } from '../../lib/supabase';
+import { emailService } from '../../lib/emailService';
 
 interface AdminManageUsersProps {
   currentUser: UserProfile;
@@ -76,6 +77,23 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
   // Modal Geral de Auditoria do Sistema
   const [showFullAuditModal, setShowFullAuditModal] = useState(false);
   const [allAuditLogs, setAllAuditLogs] = useState<UserAuditLog[]>([]);
+
+  // Modal para Enviar Mensagem/E-mail Direto ao Usuário
+  const [userEmailModal, setUserEmailModal] = useState<{
+    isOpen: boolean;
+    user: UserProfile | null;
+    subject: string;
+    message: string;
+    submitting: boolean;
+    error: string | null;
+  }>({
+    isOpen: false,
+    user: null,
+    subject: '',
+    message: '',
+    submitting: false,
+    error: null
+  });
 
   // Carregar Lista de Usuários
   const loadUsers = async () => {
@@ -272,6 +290,55 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
     } catch (err: any) {
       setNotice({ message: err?.message || 'Erro ao confirmar e-mail.', type: 'error' });
       setTimeout(() => setNotice(null), 4000);
+    }
+  };
+
+  // Enviar recuperação de senha para o usuário
+  const handleAdminSendPasswordReset = async (user: UserProfile) => {
+    if (!window.confirm(`Deseja enviar um e-mail com link de recuperação de senha para ${user.fullName} (${user.email})?`)) {
+      return;
+    }
+    try {
+      const res = await authService.resetPassword(user.email);
+      setNotice({ message: res.message || `E-mail de recuperação enviado para ${user.email}!`, type: 'success' });
+      setTimeout(() => setNotice(null), 4000);
+    } catch (err: any) {
+      setNotice({ message: err?.message || 'Erro ao enviar e-mail de recuperação.', type: 'error' });
+      setTimeout(() => setNotice(null), 4000);
+    }
+  };
+
+  // Enviar e-mail direto personalizado
+  const handleSendDirectUserEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userEmailModal.user) return;
+    if (!userEmailModal.subject.trim() || !userEmailModal.message.trim()) {
+      setUserEmailModal(prev => ({ ...prev, error: 'Preencha o assunto e a mensagem.' }));
+      return;
+    }
+
+    setUserEmailModal(prev => ({ ...prev, submitting: true, error: null }));
+    try {
+      await emailService.sendUserNotification(
+        { email: userEmailModal.user.email, fullName: userEmailModal.user.fullName },
+        userEmailModal.subject.trim(),
+        userEmailModal.message.trim()
+      );
+      setNotice({ 
+        message: `E-mail enviado com sucesso para ${userEmailModal.user.fullName} (${userEmailModal.user.email})!`, 
+        type: 'success' 
+      });
+      setUserEmailModal({
+        isOpen: false,
+        user: null,
+        subject: '',
+        message: '',
+        submitting: false,
+        error: null
+      });
+      setTimeout(() => setNotice(null), 4000);
+    } catch (err: any) {
+      setUserEmailModal(prev => ({ ...prev, submitting: false, error: err?.message || 'Falha ao enviar e-mail.' }));
     }
   };
 
@@ -959,6 +1026,41 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   )}
                 </div>
 
+                {/* Comunicação e Recuperação de Acesso */}
+                <div className="pt-2 border-t border-gray-200">
+                  <span className="text-gray-400 block text-[10px] font-bold uppercase mb-1.5">
+                    Comunicação & Recuperação de Conta:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAdminSendPasswordReset(selectedUser)}
+                      className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#0056a4] rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-blue-200 transition-colors cursor-pointer"
+                      title="Disparar e-mail oficial com link para o usuário redefinir sua senha"
+                    >
+                      <Key className="w-3 h-3" />
+                      <span>Enviar Recuperação de Senha</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setUserEmailModal({
+                        isOpen: true,
+                        user: selectedUser,
+                        subject: '',
+                        message: '',
+                        submitting: false,
+                        error: null
+                      })}
+                      className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-gray-200 transition-colors cursor-pointer"
+                      title="Enviar e-mail personalizado do portal diretamente para este usuário"
+                    >
+                      <Mail className="w-3 h-3 text-[#0056a4]" />
+                      <span>Enviar E-mail Direto</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Papel do Usuário (Fluxo Protegido) */}
                 <div className="pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between mb-1">
@@ -1384,6 +1486,106 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                 Fechar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal para Enviar E-mail Personalizado ao Usuário */}
+      {userEmailModal.isOpen && userEmailModal.user && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+            {/* Header */}
+            <div className="bg-slate-900 text-white p-5 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#0056a4] flex items-center justify-center shrink-0">
+                  <Mail className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight">
+                    Enviar E-mail Oficial
+                  </h3>
+                  <p className="text-[11px] text-gray-300">
+                    Para: {userEmailModal.user.fullName} ({userEmailModal.user.email})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUserEmailModal({ isOpen: false, user: null, subject: '', message: '', submitting: false, error: null })}
+                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSendDirectUserEmail} className="p-5 space-y-4">
+              {userEmailModal.error && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-800 text-xs rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{userEmailModal.error}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Assunto da Mensagem:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={userEmailModal.subject}
+                  onChange={(e) => setUserEmailModal(prev => ({ ...prev, subject: e.target.value }))}
+                  placeholder="Ex: Atualização sobre sua conta na Folha da Região"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Conteúdo do E-mail:
+                </label>
+                <textarea
+                  required
+                  rows={5}
+                  value={userEmailModal.message}
+                  onChange={(e) => setUserEmailModal(prev => ({ ...prev, message: e.target.value }))}
+                  placeholder="Escreva a mensagem oficial que será entregue na caixa de entrada do usuário..."
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium resize-none leading-relaxed"
+                />
+              </div>
+
+              <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 text-[11px] text-blue-900 leading-relaxed">
+                Este e-mail será disparado com o layout oficial da <strong>Folha da Região</strong> e registrado no histórico de comunicação do portal.
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setUserEmailModal({ isOpen: false, user: null, subject: '', message: '', submitting: false, error: null })}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={userEmailModal.submitting}
+                  className="px-5 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {userEmailModal.submitting ? (
+                    <>
+                      <RotateCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Enviar E-mail</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

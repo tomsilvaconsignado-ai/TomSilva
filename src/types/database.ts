@@ -71,12 +71,27 @@ export interface OutboxEmail {
   to: string;
   recipientName: string;
   subject: string;
-  type: 'email_confirmation' | 'password_reset' | 'password_changed';
+  type: 'email_confirmation' | 'password_reset' | 'password_changed' | 'user_notification' | 'system_announcement' | 'test_email';
   bodyHtml: string;
-  actionUrl: string;
-  actionLabel: string;
+  actionUrl?: string;
+  actionLabel?: string;
   sentAt: string;
   status: 'sent' | 'delivered';
+}
+
+export interface EmailConfig {
+  enabled: boolean;
+  fromName: string;
+  fromEmail: string;
+  replyTo?: string;
+  provider: 'smtp' | 'gmail' | 'titan' | 'cpanel' | 'resend' | 'custom';
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  smtpUser?: string;
+  smtpPass?: string;
+  notifyOnNewRegistration?: boolean;
+  notifyOnNewClassified?: boolean;
 }
 
 export interface NotificationItem {
@@ -332,6 +347,9 @@ export interface PortalSettings {
       dpoContact: string;
     };
   };
+
+  // 6. Configurações de Envio de E-mail & Comunicação (SMTP / Provedor)
+  emailConfig?: EmailConfig;
 
   updatedAt?: string;
 }

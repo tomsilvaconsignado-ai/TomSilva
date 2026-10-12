@@ -45,6 +45,37 @@ export const checkEmailRateLimit = (email: string, type: string, cooldownSeconds
   }
 };
 
+/**
+ * Despacha o e-mail para o backend Express enviar via SMTP caso esteja configurado
+ */
+async function dispatchEmailToBackend(email: OutboxEmail): Promise<{ delivered: boolean; error?: string }> {
+  if (typeof window === 'undefined') return { delivered: false };
+  try {
+    const rawSettings = localStorage.getItem('folha_portal_settings_v1');
+    const settings = rawSettings ? JSON.parse(rawSettings) : null;
+    const emailConfig = settings?.emailConfig;
+
+    const res = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email.to,
+        subject: email.subject,
+        html: email.bodyHtml,
+        fromName: emailConfig?.fromName || 'Folha da Região',
+        fromEmail: emailConfig?.fromEmail || 'contato@folhadaregiaoonline.com.br',
+        replyTo: emailConfig?.replyTo || 'itallomarketing@gmail.com',
+        smtpConfig: emailConfig
+      })
+    });
+    const data = await res.json();
+    return { delivered: Boolean(data.delivered), error: data.error };
+  } catch (err: any) {
+    console.warn('Erro ao comunicar com /api/send-email:', err);
+    return { delivered: false, error: err.message };
+  }
+}
+
 // Gerador de Modelos HTML Responsivos com Identidade Visual da Folha da Região
 const generateBaseHtml = (title: string, contentHtml: string, actionUrl?: string, actionLabel?: string, footerNote?: string): string => {
   return `
@@ -147,6 +178,8 @@ export const emailService = {
     window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
     window.dispatchEvent(new Event('folha_outbox_updated'));
 
+    dispatchEmailToBackend(email).catch(console.error);
+
     return email;
   },
 
@@ -189,6 +222,8 @@ export const emailService = {
 
     window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
     window.dispatchEvent(new Event('folha_outbox_updated'));
+
+    dispatchEmailToBackend(email).catch(console.error);
 
     return email;
   },
@@ -233,6 +268,8 @@ export const emailService = {
     window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
     window.dispatchEvent(new Event('folha_outbox_updated'));
 
+    dispatchEmailToBackend(email).catch(console.error);
+
     return email;
   },
 
@@ -275,6 +312,71 @@ export const emailService = {
     window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
     window.dispatchEvent(new Event('folha_outbox_updated'));
 
+    dispatchEmailToBackend(email).catch(console.error);
+
     return email;
+  },
+
+  // 5. NOTIFICAÇÃO / MENSAGEM DIRETA PARA USUÁRIO
+  async sendUserNotification(
+    user: { email: string; fullName: string },
+    title: string,
+    messageContent: string,
+    actionUrl?: string,
+    actionLabel?: string
+  ): Promise<OutboxEmail> {
+    const contentHtml = `
+      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${user.fullName}!</h2>
+      <div style="font-size: 14px; color: #334155; line-height: 1.7; white-space: pre-line; margin: 16px 0;">
+        ${messageContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+      </div>
+    `;
+
+    const bodyHtml = generateBaseHtml(
+      `${title} — Folha da Região`,
+      contentHtml,
+      actionUrl,
+      actionLabel || 'Acessar o Portal',
+      'Mensagem oficial enviada pela equipe do portal Folha da Região.'
+    );
+
+    const email: OutboxEmail = {
+      id: 'email-' + Math.random().toString(36).substring(2, 9),
+      to: user.email,
+      recipientName: user.fullName,
+      subject: `[Folha da Região] ${title}`,
+      type: 'user_notification',
+      bodyHtml,
+      actionUrl,
+      actionLabel: actionLabel || 'Acessar o Portal',
+      sentAt: new Date().toISOString(),
+      status: 'delivered'
+    };
+
+    const outbox = getStoredEmails();
+    outbox.unshift(email);
+    saveStoredEmails(outbox);
+
+    window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
+    window.dispatchEvent(new Event('folha_outbox_updated'));
+
+    dispatchEmailToBackend(email).catch(console.error);
+
+    return email;
+  },
+
+  // 6. TESTE DE CONEXÃO SMTP
+  async testSmtpConnection(testRecipient: string, smtpConfig: any): Promise<{ success: boolean; message: string; error?: string }> {
+    try {
+      const res = await fetch('/api/test-smtp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testRecipient, smtpConfig })
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      return { success: false, message: 'Falha na comunicação com o servidor de envio.', error: err.message };
+    }
   }
 };

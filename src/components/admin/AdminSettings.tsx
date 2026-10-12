@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Building2, Phone, Mail, FileText, Globe, Share2, 
-  Save, RotateCcw, CheckCircle2, AlertCircle, Eye, 
+  Save, RotateCcw, CheckCircle2, AlertCircle, Eye, EyeOff,
   MapPin, Clock, MessageSquare, Shield, Sliders, ExternalLink,
   Info, Sparkles, ChevronRight, Check, Upload, Image as ImageIcon, Trash2,
-  Link as LinkIcon
+  Link as LinkIcon, Send, Server, Key, AtSign, Inbox, RefreshCw, Radio
 } from 'lucide-react';
 import { PortalSettings } from '../../types/database';
-import { portalSettingsService } from '../../lib/supabase';
+import { portalSettingsService, usersService } from '../../lib/supabase';
+import { emailService } from '../../lib/emailService';
 import { getAssetUrl } from '../../lib/assets';
 
 type SettingsSection = 
@@ -15,7 +16,8 @@ type SettingsSection =
   | 'contacts'        // Contatos do Portal
   | 'footer'          // Informações Institucionais do Rodapé
   | 'social'          // Redes Sociais
-  | 'institutional';  // Páginas Institucionais
+  | 'institutional'   // Páginas Institucionais
+  | 'email';          // E-mail & Notificações
 
 export const AdminSettings: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SettingsSection>('identity');
@@ -25,6 +27,18 @@ export const AdminSettings: React.FC = () => {
   const [activeInstSubTab, setActiveInstSubTab] = useState<'sobreNos' | 'expediente' | 'privacidade'>('sobreNos');
   const [logoUrlInput, setLogoUrlInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Estados de E-mail & Comunicação
+  const [testEmailInput, setTestEmailInput] = useState(() => settings.contactEmail || 'itallomarketing@gmail.com');
+  const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+  const [smtpTestFeedback, setSmtpTestFeedback] = useState<{ success: boolean; message: string } | null>(null);
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  const [broadcastTarget, setBroadcastTarget] = useState<'all' | 'custom'>('all');
+  const [broadcastCustomEmail, setBroadcastCustomEmail] = useState('');
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [broadcastFeedback, setBroadcastFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
   // Carrega configurações
   useEffect(() => {
@@ -173,8 +187,180 @@ export const AdminSettings: React.FC = () => {
       label: 'Páginas Institucionais', 
       icon: FileText, 
       hint: 'Textos de Sobre Nós, Expediente e Privacidade' 
+    },
+    { 
+      id: 'email', 
+      label: 'E-mail & Notificações', 
+      icon: Mail, 
+      hint: 'SMTP, remetente oficial, recuperação de senha e comunicados' 
     }
   ];
+
+  // Aplica predefinições rápidas de provedores de e-mail (Hostinger, Titan, Gmail, etc.)
+  const applySmtpPreset = (preset: 'titan' | 'gmail' | 'cpanel' | 'resend' | 'sendgrid') => {
+    setSettings(prev => {
+      const cur = prev.emailConfig || {
+        enabled: true,
+        fromName: 'Folha da Região',
+        fromEmail: 'contato@folhadaregiaoonline.com.br',
+        replyTo: 'itallomarketing@gmail.com',
+        provider: 'smtp',
+        smtpHost: '',
+        smtpPort: 587,
+        smtpSecure: false,
+        smtpUser: '',
+        smtpPass: '',
+        notifyOnNewRegistration: true,
+        notifyOnNewClassified: true
+      };
+
+      if (preset === 'titan') {
+        return {
+          ...prev,
+          emailConfig: {
+            ...cur,
+            provider: 'titan',
+            smtpHost: 'smtp.titan.email',
+            smtpPort: 465,
+            smtpSecure: true
+          }
+        };
+      } else if (preset === 'gmail') {
+        return {
+          ...prev,
+          emailConfig: {
+            ...cur,
+            provider: 'gmail',
+            smtpHost: 'smtp.gmail.com',
+            smtpPort: 587,
+            smtpSecure: false
+          }
+        };
+      } else if (preset === 'cpanel') {
+        return {
+          ...prev,
+          emailConfig: {
+            ...cur,
+            provider: 'cpanel',
+            smtpHost: 'mail.folhadaregiaoonline.com.br',
+            smtpPort: 465,
+            smtpSecure: true
+          }
+        };
+      } else if (preset === 'resend') {
+        return {
+          ...prev,
+          emailConfig: {
+            ...cur,
+            provider: 'resend',
+            smtpHost: 'smtp.resend.com',
+            smtpPort: 465,
+            smtpSecure: true
+          }
+        };
+      } else if (preset === 'sendgrid') {
+        return {
+          ...prev,
+          emailConfig: {
+            ...cur,
+            provider: 'smtp',
+            smtpHost: 'smtp.sendgrid.net',
+            smtpPort: 587,
+            smtpSecure: false
+          }
+        };
+      }
+      return prev;
+    });
+    showNotification(`Predefinição para ${preset.toUpperCase()} aplicada! Preencha usuário e senha.`);
+  };
+
+  // Enviar e-mail de teste para validação de conectividade
+  const handleTestSmtp = async () => {
+    if (!testEmailInput || !testEmailInput.includes('@')) {
+      showNotification('Informe um endereço de e-mail de destino válido para o teste.', 'error');
+      return;
+    }
+
+    setIsTestingSmtp(true);
+    setSmtpTestFeedback(null);
+    try {
+      const res = await emailService.testSmtpConnection(testEmailInput.trim(), settings.emailConfig);
+      setSmtpTestFeedback({
+        success: res.success,
+        message: res.message || (res as any).error || 'Falha no teste de envio.'
+      });
+      if (res.success) {
+        showNotification('E-mail de teste disparado com sucesso!', 'success');
+      } else {
+        showNotification(res.message || (res as any).error || 'Falha na validação SMTP.', 'error');
+      }
+    } catch (err: any) {
+      setSmtpTestFeedback({
+        success: false,
+        message: err.message || 'Erro de comunicação ao testar o servidor SMTP.'
+      });
+      showNotification('Erro ao testar envio de e-mail.', 'error');
+    } finally {
+      setIsTestingSmtp(false);
+    }
+  };
+
+  // Enviar mensagem ou comunicado do portal aos usuários
+  const handleSendDirectNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+      showNotification('Preencha o assunto e o conteúdo da mensagem.', 'error');
+      return;
+    }
+
+    setIsSendingBroadcast(true);
+    setBroadcastFeedback(null);
+    try {
+      if (broadcastTarget === 'all') {
+        const users = await usersService.getUsers();
+        const validUsers = users.filter(u => u.email && u.email.includes('@'));
+        for (const u of validUsers) {
+          await emailService.sendUserNotification(
+            { email: u.email, fullName: u.fullName || 'Leitor(a)' },
+            broadcastTitle.trim(),
+            broadcastMessage.trim()
+          );
+        }
+        setBroadcastFeedback({
+          success: true,
+          message: `Comunicado enviado com sucesso para ${validUsers.length} usuário(s) cadastrado(s)!`
+        });
+        showNotification(`Comunicado enviado para ${validUsers.length} usuários!`, 'success');
+      } else {
+        if (!broadcastCustomEmail.trim() || !broadcastCustomEmail.includes('@')) {
+          showNotification('Informe um e-mail de destinatário válido.', 'error');
+          setIsSendingBroadcast(false);
+          return;
+        }
+        await emailService.sendUserNotification(
+          { email: broadcastCustomEmail.trim(), fullName: 'Usuário do Portal' },
+          broadcastTitle.trim(),
+          broadcastMessage.trim()
+        );
+        setBroadcastFeedback({
+          success: true,
+          message: `Mensagem oficial enviada com sucesso para ${broadcastCustomEmail.trim()}!`
+        });
+        showNotification('Mensagem oficial enviada com sucesso!', 'success');
+      }
+      setBroadcastTitle('');
+      setBroadcastMessage('');
+    } catch (err: any) {
+      setBroadcastFeedback({
+        success: false,
+        message: err.message || 'Erro ao despachar comunicado.'
+      });
+      showNotification('Falha ao enviar mensagem.', 'error');
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto animate-in fade-in duration-200">
@@ -190,7 +376,7 @@ export const AdminSettings: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Administre os textos institucionais, slogan, dados de contato e informações do rodapé exibidos nas páginas públicas.
+            Administre os textos institucionais, slogan, dados de contato, e-mails de comunicação e informações do rodapé.
           </p>
         </div>
 
@@ -234,7 +420,7 @@ export const AdminSettings: React.FC = () => {
       )}
 
       {/* Navegação entre as seções temáticas */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {sectionsList.map((sec) => {
           const Icon = sec.icon;
           const isSelected = activeSection === sec.id;
@@ -1327,6 +1513,558 @@ export const AdminSettings: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* 6. SEÇÃO DE E-MAIL & NOTIFICAÇÕES (SMTP / COMUNICAÇÃO) */}
+        {activeSection === 'email' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Banner Informativo */}
+            <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 rounded-2xl border border-blue-900 shadow-md">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#0056a4] flex items-center justify-center shrink-0 shadow-md">
+                    <Mail className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-black uppercase tracking-tight">
+                        Comunicação e E-mails do Portal
+                      </h3>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        {settings.emailConfig?.enabled ? 'Ativo' : 'Simulação'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-300 mt-1 max-w-2xl leading-relaxed">
+                      Configure o e-mail oficial da <strong>Folha da Região</strong> para envio de links de 
+                      <strong> recuperação de senha</strong>, <strong>ativação de cadastros</strong>, avisos de segurança e 
+                      <strong> comunicados oficiais</strong> diretamente aos usuários e leitores.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const outboxBtn = document.querySelector('[data-testid="open-outbox-btn"]') as HTMLButtonElement;
+                      if (outboxBtn) {
+                        outboxBtn.click();
+                      } else {
+                        window.dispatchEvent(new CustomEvent('folha_open_email_outbox'));
+                      }
+                    }}
+                    className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border border-white/10"
+                    title="Auditar todos os e-mails registrados"
+                  >
+                    <Inbox className="w-4 h-4 text-blue-300" />
+                    <span>Ver Caixa de E-mails</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Configuração do Remetente Oficial */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <AtSign className="w-4 h-4 text-[#0056a4]" />
+                  <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
+                    1. Identidade do Remetente Oficial
+                  </h4>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-xs font-bold text-gray-600">Habilitar Envio Real:</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.emailConfig?.enabled ?? true}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      emailConfig: {
+                        ...(settings.emailConfig || {
+                          enabled: true,
+                          fromName: 'Folha da Região',
+                          fromEmail: 'contato@folhadaregiaoonline.com.br',
+                          provider: 'smtp'
+                        }),
+                        enabled: e.target.checked
+                      }
+                    })}
+                    className="w-4 h-4 rounded text-[#0056a4] focus:ring-[#0056a4] cursor-pointer"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Nome de Exibição do Remetente
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.emailConfig?.fromName ?? 'Folha da Região'}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      emailConfig: {
+                        ...(settings.emailConfig || { enabled: true, fromEmail: 'contato@folhadaregiaoonline.com.br', provider: 'smtp' }),
+                        fromName: e.target.value
+                      }
+                    })}
+                    placeholder="Ex: Folha da Região"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Nome que aparece na caixa de entrada do leitor.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    E-mail Oficial de Envio (From)
+                  </label>
+                  <input
+                    type="email"
+                    value={settings.emailConfig?.fromEmail ?? 'contato@folhadaregiaoonline.com.br'}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      emailConfig: {
+                        ...(settings.emailConfig || { enabled: true, fromName: 'Folha da Região', provider: 'smtp' }),
+                        fromEmail: e.target.value
+                      }
+                    })}
+                    placeholder="contato@folhadaregiaoonline.com.br"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">E-mail corporativo do portal ou da redação.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    E-mail de Resposta (Reply-To)
+                  </label>
+                  <input
+                    type="email"
+                    value={settings.emailConfig?.replyTo ?? settings.contactEmail ?? 'itallomarketing@gmail.com'}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      emailConfig: {
+                        ...(settings.emailConfig || { enabled: true, fromName: 'Folha da Região', fromEmail: 'contato@folhadaregiaoonline.com.br', provider: 'smtp' }),
+                        replyTo: e.target.value
+                      }
+                    })}
+                    placeholder="itallomarketing@gmail.com"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Para onde irão as respostas dos leitores.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Configuração do Servidor SMTP */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Server className="w-4 h-4 text-[#0056a4]" />
+                  <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
+                    2. Servidor de Envio (SMTP)
+                  </h4>
+                </div>
+                <span className="text-[11px] text-gray-400">
+                  Preencha os dados do seu provedor de e-mail corporativo
+                </span>
+              </div>
+
+              {/* Botões de Predefinição Rápida */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-2">
+                  Predefinições Rápidas de Provedores:
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => applySmtpPreset('titan')}
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Titan Mail (Hostinger)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applySmtpPreset('gmail')}
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Google Workspace / Gmail</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applySmtpPreset('cpanel')}
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>cPanel / Webmail / Locaweb</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applySmtpPreset('resend')}
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Resend (API/SMTP)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applySmtpPreset('sendgrid')}
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>SendGrid</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Campos do Servidor SMTP */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Servidor SMTP (Host)
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.emailConfig?.smtpHost ?? ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      emailConfig: {
+                        ...(settings.emailConfig || { enabled: true, fromName: 'Folha da Região', fromEmail: 'contato@folhadaregiaoonline.com.br', provider: 'smtp' }),
+                        smtpHost: e.target.value
+                      }
+                    })}
+                    placeholder="Ex: smtp.titan.email ou smtp.gmail.com"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Endereço do host fornecido pela sua hospedagem.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Porta SMTP
+                  </label>
+                  <input
+                    type="number"
+                    value={settings.emailConfig?.smtpPort ?? 587}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      emailConfig: {
+                        ...(settings.emailConfig || { enabled: true, fromName: 'Folha da Região', fromEmail: 'contato@folhadaregiaoonline.com.br', provider: 'smtp' }),
+                        smtpPort: Number(e.target.value) || 587
+                      }
+                    })}
+                    placeholder="465 ou 587"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Comum: 465 (SSL) ou 587 (TLS/STARTTLS).</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Segurança / Criptografia
+                  </label>
+                  <select
+                    value={settings.emailConfig?.smtpSecure ? 'ssl' : 'tls'}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      emailConfig: {
+                        ...(settings.emailConfig || { enabled: true, fromName: 'Folha da Região', fromEmail: 'contato@folhadaregiaoonline.com.br', provider: 'smtp' }),
+                        smtpSecure: e.target.value === 'ssl'
+                      }
+                    })}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                  >
+                    <option value="ssl">SSL / Criptografado (Porta 465)</option>
+                    <option value="tls">STARTTLS / TLS (Porta 587 / 25)</option>
+                  </select>
+                  <p className="text-[10px] text-gray-400 mt-1">Protocolo de segurança da conexão.</p>
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Usuário / E-mail de Autenticação
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.emailConfig?.smtpUser ?? ''}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      emailConfig: {
+                        ...(settings.emailConfig || { enabled: true, fromName: 'Folha da Região', fromEmail: 'contato@folhadaregiaoonline.com.br', provider: 'smtp' }),
+                        smtpUser: e.target.value
+                      }
+                    })}
+                    placeholder="Ex: contato@folhadaregiaoonline.com.br"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Geralmente o mesmo que seu e-mail corporativo.</p>
+                </div>
+
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Senha / Senha de Aplicativo
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSmtpPassword ? 'text' : 'password'}
+                      value={settings.emailConfig?.smtpPass ?? ''}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        emailConfig: {
+                          ...(settings.emailConfig || { enabled: true, fromName: 'Folha da Região', fromEmail: 'contato@folhadaregiaoonline.com.br', provider: 'smtp' }),
+                          smtpPass: e.target.value
+                        }
+                      })}
+                      placeholder="••••••••••••••••"
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700 cursor-pointer"
+                      title={showSmtpPassword ? 'Ocultar senha' : 'Ver senha'}
+                    >
+                      {showSmtpPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    No Gmail ou Google Workspace, gere uma <strong>Senha de Aplicativo</strong> nas configurações de segurança do Google.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Teste de Conexão e Envio */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
+                <Send className="w-4 h-4 text-[#0056a4]" />
+                <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
+                  3. Testar Conexão e Envio de E-mail
+                </h4>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Digite um e-mail de destino (como o seu próprio e-mail) para verificar se o servidor SMTP está conectado e enviando mensagens sem problemas.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <input
+                  type="email"
+                  value={testEmailInput}
+                  onChange={(e) => setTestEmailInput(e.target.value)}
+                  placeholder="Digite seu e-mail para receber o teste..."
+                  className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleTestSmtp}
+                  disabled={isTestingSmtp}
+                  className="px-5 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  {isTestingSmtp ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Testando Conexão...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Enviar E-mail de Teste</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {smtpTestFeedback && (
+                <div className={`p-4 rounded-xl border text-xs flex items-start gap-3 animate-in fade-in ${
+                  smtpTestFeedback.success 
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+                    : 'bg-red-50 border-red-200 text-red-900'
+                }`}>
+                  {smtpTestFeedback.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <strong className="block mb-0.5">
+                      {smtpTestFeedback.success ? 'Conexão Bem-Sucedida!' : 'Atenção no Teste SMTP:'}
+                    </strong>
+                    <span>{smtpTestFeedback.message}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Envio de Comunicado / Mensagem Oficial aos Usuários */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
+                <MessageSquare className="w-4 h-4 text-[#0056a4]" />
+                <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
+                  4. Disparar Comunicado ou Notificação Oficial por E-mail
+                </h4>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Envie um aviso, informe oficial ou comunicado editorial aos leitores com a identidade visual completa da Folha da Região.
+              </p>
+
+              <div className="space-y-4 pt-1">
+                {/* Seleção de Destinatário */}
+                <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-700">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="broadcastTarget"
+                      checked={broadcastTarget === 'all'}
+                      onChange={() => setBroadcastTarget('all')}
+                      className="w-4 h-4 text-[#0056a4] cursor-pointer"
+                    />
+                    <span>Enviar para Todos os Usuários Cadastrados</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="broadcastTarget"
+                      checked={broadcastTarget === 'custom'}
+                      onChange={() => setBroadcastTarget('custom')}
+                      className="w-4 h-4 text-[#0056a4] cursor-pointer"
+                    />
+                    <span>Enviar para um E-mail Específico</span>
+                  </label>
+                </div>
+
+                {broadcastTarget === 'custom' && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      E-mail do Destinatário
+                    </label>
+                    <input
+                      type="email"
+                      value={broadcastCustomEmail}
+                      onChange={(e) => setBroadcastCustomEmail(e.target.value)}
+                      placeholder="leitor@exemplo.com.br"
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Assunto do E-mail
+                  </label>
+                  <input
+                    type="text"
+                    value={broadcastTitle}
+                    onChange={(e) => setBroadcastTitle(e.target.value)}
+                    placeholder="Ex: Comunicado Importante aos Leitores da Folha da Região"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Conteúdo da Mensagem
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    placeholder="Escreva a mensagem ou notificação que será entregue aos usuários..."
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium resize-none leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[11px] text-gray-400">
+                    O e-mail será enviado com o remetente oficial: {settings.emailConfig?.fromEmail || 'contato@folhadaregiaoonline.com.br'}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={handleSendDirectNotification}
+                    disabled={isSendingBroadcast}
+                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSendingBroadcast ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Disparando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Enviar Comunicado Oficial</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {broadcastFeedback && (
+                  <div className={`p-4 rounded-xl border text-xs flex items-center gap-3 animate-in fade-in ${
+                    broadcastFeedback.success 
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+                      : 'bg-red-50 border-red-200 text-red-900'
+                  }`}>
+                    {broadcastFeedback.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    )}
+                    <span className="font-bold">{broadcastFeedback.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Resumo dos Fluxos Automáticos já ativos */}
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-3">
+              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Fluxos Automáticos Conectados a este E-mail:
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
+                  <div>
+                    <span className="font-black text-slate-900 block mb-1">🔑 Recuperação de Senha</span>
+                    <p className="text-[11px] text-slate-500">
+                      Disparo automático ao usuário clicar em "Esqueci minha senha" com link de uso único e validade de 1 hora.
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-bold mt-2">● 100% Integrado</span>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
+                  <div>
+                    <span className="font-black text-slate-900 block mb-1">✉️ Confirmação de Cadastro</span>
+                    <p className="text-[11px] text-slate-500">
+                      Envia link de validação para ativação da conta e liberação de publicação de classificados e comentários.
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-bold mt-2">● 100% Integrado</span>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
+                  <div>
+                    <span className="font-black text-slate-900 block mb-1">🛡️ Alerta de Segurança</span>
+                    <p className="text-[11px] text-slate-500">
+                      Notificação instantânea enviada sempre que uma senha for redefinida ou atualizada na conta.
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-emerald-600 font-bold mt-2">● 100% Integrado</span>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
+                  <div>
+                    <span className="font-black text-slate-900 block mb-1">📬 Caixa de Auditoria</span>
+                    <p className="text-[11px] text-slate-500">
+                      Histórico permanente de todas as mensagens e códigos enviados para controle e depuração.
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-blue-600 font-bold mt-2">● Histórico Ativo</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

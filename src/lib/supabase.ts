@@ -2155,6 +2155,22 @@ export const DEFAULT_PORTAL_SETTINGS: PortalSettings = {
       userRightsText: 'O titular dos dados tem o direito de solicitar a qualquer momento a confirmação, retificação ou exclusão de suas informações da nossa base.',
       dpoContact: 'itallomarketing@gmail.com'
     }
+  },
+
+  // 6. Configurações de E-mail do Portal e Comunicação
+  emailConfig: {
+    enabled: true,
+    fromName: 'Folha da Região',
+    fromEmail: 'contato@folhadaregiaoonline.com.br',
+    replyTo: 'itallomarketing@gmail.com',
+    provider: 'smtp',
+    smtpHost: '',
+    smtpPort: 587,
+    smtpSecure: false,
+    smtpUser: '',
+    smtpPass: '',
+    notifyOnNewRegistration: true,
+    notifyOnNewClassified: true
   }
 };
 
@@ -2185,6 +2201,10 @@ export const portalSettingsService = {
           ...DEFAULT_PORTAL_SETTINGS.institutionalPages.privacidade,
           ...(stored.institutionalPages?.privacidade || {})
         }
+      },
+      emailConfig: {
+        ...DEFAULT_PORTAL_SETTINGS.emailConfig!,
+        ...(stored.emailConfig || {})
       }
     };
   },
