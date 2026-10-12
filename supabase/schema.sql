@@ -35,36 +35,49 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- Funções de verificação de papel com SECURITY DEFINER (evitam recursão infinita no RLS)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION public.is_editor_or_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role IN ('admin', 'editor')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 -- Habilitar RLS para profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Perfis visíveis publicamente" ON public.profiles;
 CREATE POLICY "Perfis visíveis publicamente" 
   ON public.profiles FOR SELECT 
   USING (true);
 
+DROP POLICY IF EXISTS "Usuários podem criar seus próprios perfis" ON public.profiles;
 CREATE POLICY "Usuários podem criar seus próprios perfis" 
   ON public.profiles FOR INSERT 
   WITH CHECK (auth.uid() = id);
 
--- Usuários podem atualizar seus próprios dados cadastrais, mas NÃO podem alterar seu próprio papel (role)
+DROP POLICY IF EXISTS "Usuários podem atualizar seus próprios dados de perfil" ON public.profiles;
 CREATE POLICY "Usuários podem atualizar seus próprios dados de perfil" 
   ON public.profiles FOR UPDATE 
-  USING (auth.uid() = id)
-  WITH CHECK (
-    auth.uid() = id AND 
-    role = (SELECT p.role FROM public.profiles p WHERE p.id = auth.uid())
-  );
+  USING (auth.uid() = id);
 
--- Administradores possuem acesso irrestrito para gerenciar e moderar todos os perfis
+DROP POLICY IF EXISTS "Administradores gerenciam todos os perfis" ON public.profiles;
 CREATE POLICY "Administradores gerenciam todos os perfis" 
   ON public.profiles FOR ALL 
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
 
 -- 3. Tabela de Categorias de Notícias
 CREATE TABLE IF NOT EXISTS public.categories (
@@ -114,19 +127,16 @@ CREATE INDEX IF NOT EXISTS idx_articles_created_at ON public.articles(created_at
 -- Habilitar RLS para Notícias
 ALTER TABLE public.articles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Notícias são públicas para leitura" ON public.articles;
 CREATE POLICY "Notícias são públicas para leitura" 
   ON public.articles FOR SELECT 
   USING (true);
 
+DROP POLICY IF EXISTS "Apenas editores e admins podem inserir/modificar notícias" ON public.articles;
 CREATE POLICY "Apenas editores e admins podem inserir/modificar notícias" 
   ON public.articles FOR ALL 
   USING (
-    auth.role() = 'authenticated' AND 
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role IN ('admin', 'editor')
-    )
+    auth.role() = 'authenticated' AND public.is_editor_or_admin()
   );
 
 -- 5. Tabela de Publicidade (Ads)
@@ -146,19 +156,16 @@ CREATE TABLE IF NOT EXISTS public.ads (
 
 ALTER TABLE public.ads ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anúncios visíveis publicamente" ON public.ads;
 CREATE POLICY "Anúncios visíveis publicamente" 
   ON public.ads FOR SELECT 
   USING (active = true);
 
+DROP POLICY IF EXISTS "Apenas administradores gerenciam anúncios" ON public.ads;
 CREATE POLICY "Apenas administradores gerenciam anúncios" 
   ON public.ads FOR ALL 
   USING (
-    auth.role() = 'authenticated' AND 
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
+    auth.role() = 'authenticated' AND public.is_admin()
   );
 
 -- 6. Tabela de Notificações para Usuários Logados
@@ -180,10 +187,12 @@ CREATE INDEX IF NOT EXISTS idx_notifications_read ON public.notifications(read);
 
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Usuários podem ver suas próprias notificações" ON public.notifications;
 CREATE POLICY "Usuários podem ver suas próprias notificações" 
   ON public.notifications FOR SELECT 
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem atualizar status de leitura das suas notificações" ON public.notifications;
 CREATE POLICY "Usuários podem atualizar status de leitura das suas notificações" 
   ON public.notifications FOR UPDATE 
   USING (auth.uid() = user_id);
@@ -205,9 +214,13 @@ VALUES ('default', true, 30)
 ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE public.classified_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Configurações de classificados públicas para leitura" ON public.classified_settings;
 CREATE POLICY "Configurações de classificados públicas para leitura" ON public.classified_settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Apenas admins alteram configurações de classificados" ON public.classified_settings;
 CREATE POLICY "Apenas admins alteram configurações de classificados" ON public.classified_settings FOR ALL USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+  public.is_admin()
 );
 
 -- Tabela de Categorias de Classificados
@@ -219,9 +232,13 @@ CREATE TABLE IF NOT EXISTS public.classified_categories (
 );
 
 ALTER TABLE public.classified_categories ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Categorias de classificados públicas" ON public.classified_categories;
 CREATE POLICY "Categorias de classificados públicas" ON public.classified_categories FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Apenas admins gerenciam categorias de classificados" ON public.classified_categories;
 CREATE POLICY "Apenas admins gerenciam categorias de classificados" ON public.classified_categories FOR ALL USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+  public.is_admin()
 );
 
 -- Tabela de Classificados (Anúncios)
@@ -266,30 +283,32 @@ CREATE INDEX IF NOT EXISTS idx_classifieds_expires_at ON public.classifieds(expi
 ALTER TABLE public.classifieds ENABLE ROW LEVEL SECURITY;
 
 -- Regras de Segurança RLS
+DROP POLICY IF EXISTS "Anúncios publicados e não expirados são visíveis publicamente" ON public.classifieds;
 CREATE POLICY "Anúncios publicados e não expirados são visíveis publicamente" 
   ON public.classifieds FOR SELECT 
   USING (
     (status = 'published' AND expires_at > now()) OR
     (auth.role() = 'authenticated' AND user_id = auth.uid()) OR
-    EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin', 'editor'))
+    public.is_editor_or_admin()
   );
 
+DROP POLICY IF EXISTS "Usuários autenticados podem publicar anúncios" ON public.classifieds;
 CREATE POLICY "Usuários autenticados podem publicar anúncios" 
   ON public.classifieds FOR INSERT 
   WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem editar seus próprios anúncios" ON public.classifieds;
 CREATE POLICY "Usuários podem editar seus próprios anúncios" 
   ON public.classifieds FOR UPDATE 
   USING (
-    (auth.uid() = user_id) OR
-    EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+    (auth.uid() = user_id) OR public.is_admin()
   );
 
+DROP POLICY IF EXISTS "Usuários podem excluir seus próprios anúncios" ON public.classifieds;
 CREATE POLICY "Usuários podem excluir seus próprios anúncios" 
   ON public.classifieds FOR DELETE 
   USING (
-    (auth.uid() = user_id) OR
-    EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+    (auth.uid() = user_id) OR public.is_admin()
   );
 
 -- Tabela de Denúncias de Classificados
@@ -306,9 +325,13 @@ CREATE TABLE IF NOT EXISTS public.classified_reports (
 );
 
 ALTER TABLE public.classified_reports ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Qualquer visitante pode enviar denúncia" ON public.classified_reports;
 CREATE POLICY "Qualquer visitante pode enviar denúncia" ON public.classified_reports FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Apenas administradores visualizam e moderam denúncias" ON public.classified_reports;
 CREATE POLICY "Apenas administradores visualizam e moderam denúncias" ON public.classified_reports FOR ALL USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+  public.is_admin()
 );
 
 -- 8. Tabela de Comentários
