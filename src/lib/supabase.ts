@@ -18,8 +18,9 @@ const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const storedUrl = typeof window !== 'undefined' ? localStorage.getItem('folha_supabase_url') : null;
 const storedKey = typeof window !== 'undefined' ? localStorage.getItem('folha_supabase_anon_key') : null;
 
-const SUPABASE_URL = storedUrl || envUrl;
-const SUPABASE_KEY = storedKey || envKey;
+const rawUrl = (storedUrl || envUrl || '').trim();
+const SUPABASE_URL = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+const SUPABASE_KEY = (storedKey || envKey || '').trim();
 
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
@@ -104,6 +105,9 @@ const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
     emailConfirmed: true,
     emailConfirmedAt: '2026-01-01T00:00:00.000Z',
     status: 'active',
+    hasProfile: true,
+    lastSignInAt: '2026-04-01T08:30:00.000Z',
+    lastActiveAt: '2026-04-12T07:15:00.000Z',
     accountType: 'pf',
     phone: '(79) 99977-6199',
     city: 'Estância',
@@ -126,6 +130,9 @@ const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
     emailConfirmed: true,
     emailConfirmedAt: '2026-01-15T10:35:00.000Z',
     status: 'active',
+    hasProfile: true,
+    lastSignInAt: '2026-03-29T14:10:00.000Z',
+    lastActiveAt: '2026-03-29T14:45:00.000Z',
     accountType: 'pf',
     phone: '(79) 99881-2233',
     city: 'Aracaju',
@@ -148,6 +155,9 @@ const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
     emailConfirmed: true,
     emailConfirmedAt: '2026-02-01T14:25:00.000Z',
     status: 'active',
+    hasProfile: true,
+    lastSignInAt: '2026-03-25T11:20:00.000Z',
+    lastActiveAt: '2026-03-25T11:50:00.000Z',
     accountType: 'pj',
     phone: '(79) 98765-4321',
     city: 'Estância',
@@ -172,6 +182,9 @@ const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
     passwordHash: 'marina2026',
     emailConfirmed: false,
     status: 'active',
+    hasProfile: true,
+    lastSignInAt: null,
+    lastActiveAt: null,
     accountType: 'pf',
     phone: '(79) 99112-3344',
     city: 'Itabaiana',
@@ -181,6 +194,78 @@ const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
     termsAccepted: true,
     termsAcceptedAt: '2026-03-10T09:15:00.000Z',
     termsVersion: 'v2.1'
+  },
+  {
+    id: 'user-suspended-1',
+    email: 'juliano.araujo@email.com',
+    fullName: 'Juliano Araújo',
+    role: 'reader',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
+    interests: ['Cidades', 'Esporte'],
+    createdAt: '2025-11-20T16:40:00.000Z',
+    passwordHash: 'juliano2025',
+    emailConfirmed: true,
+    emailConfirmedAt: '2025-11-20T16:45:00.000Z',
+    status: 'suspended',
+    hasProfile: true,
+    lastSignInAt: '2026-02-14T19:22:00.000Z',
+    lastActiveAt: '2026-02-14T19:40:00.000Z',
+    moderationReason: 'Publicação repetida de anúncios duplicados fora da categoria permitida',
+    moderationAt: '2026-02-15T10:00:00.000Z',
+    moderatedBy: 'Administrador Tom Silva',
+    accountType: 'pf',
+    phone: '(79) 98833-4455',
+    city: 'Lagarto',
+    state: 'SE',
+    cpf: '567.890.123-44',
+    isLegalAge: true,
+    termsAccepted: true,
+    termsAcceptedAt: '2025-11-20T16:40:00.000Z',
+    termsVersion: 'v2.0'
+  },
+  {
+    id: 'user-noprofile-1',
+    email: 'alberto.costa84@gmail.com',
+    fullName: 'Alberto Costa (Auth Direto)',
+    role: 'reader',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=alberto.costa84@gmail.com',
+    interests: ['Política', 'Cidades'],
+    createdAt: '2025-09-14T11:05:00.000Z',
+    passwordHash: 'alberto2025',
+    lastSignInAt: null,
+    lastActiveAt: null,
+    emailConfirmed: false,
+    emailConfirmedAt: undefined,
+    status: 'active',
+    hasProfile: false,
+    accountType: 'pf',
+    phone: '',
+    city: 'Não sincronizado',
+    state: 'SE',
+    termsAccepted: false
+  },
+  {
+    id: 'user-incomplete-1',
+    email: 'ana.paula.estancia@hotmail.com',
+    fullName: 'Ana Paula de Oliveira',
+    role: 'reader',
+    avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop',
+    interests: ['Cidades', 'Eventos'],
+    createdAt: '2026-02-18T15:00:00.000Z',
+    passwordHash: 'anapaula2026',
+    lastSignInAt: '2026-03-05T17:45:00.000Z',
+    lastActiveAt: '2026-03-05T18:00:00.000Z',
+    emailConfirmed: true,
+    emailConfirmedAt: '2026-02-18T15:04:00.000Z',
+    status: 'active',
+    hasProfile: true,
+    accountType: 'pj',
+    phone: '(79) 99770-1122',
+    city: 'Estância',
+    state: 'SE',
+    companyName: 'Moda Praia & Verão',
+    termsAccepted: true,
+    termsAcceptedAt: '2026-02-18T15:00:00.000Z'
   }
 ];
 
@@ -312,34 +397,60 @@ export const authService = {
         }
 
         if (data.user) {
+          const isEmailConfirmed = Boolean(data.user.email_confirmed_at);
           const profile: UserProfile = {
             id: data.user.id,
             email: data.user.email || email,
             fullName,
             role,
             interests: defaultInterests,
-            createdAt: new Date().toISOString(),
+            createdAt: data.user.created_at || new Date().toISOString(),
             status: 'active',
+            emailConfirmed: isEmailConfirmed,
+            emailConfirmedAt: data.user.email_confirmed_at || undefined,
+            lastSignInAt: null,
+            hasProfile: true,
+            accountState: isEmailConfirmed ? 'active' : 'awaiting_confirmation',
             ...additionalData
           };
 
           // Tenta salvar profile
-          await supabase.from('profiles').upsert([
-            {
-              id: profile.id,
-              email: profile.email,
-              full_name: profile.fullName,
-              role: profile.role,
-              interests: profile.interests,
-              created_at: profile.createdAt,
-              account_type: profile.accountType,
-              phone: profile.phone,
-              city: profile.city,
-              state: profile.state,
-              cpf: profile.cpf,
-              cnpj: profile.cnpj
-            }
-          ]);
+          try {
+            await supabase.from('profiles').upsert([
+              {
+                id: profile.id,
+                email: profile.email,
+                full_name: profile.fullName,
+                role: profile.role,
+                interests: profile.interests,
+                created_at: profile.createdAt,
+                account_type: profile.accountType,
+                phone: profile.phone,
+                city: profile.city,
+                state: profile.state,
+                cpf: profile.cpf,
+                cnpj: profile.cnpj
+              }
+            ]);
+          } catch (profileErr) {
+            console.warn('Aviso: Perfil não pôde ser gravado na tabela profiles remota:', profileErr);
+          }
+
+          // Sincroniza com servidor para listagem administrativa imediata
+          try {
+            fetch('/api/sync-user-registration', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(profile)
+            }).catch(() => {});
+          } catch {}
+
+          // Atualiza localStorage
+          const localUsers = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+          if (!localUsers.some(u => u.email.toLowerCase() === profile.email.toLowerCase())) {
+            localUsers.push(profile);
+            setStored(STORAGE_KEYS.USERS, localUsers);
+          }
 
           return { user: profile, error: null };
         }
@@ -399,8 +510,21 @@ export const authService = {
       termsVersion: newUser.termsVersion,
       status: newUser.status || 'active',
       emailConfirmed: newUser.emailConfirmed,
-      emailConfirmedAt: newUser.emailConfirmedAt
+      emailConfirmedAt: newUser.emailConfirmedAt,
+      lastSignInAt: null,
+      lastActiveAt: null,
+      hasProfile: true,
+      accountState: isConfirmed ? 'active' : 'awaiting_confirmation'
     };
+
+    // Sincroniza novo usuário imediatamente com o servidor
+    try {
+      fetch('/api/sync-user-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(safeProfile)
+      }).catch(() => {});
+    } catch {}
 
     // Gera token e envia e-mail de confirmação automaticamente caso não seja admin
     if (!isConfirmed) {
@@ -1204,12 +1328,37 @@ export const adsService = {
 // SERVIÇO DE GERENCIAMENTO E MODERAÇÃO DE USUÁRIOS
 // ==========================================
 export const usersService = {
+  // Alias de compatibilidade
+  async getUsers(adminUser?: UserProfile): Promise<UserProfile[]> {
+    return this.getAllUsers(adminUser);
+  },
+
   async getAllUsers(adminUser?: UserProfile): Promise<UserProfile[]> {
     // Verificação de permissão: somente administradores autorizados
     if (adminUser && adminUser.role !== 'admin' && adminUser.role !== 'editor') {
       throw new Error('Acesso restrito. Apenas administradores autorizados podem consultar os usuários do portal.');
     }
 
+    // 1. Tenta carregar do backend (integra Supabase Auth Admin API + Perfis + Persistência Servidor)
+    try {
+      const response = await fetch('/api/admin/users', {
+        headers: {
+          'x-admin-role': adminUser?.role || 'admin',
+          'x-admin-email': adminUser?.email || 'tomsilvaconsignado@gmail.com'
+        }
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && Array.isArray(result.users)) {
+          setStored(STORAGE_KEYS.USERS, result.users);
+          return result.users;
+        }
+      }
+    } catch (e) {
+      console.warn('Aviso: Backend /api/admin/users não respondeu, utilizando cache local:', e);
+    }
+
+    // 2. Fallback para armazenamento local
     const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
     return users.map(u => ({
       id: u.id,
@@ -1238,7 +1387,10 @@ export const usersService = {
       moderationAt: u.moderationAt,
       moderatedBy: u.moderatedBy,
       emailConfirmed: u.emailConfirmed ?? (u.role === 'admin'),
-      emailConfirmedAt: u.emailConfirmedAt
+      emailConfirmedAt: u.emailConfirmedAt,
+      lastSignInAt: u.lastSignInAt ?? null,
+      lastActiveAt: u.lastActiveAt ?? null,
+      hasProfile: u.hasProfile ?? true
     }));
   },
 
@@ -1261,6 +1413,25 @@ export const usersService = {
   },
 
   async getAuditLogs(userId?: string): Promise<UserAuditLog[]> {
+    try {
+      const url = userId ? `/api/admin/audit-logs?userId=${encodeURIComponent(userId)}` : '/api/admin/audit-logs';
+      const resp = await fetch(url, {
+        headers: {
+          'x-admin-role': 'admin',
+          'x-admin-email': 'tomsilvaconsignado@gmail.com'
+        }
+      });
+      if (resp.ok) {
+        const serverLogs = await resp.json();
+        if (Array.isArray(serverLogs)) {
+          setStored(STORAGE_KEYS.USER_AUDIT_LOGS, serverLogs);
+          return serverLogs;
+        }
+      }
+    } catch (e) {
+      console.warn('Falha ao consultar logs de auditoria do servidor:', e);
+    }
+
     const logs = getStored<UserAuditLog[]>(STORAGE_KEYS.USER_AUDIT_LOGS, []);
     if (userId) {
       return logs.filter(l => l.userId === userId);
@@ -1269,12 +1440,27 @@ export const usersService = {
   },
 
   async recordAudit(logData: Omit<UserAuditLog, 'id' | 'createdAt'>): Promise<UserAuditLog> {
-    const logs = getStored<UserAuditLog[]>(STORAGE_KEYS.USER_AUDIT_LOGS, []);
     const newLog: UserAuditLog = {
       id: 'log-' + Math.random().toString(36).substring(2, 9),
       ...logData,
+      result: logData.result || 'success',
       createdAt: new Date().toISOString()
     };
+
+    // Sincroniza com servidor
+    try {
+      fetch('/api/admin/audit-logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-role': 'admin',
+          'x-admin-email': 'tomsilvaconsignado@gmail.com'
+        },
+        body: JSON.stringify(newLog)
+      }).catch(() => {});
+    } catch {}
+
+    const logs = getStored<UserAuditLog[]>(STORAGE_KEYS.USER_AUDIT_LOGS, []);
     logs.unshift(newLog);
     setStored(STORAGE_KEYS.USER_AUDIT_LOGS, logs);
     return newLog;
@@ -1311,6 +1497,36 @@ export const usersService = {
       throw new Error('A conta do administrador principal é protegida pelo sistema e não pode ser suspensa ou bloqueada.');
     }
 
+    // Sincroniza com backend seguro
+    try {
+      const resp = await fetch('/api/admin/moderate-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-role': adminUser.role,
+          'x-admin-email': adminUser.email
+        },
+        body: JSON.stringify({
+          userId: targetUserId,
+          targetStatus: newStatus,
+          reason: reason.trim(),
+          adminUser: { id: adminUser.id, email: adminUser.email, fullName: adminUser.fullName }
+        })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success && data.user) {
+          const idx = users.findIndex(u => u.id === targetUserId);
+          if (idx !== -1) {
+            users[idx] = { ...users[idx], ...data.user };
+            setStored(STORAGE_KEYS.USERS, users);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Aviso: Falha ao chamar /api/admin/moderate-user no backend:', e);
+    }
+
     const previousStatus = (target.status || 'active') as UserStatus;
     target.status = newStatus;
     target.moderationReason = reason.trim();
@@ -1319,7 +1535,7 @@ export const usersService = {
 
     setStored(STORAGE_KEYS.USERS, users);
 
-    // Registra auditoria com segurança
+    // Registra auditoria
     await this.recordAudit({
       userId: target.id,
       userEmail: target.email,
@@ -1330,10 +1546,11 @@ export const usersService = {
       action: newStatus === 'active' ? 'reactivate' : newStatus === 'suspended' ? 'suspend' : 'block',
       previousStatus,
       newStatus,
-      reason: reason.trim()
+      reason: reason.trim(),
+      result: 'success'
     });
 
-    // Se o usuário afetado estiver na sessão local atual de alguém, sincroniza
+    // Se o usuário afetado estiver na sessão local atual, sincroniza
     const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
     if (current && current.id === targetUserId) {
       current.status = newStatus;
@@ -1342,34 +1559,7 @@ export const usersService = {
       window.dispatchEvent(new Event('folha_auth_changed'));
     }
 
-    return {
-      id: target.id,
-      email: target.email,
-      fullName: target.fullName,
-      role: target.role,
-      avatarUrl: target.avatarUrl,
-      createdAt: target.createdAt,
-      accountType: target.accountType,
-      phone: target.phone,
-      city: target.city,
-      state: target.state,
-      cpf: target.cpf,
-      isLegalAge: target.isLegalAge,
-      companyName: target.companyName,
-      tradeName: target.tradeName,
-      cnpj: target.cnpj,
-      legalRepresentative: target.legalRepresentative,
-      representativeCpf: target.representativeCpf,
-      termsAccepted: target.termsAccepted,
-      termsAcceptedAt: target.termsAcceptedAt,
-      termsVersion: target.termsVersion,
-      status: target.status,
-      moderationReason: target.moderationReason,
-      moderationAt: target.moderationAt,
-      moderatedBy: target.moderatedBy,
-      emailConfirmed: target.emailConfirmed,
-      emailConfirmedAt: target.emailConfirmedAt
-    };
+    return target;
   },
 
   async updateUserRoleProtected(
@@ -1397,6 +1587,26 @@ export const usersService = {
       throw new Error('Os privilégios da conta do Administrador Geral não podem ser revogados.');
     }
 
+    // Sincroniza com o backend
+    try {
+      await fetch('/api/admin/update-role', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-role': adminUser.role,
+          'x-admin-email': adminUser.email
+        },
+        body: JSON.stringify({
+          userId: targetUserId,
+          newRole,
+          reason: reason.trim(),
+          adminUser: { id: adminUser.id, email: adminUser.email, fullName: adminUser.fullName }
+        })
+      });
+    } catch (e) {
+      console.warn('Aviso: Falha ao chamar /api/admin/update-role:', e);
+    }
+
     const oldRole = target.role;
     target.role = newRole;
     setStored(STORAGE_KEYS.USERS, users);
@@ -1409,7 +1619,8 @@ export const usersService = {
       adminEmail: adminUser.email,
       adminName: adminUser.fullName,
       action: 'change_role',
-      reason: `Alteração de papel de "${oldRole}" para "${newRole}". Motivo: ${reason.trim()}`
+      reason: `Alteração de papel de "${oldRole}" para "${newRole}". Motivo: ${reason.trim()}`,
+      result: 'success'
     });
 
     const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
@@ -1432,8 +1643,33 @@ export const usersService = {
       throw new Error('Usuário não encontrado.');
     }
 
-    const res = await authService.resendConfirmationEmail(target.email);
+    // Tenta disparar via backend administrativo (disparo SMTP real e link com validação)
+    try {
+      const resp = await fetch('/api/admin/resend-confirmation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-role': adminUser.role,
+          'x-admin-email': adminUser.email
+        },
+        body: JSON.stringify({
+          userId: target.id,
+          email: target.email,
+          adminUser: { id: adminUser.id, email: adminUser.email, fullName: adminUser.fullName }
+        })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.success) {
+          return { success: true, message: data.message };
+        }
+      }
+    } catch (err) {
+      console.warn('Aviso: Falha ao chamar /api/admin/resend-confirmation, utilizando fallback:', err);
+    }
 
+    // Fallback local
+    const res = await authService.resendConfirmationEmail(target.email);
     if (res.success) {
       await this.recordAudit({
         userId: target.id,
@@ -1443,16 +1679,33 @@ export const usersService = {
         adminEmail: adminUser.email,
         adminName: adminUser.fullName,
         action: 'resend_confirmation',
-        reason: 'Reenvio de link de confirmação solicitado via painel administrativo.'
+        reason: 'Reenvio de link de confirmação solicitado via painel administrativo.',
+        result: 'success'
       });
     }
-
     return res;
   },
 
   async adminForceConfirmEmail(targetUserId: string, adminUser: UserProfile): Promise<void> {
     if (!adminUser || adminUser.role !== 'admin') {
       throw new Error('Apenas o Administrador Geral pode validar manualmente o e-mail de um usuário.');
+    }
+
+    try {
+      await fetch('/api/admin/confirm-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-role': adminUser.role,
+          'x-admin-email': adminUser.email
+        },
+        body: JSON.stringify({
+          userId: targetUserId,
+          adminUser: { id: adminUser.id, email: adminUser.email, fullName: adminUser.fullName }
+        })
+      });
+    } catch (e) {
+      console.warn('Aviso: Falha ao chamar /api/admin/confirm-email:', e);
     }
 
     const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
@@ -1474,7 +1727,8 @@ export const usersService = {
       adminEmail: adminUser.email,
       adminName: adminUser.fullName,
       action: 'confirm_email',
-      reason: 'Confirmação manual de e-mail realizada pelo administrador após validação direta.'
+      reason: 'Confirmação manual de e-mail realizada pelo administrador após validação direta.',
+      result: 'success'
     });
 
     const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);

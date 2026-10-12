@@ -174,7 +174,7 @@ export const EmailOutboxModal: React.FC<EmailOutboxModalProps> = ({
 
                   {selectedEmail.actionUrl && (
                     <button
-                      onClick={() => onOpenActionUrl(selectedEmail.actionUrl)}
+                      onClick={() => onOpenActionUrl(selectedEmail.actionUrl!)}
                       className="px-4 py-2 bg-[#0056a4] hover:bg-[#004482] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5 cursor-pointer shrink-0"
                     >
                       <span>Simular Clique no Botão</span>

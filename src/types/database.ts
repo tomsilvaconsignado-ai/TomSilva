@@ -1,6 +1,7 @@
 export type UserRole = 'admin' | 'editor' | 'reader';
 export type AccountType = 'pf' | 'pj';
 export type UserStatus = 'active' | 'suspended' | 'blocked';
+export type AccountState = 'active' | 'awaiting_confirmation' | 'suspended' | 'blocked' | 'pending_approval' | 'incomplete';
 
 export interface UserAuditLog {
   id: string;
@@ -10,10 +11,11 @@ export interface UserAuditLog {
   adminId: string;
   adminEmail: string;
   adminName: string;
-  action: 'suspend' | 'reactivate' | 'block' | 'resend_confirmation' | 'confirm_email' | 'change_role';
+  action: 'suspend' | 'reactivate' | 'block' | 'resend_confirmation' | 'confirm_email' | 'change_role' | 'send_email';
   previousStatus?: UserStatus;
   newStatus?: UserStatus;
   reason: string;
+  result?: 'success' | 'failure';
   createdAt: string;
 }
 
@@ -25,6 +27,11 @@ export interface UserProfile {
   avatarUrl?: string;
   interests?: string[]; // Categorias de interesse, ex: ['Política', 'Cidades']
   createdAt: string;
+  lastSignInAt?: string | null; // Data e hora do último login (ou null se nunca acessou)
+  lastActiveAt?: string | null; // Data da última atividade
+  hasProfile?: boolean; // Se possui perfil correspondente na tabela de perfis (ou false se apenas registro de Auth)
+  accountState?: AccountState; // Estado computado da conta
+  isPendingApproval?: boolean; // Se requer aprovação administrativa específica
   // Identificação e Cadastro Público Obrigatório
   accountType?: AccountType;
   phone?: string;

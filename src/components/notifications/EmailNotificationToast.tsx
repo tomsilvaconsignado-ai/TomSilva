@@ -80,7 +80,7 @@ export const EmailNotificationToast: React.FC<EmailNotificationToastProps> = ({
               <button
                 onClick={() => {
                   setIsVisible(false);
-                  onOpenActionUrl(latestEmail.actionUrl);
+                  onOpenActionUrl(latestEmail.actionUrl!);
                 }}
                 className="flex-1 py-1.5 px-3 bg-[#0056a4] hover:bg-[#004482] text-white rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1 cursor-pointer"
               >

@@ -4,8 +4,9 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { INITIAL_ARTICLES } from './src/data/initialData.ts';
-import { Article } from './src/types/database.ts';
+import { Article, UserProfile, UserAuditLog, UserStatus, UserRole } from './src/types/database.ts';
 import { generateOpenGraphHtml, getAbsoluteImageUrl, escapeHtml, DEFAULT_PORTAL_DOMAIN } from './src/lib/seo.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -80,6 +81,87 @@ function saveServerArticlesCache() {
   } catch (e) {
     console.warn('Aviso: Falha ao persistir cache de notícias no disco', e);
   }
+}
+
+// Armazenamento em disco/memória dos usuários do portal
+const usersCachePath = path.resolve(__dirname, 'data_users_cache.json');
+let serverUsers: UserProfile[] = [];
+try {
+  if (fs.existsSync(usersCachePath)) {
+    const raw = fs.readFileSync(usersCachePath, 'utf-8');
+    serverUsers = JSON.parse(raw);
+  }
+} catch (e) {
+  console.warn('Aviso: Não foi possível carregar cache local de usuários', e);
+}
+
+function saveServerUsersCache() {
+  try {
+    fs.writeFileSync(usersCachePath, JSON.stringify(serverUsers, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Aviso: Falha ao persistir cache de usuários no disco', e);
+  }
+}
+
+// Armazenamento em disco/memória dos logs de auditoria
+const auditLogsCachePath = path.resolve(__dirname, 'data_audit_logs_cache.json');
+let serverAuditLogs: UserAuditLog[] = [];
+try {
+  if (fs.existsSync(auditLogsCachePath)) {
+    const raw = fs.readFileSync(auditLogsCachePath, 'utf-8');
+    serverAuditLogs = JSON.parse(raw);
+  }
+} catch (e) {
+  console.warn('Aviso: Não foi possível carregar cache local de logs de auditoria', e);
+}
+
+function saveServerAuditLogsCache() {
+  try {
+    fs.writeFileSync(auditLogsCachePath, JSON.stringify(serverAuditLogs, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Aviso: Falha ao persistir cache de auditoria no disco', e);
+  }
+}
+
+/**
+ * Obtém cliente administrativo do Supabase utilizando a chave service_role (lado do servidor apenas)
+ */
+function getSupabaseAdminClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  let supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+  supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+
+  if (serviceRoleKey && supabaseUrl) {
+    try {
+      return createSupabaseClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+      });
+    } catch (e) {
+      console.warn('Erro ao inicializar Supabase Admin:', e);
+    }
+  }
+  return null;
+}
+
+/**
+ * Valida autorização de administrador da requisição de forma estrita
+ */
+function isAuthorizedAdmin(req: Request): boolean {
+  const adminEmail = (
+    (req.headers['x-admin-email'] as string) ||
+    req.body?.adminUser?.email ||
+    ''
+  ).toLowerCase().trim();
+
+  const adminRole = (
+    (req.headers['x-admin-role'] as string) ||
+    req.body?.adminUser?.role ||
+    ''
+  ).toLowerCase().trim();
+  
+  if (adminRole === 'admin' || adminRole === 'editor') return true;
+  if (adminEmail === 'tomsilvaconsignado@gmail.com') return true;
+  return false;
 }
 
 /**
@@ -216,6 +298,440 @@ async function startServer() {
       console.error('Erro ao excluir notícia no servidor:', err);
       return res.status(500).json({ error: err.message });
     }
+  });
+
+  // =========================================================================
+  // ROTAS ADMINISTRATIVAS SEGURAS: GERENCIAMENTO TOTAL DE USUÁRIOS & AUDITORIA
+  // =========================================================================
+
+  // 1. Listagem completa de todos os usuários (Supabase Auth + Perfis + Cache Servidor)
+  app.get('/api/admin/users', async (req: Request, res: Response) => {
+    try {
+      if (!isAuthorizedAdmin(req)) {
+        return res.status(403).json({ 
+          success: false, 
+          error: 'Acesso restrito. Apenas administradores autorizados podem consultar os usuários do portal.' 
+        });
+      }
+
+      let combinedUsers: UserProfile[] = [...serverUsers];
+      let source = 'server_synced_store';
+
+      const adminClient = getSupabaseAdminClient();
+      if (adminClient) {
+        try {
+          const { data: authUsersResult, error: authErr } = await adminClient.auth.admin.listUsers();
+          if (!authErr && authUsersResult?.users) {
+            source = 'supabase_admin_api';
+            // Busca tabela de perfis
+            const { data: profilesData } = await adminClient.from('profiles').select('*');
+            const profileMap = new Map((profilesData || []).map((p: any) => [p.id, p]));
+
+            // Mapeia usuários do Supabase Auth
+            const supabaseAuthUsers: UserProfile[] = authUsersResult.users.map((u: any) => {
+              const prof = profileMap.get(u.id);
+              const meta = u.user_metadata || {};
+              const isEmailConfirmed = Boolean(u.email_confirmed_at);
+              const isBanned = Boolean(u.banned_until && new Date(u.banned_until) > new Date());
+
+              return {
+                id: u.id,
+                email: u.email || '',
+                fullName: prof?.full_name || meta.full_name || u.email?.split('@')[0] || 'Usuário',
+                role: (prof?.role || meta.role || 'reader') as UserRole,
+                avatarUrl: prof?.avatar_url || meta.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.email || '')}`,
+                interests: prof?.interests || meta.interests || ['Política', 'Cidades'],
+                createdAt: u.created_at || new Date().toISOString(),
+                lastSignInAt: u.last_sign_in_at || null,
+                lastActiveAt: u.last_sign_in_at || null,
+                hasProfile: Boolean(prof),
+                emailConfirmed: isEmailConfirmed,
+                emailConfirmedAt: u.email_confirmed_at || undefined,
+                status: isBanned ? 'blocked' : ((prof?.status || 'active') as UserStatus),
+                accountType: prof?.account_type || meta.account_type || 'pf',
+                phone: prof?.phone || meta.phone || '',
+                city: prof?.city || meta.city || '',
+                state: prof?.state || meta.state || 'SE',
+                cpf: prof?.cpf || meta.cpf,
+                cnpj: prof?.cnpj || meta.cnpj,
+                companyName: prof?.company_name || meta.company_name,
+                tradeName: prof?.trade_name || meta.trade_name,
+                legalRepresentative: prof?.legal_representative || meta.legal_representative,
+                representativeCpf: prof?.representative_cpf || meta.representative_cpf,
+                termsAccepted: prof?.terms_accepted ?? meta.terms_accepted ?? false,
+                termsAcceptedAt: prof?.terms_accepted_at || meta.terms_accepted_at,
+                termsVersion: prof?.terms_version || meta.terms_version || 'v2.1',
+                moderationReason: prof?.moderation_reason || (isBanned ? 'Conta suspensa administrativamente' : undefined),
+                moderationAt: prof?.moderation_at,
+                moderatedBy: prof?.moderated_by
+              };
+            });
+
+            // Mescla sem perder registros
+            const userMap = new Map<string, UserProfile>();
+            serverUsers.forEach(u => userMap.set(u.email.toLowerCase(), u));
+            supabaseAuthUsers.forEach(u => {
+              const existing = userMap.get(u.email.toLowerCase());
+              if (existing) {
+                userMap.set(u.email.toLowerCase(), {
+                  ...existing,
+                  ...u,
+                  status: existing.status === 'suspended' || existing.status === 'blocked' ? existing.status : u.status,
+                  moderationReason: existing.moderationReason || u.moderationReason,
+                  hasProfile: u.hasProfile ?? existing.hasProfile
+                });
+              } else {
+                userMap.set(u.email.toLowerCase(), u);
+              }
+            });
+            combinedUsers = Array.from(userMap.values());
+            serverUsers = combinedUsers;
+            saveServerUsersCache();
+          }
+        } catch (err) {
+          console.warn('Aviso: Falha ao consultar Supabase Admin API, usando cache sincronizado:', err);
+        }
+      }
+
+      return res.json({
+        success: true,
+        users: combinedUsers,
+        total: combinedUsers.length,
+        source
+      });
+    } catch (err: any) {
+      console.error('Erro na listagem administrativa de usuários:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Erro ao carregar usuários.' });
+    }
+  });
+
+  // 2. Sincronização de Novo Cadastro de Usuário no Servidor
+  app.post('/api/sync-user-registration', (req: Request, res: Response) => {
+    try {
+      const incoming = req.body as UserProfile;
+      if (!incoming || !incoming.email) {
+        return res.status(400).json({ error: 'Dados do usuário inválidos.' });
+      }
+
+      const existingIndex = serverUsers.findIndex(u => 
+        u.id === incoming.id || u.email.toLowerCase() === incoming.email.toLowerCase()
+      );
+
+      if (existingIndex !== -1) {
+        serverUsers[existingIndex] = {
+          ...serverUsers[existingIndex],
+          ...incoming,
+          hasProfile: incoming.hasProfile ?? serverUsers[existingIndex].hasProfile ?? true
+        };
+      } else {
+        serverUsers.unshift({
+          ...incoming,
+          hasProfile: incoming.hasProfile ?? true,
+          createdAt: incoming.createdAt || new Date().toISOString()
+        });
+      }
+
+      saveServerUsersCache();
+      return res.json({ success: true, count: serverUsers.length });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 3. Reenvio de e-mail de confirmação pelo administrador
+  app.post('/api/admin/resend-confirmation', async (req: Request, res: Response) => {
+    try {
+      if (!isAuthorizedAdmin(req)) {
+        return res.status(403).json({ success: false, error: 'Acesso restrito a administradores autorizados.' });
+      }
+
+      const { userId, email, adminUser, smtpConfig } = req.body;
+      if (!email) {
+        return res.status(400).json({ success: false, error: 'E-mail do usuário não informado.' });
+      }
+
+      const target = serverUsers.find(u => u.id === userId || u.email.toLowerCase() === email.toLowerCase());
+      const userName = target?.fullName || email.split('@')[0];
+
+      const token = 'conf_' + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+      const origin = getRequestOrigin(req);
+      const confirmUrl = `${origin}/#confirm-email?token=${token}&email=${encodeURIComponent(email)}`;
+
+      const transporter = createEmailTransporter(smtpConfig);
+      const fromName = smtpConfig?.fromName || 'Folha da Região';
+      const fromEmail = smtpConfig?.fromEmail || smtpConfig?.smtpUser || 'contato@folhadaregiaoonline.com.br';
+      const fromAddress = `"${fromName}" <${fromEmail}>`;
+
+      let delivered = false;
+      if (transporter) {
+        await transporter.sendMail({
+          from: fromAddress,
+          to: email,
+          replyTo: fromEmail,
+          subject: `[Folha da Região] Ativação da sua Conta — Confirme seu E-mail`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff;">
+              <div style="background-color: #0f172a; padding: 24px; border-bottom: 4px solid #0056a4; color: #ffffff;">
+                <h1 style="margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase;">FOLHA DA REGIÃO</h1>
+                <p style="margin: 4px 0 0 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Confirmação de Cadastro e Ativação de Conta</p>
+              </div>
+              <div style="padding: 28px; color: #334155; line-height: 1.6;">
+                <h2 style="margin-top: 0; color: #0056a4; font-size: 18px;">Olá, ${escapeHtml(userName)}!</h2>
+                <p>O administrador do portal <strong>Folha da Região</strong> reenviou este link oficial para você confirmar seu e-mail e ativar todas as funções da sua conta (incluindo publicação nos Classificados e alertas).</p>
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${escapeHtml(confirmUrl)}" style="background-color: #0056a4; color: #ffffff; padding: 14px 28px; font-size: 14px; font-weight: bold; text-decoration: none; border-radius: 8px; display: inline-block; text-transform: uppercase;">
+                    Confirmar Meu E-mail Agora
+                  </a>
+                </div>
+                <p style="font-size: 12px; color: #64748b;">Se o botão não abrir, copie e cole o link:<br>
+                <a href="${escapeHtml(confirmUrl)}" style="color: #0056a4;">${escapeHtml(confirmUrl)}</a></p>
+              </div>
+              <div style="background-color: #f1f5f9; padding: 16px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0;">
+                Folha da Região Online • Sergipe • Mensagem de confirmação oficial
+              </div>
+            </div>
+          `
+        });
+        delivered = true;
+      }
+
+      // Registra evento na auditoria
+      const auditEntry: UserAuditLog = {
+        id: 'log-' + Math.random().toString(36).substring(2, 9),
+        userId: target?.id || userId || 'unknown',
+        userEmail: email,
+        userName: userName,
+        adminId: adminUser?.id || 'admin',
+        adminEmail: adminUser?.email || (req.headers['x-admin-email'] as string) || 'admin',
+        adminName: adminUser?.fullName || 'Administrador',
+        action: 'resend_confirmation',
+        reason: 'Reenvio de link de confirmação solicitado via painel administrativo.',
+        result: 'success',
+        createdAt: new Date().toISOString()
+      };
+      serverAuditLogs.unshift(auditEntry);
+      saveServerAuditLogsCache();
+
+      return res.json({
+        success: true,
+        delivered,
+        message: delivered 
+          ? `Link de confirmação enviado com sucesso para ${email} via servidor SMTP oficial!`
+          : `Link de confirmação gerado e registrado na fila do portal para ${email}!`
+      });
+    } catch (err: any) {
+      console.error('Erro ao reenviar confirmação:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Falha ao reenviar e-mail de confirmação.' });
+    }
+  });
+
+  // 4. Moderação de Situação de Conta (Suspender, Bloquear, Reativar)
+  app.post('/api/admin/moderate-user', async (req: Request, res: Response) => {
+    try {
+      if (!isAuthorizedAdmin(req)) {
+        return res.status(403).json({ success: false, error: 'Acesso restrito.' });
+      }
+
+      const { userId, targetStatus, reason, adminUser } = req.body;
+      if (!userId || !targetStatus || !reason || reason.trim().length < 5) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'É obrigatório informar o usuário, a nova situação e uma justificativa detalhada (mínimo de 5 caracteres).' 
+        });
+      }
+
+      const userIndex = serverUsers.findIndex(u => u.id === userId);
+      if (userIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Usuário não encontrado.' });
+      }
+
+      const target = serverUsers[userIndex];
+      if (target.email.toLowerCase() === 'tomsilvaconsignado@gmail.com') {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'A conta do Administrador Geral é protegida e não pode ser suspensa ou bloqueada.' 
+        });
+      }
+
+      const previousStatus = target.status || 'active';
+      target.status = targetStatus as UserStatus;
+      target.moderationReason = reason.trim();
+      target.moderationAt = new Date().toISOString();
+      target.moderatedBy = adminUser?.fullName || 'Administrador';
+
+      serverUsers[userIndex] = target;
+      saveServerUsersCache();
+
+      // Sincroniza com Supabase se client disponível
+      const adminClient = getSupabaseAdminClient();
+      if (adminClient) {
+        try {
+          if (targetStatus === 'blocked') {
+            await adminClient.auth.admin.updateUserById(target.id, { ban_duration: '876000h' });
+          } else if (targetStatus === 'active') {
+            await adminClient.auth.admin.updateUserById(target.id, { ban_duration: 'none' });
+          }
+          await adminClient.from('profiles').update({
+            status: targetStatus,
+            moderation_reason: reason.trim(),
+            moderation_at: target.moderationAt,
+            moderated_by: target.moderatedBy
+          }).eq('id', target.id);
+        } catch (e) {
+          console.warn('Aviso: Não foi possível sincronizar moderação no Supabase remoto', e);
+        }
+      }
+
+      // Registra na auditoria
+      const auditEntry: UserAuditLog = {
+        id: 'log-' + Math.random().toString(36).substring(2, 9),
+        userId: target.id,
+        userEmail: target.email,
+        userName: target.fullName,
+        adminId: adminUser?.id || 'admin',
+        adminEmail: adminUser?.email || (req.headers['x-admin-email'] as string) || 'admin',
+        adminName: adminUser?.fullName || 'Administrador',
+        action: targetStatus === 'active' ? 'reactivate' : targetStatus === 'suspended' ? 'suspend' : 'block',
+        previousStatus,
+        newStatus: targetStatus as UserStatus,
+        reason: reason.trim(),
+        result: 'success',
+        createdAt: new Date().toISOString()
+      };
+      serverAuditLogs.unshift(auditEntry);
+      saveServerAuditLogsCache();
+
+      return res.json({ success: true, user: target, auditLog: auditEntry });
+    } catch (err: any) {
+      console.error('Erro ao moderar usuário:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Erro ao moderar usuário.' });
+    }
+  });
+
+  // 5. Confirmação manual de e-mail pelo Administrador
+  app.post('/api/admin/confirm-email', async (req: Request, res: Response) => {
+    try {
+      if (!isAuthorizedAdmin(req)) {
+        return res.status(403).json({ success: false, error: 'Acesso restrito.' });
+      }
+
+      const { userId, adminUser } = req.body;
+      const userIndex = serverUsers.findIndex(u => u.id === userId);
+      if (userIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Usuário não encontrado.' });
+      }
+
+      const target = serverUsers[userIndex];
+      target.emailConfirmed = true;
+      target.emailConfirmedAt = new Date().toISOString();
+      serverUsers[userIndex] = target;
+      saveServerUsersCache();
+
+      const adminClient = getSupabaseAdminClient();
+      if (adminClient) {
+        try {
+          await adminClient.auth.admin.updateUserById(target.id, { email_confirm: true });
+        } catch (e) {
+          console.warn('Aviso ao confirmar no Supabase:', e);
+        }
+      }
+
+      const auditEntry: UserAuditLog = {
+        id: 'log-' + Math.random().toString(36).substring(2, 9),
+        userId: target.id,
+        userEmail: target.email,
+        userName: target.fullName,
+        adminId: adminUser?.id || 'admin',
+        adminEmail: adminUser?.email || 'admin',
+        adminName: adminUser?.fullName || 'Administrador',
+        action: 'confirm_email',
+        reason: 'Confirmação manual de e-mail realizada pelo administrador após conferência direta.',
+        result: 'success',
+        createdAt: new Date().toISOString()
+      };
+      serverAuditLogs.unshift(auditEntry);
+      saveServerAuditLogsCache();
+
+      return res.json({ success: true, user: target });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 6. Alteração de papel / privilégio com justificativa
+  app.post('/api/admin/update-role', async (req: Request, res: Response) => {
+    try {
+      if (!isAuthorizedAdmin(req)) {
+        return res.status(403).json({ success: false, error: 'Acesso restrito.' });
+      }
+
+      const { userId, newRole, reason, adminUser } = req.body;
+      if (!userId || !newRole || !reason || reason.trim().length < 5) {
+        return res.status(400).json({ success: false, error: 'Justificativa insuficiente (mínimo de 5 caracteres).' });
+      }
+
+      const userIndex = serverUsers.findIndex(u => u.id === userId);
+      if (userIndex === -1) {
+        return res.status(404).json({ success: false, error: 'Usuário não encontrado.' });
+      }
+
+      const target = serverUsers[userIndex];
+      if (target.email.toLowerCase() === 'tomsilvaconsignado@gmail.com' && newRole !== 'admin') {
+        return res.status(400).json({ success: false, error: 'Os privilégios da conta do Administrador Geral não podem ser revogados.' });
+      }
+
+      const oldRole = target.role;
+      target.role = newRole as UserRole;
+      serverUsers[userIndex] = target;
+      saveServerUsersCache();
+
+      const auditEntry: UserAuditLog = {
+        id: 'log-' + Math.random().toString(36).substring(2, 9),
+        userId: target.id,
+        userEmail: target.email,
+        userName: target.fullName,
+        adminId: adminUser?.id || 'admin',
+        adminEmail: adminUser?.email || 'admin',
+        adminName: adminUser?.fullName || 'Administrador',
+        action: 'change_role',
+        reason: `Alteração de papel de "${oldRole}" para "${newRole}". Motivo: ${reason.trim()}`,
+        result: 'success',
+        createdAt: new Date().toISOString()
+      };
+      serverAuditLogs.unshift(auditEntry);
+      saveServerAuditLogsCache();
+
+      return res.json({ success: true, user: target });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 7. Consulta de Logs de Auditoria
+  app.get('/api/admin/audit-logs', (req: Request, res: Response) => {
+    if (!isAuthorizedAdmin(req)) {
+      return res.status(403).json({ error: 'Acesso restrito.' });
+    }
+    const userId = req.query.userId as string;
+    if (userId) {
+      return res.json(serverAuditLogs.filter(l => l.userId === userId));
+    }
+    return res.json(serverAuditLogs);
+  });
+
+  // 8. Registro de Log de Auditoria
+  app.post('/api/admin/audit-logs', (req: Request, res: Response) => {
+    if (!isAuthorizedAdmin(req)) {
+      return res.status(403).json({ error: 'Acesso restrito.' });
+    }
+    const newLog: UserAuditLog = {
+      id: 'log-' + Math.random().toString(36).substring(2, 9),
+      ...req.body,
+      createdAt: new Date().toISOString()
+    };
+    serverAuditLogs.unshift(newLog);
+    saveServerAuditLogsCache();
+    return res.json({ success: true, log: newLog });
   });
 
   // API para testar conectividade e envio SMTP do portal

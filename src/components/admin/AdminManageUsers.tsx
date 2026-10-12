@@ -4,7 +4,8 @@ import {
   AlertCircle, Building2, User, Phone, MapPin, Calendar, 
   Mail, Send, Eye, EyeOff, FileText, ChevronLeft, ChevronRight, 
   RotateCw, Filter, Check, X, Tag, History, AlertTriangle, 
-  Lock, ArrowUpRight, Ban, UserCheck, ShieldCheck, Key
+  Lock, ArrowUpRight, Ban, UserCheck, ShieldCheck, Key,
+  Clock, Database, HelpCircle
 } from 'lucide-react';
 import { UserProfile, UserRole, UserStatus, UserAuditLog, ClassifiedReport } from '../../types/database';
 import { usersService, authService } from '../../lib/supabase';
@@ -14,17 +15,49 @@ interface AdminManageUsersProps {
   currentUser: UserProfile;
 }
 
+export function getUserEffectiveState(u: UserProfile): {
+  key: 'active' | 'awaiting_confirmation' | 'suspended' | 'blocked' | 'incomplete';
+  label: string;
+  badgeClass: string;
+} {
+  if (u.status === 'blocked') {
+    return { key: 'blocked', label: 'Bloqueado', badgeClass: 'bg-black text-white border border-gray-700' };
+  }
+  if (u.status === 'suspended') {
+    return { key: 'suspended', label: 'Suspenso', badgeClass: 'bg-red-50 text-red-700 border border-red-200' };
+  }
+  if (!u.emailConfirmed) {
+    return { key: 'awaiting_confirmation', label: 'Aguardando Confirmação', badgeClass: 'bg-amber-50 text-amber-800 border border-amber-200' };
+  }
+  if (u.hasProfile === false || (u.accountType === 'pj' && !u.cnpj) || (!u.fullName || u.fullName.length < 3)) {
+    return { key: 'incomplete', label: 'Cadastro Incompleto', badgeClass: 'bg-orange-50 text-orange-800 border border-orange-200' };
+  }
+  return { key: 'active', label: 'Ativo', badgeClass: 'bg-emerald-50 text-emerald-800 border border-emerald-200' };
+}
+
+export function formatDateTime(isoString?: string | null): string {
+  if (!isoString) return 'Data n/d';
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return 'Data n/d';
+  }
+}
+
 export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser }) => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Filtros
+  // Filtros Avançados
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [emailConfirmFilter, setEmailConfirmFilter] = useState<string>('all');
+  const [lastAccessFilter, setLastAccessFilter] = useState<string>('all');
   const [accountTypeFilter, setAccountTypeFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('recent');
 
   // Paginação
   const [currentPage, setCurrentPage] = useState(1);
@@ -342,26 +375,48 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
     }
   };
 
-  // Filtragem
+  // Métricas de Resumo
+  const totalCount = users.length;
+  const activeCount = users.filter(u => getUserEffectiveState(u).key === 'active').length;
+  const awaitingConfirmCount = users.filter(u => !u.emailConfirmed).length;
+  const suspendedBlockedCount = users.filter(u => u.status === 'suspended' || u.status === 'blocked').length;
+  const neverAccessedCount = users.filter(u => !u.lastSignInAt).length;
+  const incompleteOrNoProfileCount = users.filter(u => u.hasProfile === false || getUserEffectiveState(u).key === 'incomplete').length;
+
+  // Filtragem e Ordenação Completa
   const filteredUsers = users.filter(u => {
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.toLowerCase().trim();
     const matchesSearch = 
+      !term ||
       u.fullName.toLowerCase().includes(term) ||
       u.email.toLowerCase().includes(term) ||
       (u.phone && u.phone.includes(term)) ||
       (u.companyName && u.companyName.toLowerCase().includes(term)) ||
       (u.tradeName && u.tradeName.toLowerCase().includes(term)) ||
-      (u.city && u.city.toLowerCase().includes(term));
+      (u.city && u.city.toLowerCase().includes(term)) ||
+      (u.cpf && u.cpf.includes(term)) ||
+      (u.cnpj && u.cnpj.includes(term));
+
+    const state = getUserEffectiveState(u);
 
     const matchesStatus = 
       statusFilter === 'all' || 
-      (statusFilter === 'active' && (!u.status || u.status === 'active')) ||
-      u.status === statusFilter;
+      (statusFilter === 'active' && state.key === 'active') ||
+      (statusFilter === 'awaiting_confirmation' && state.key === 'awaiting_confirmation') ||
+      (statusFilter === 'suspended' && u.status === 'suspended') ||
+      (statusFilter === 'blocked' && u.status === 'blocked') ||
+      (statusFilter === 'incomplete' && (state.key === 'incomplete' || u.hasProfile === false)) ||
+      (statusFilter === 'noprofile' && u.hasProfile === false);
 
     const matchesEmailConfirm = 
       emailConfirmFilter === 'all' ||
       (emailConfirmFilter === 'confirmed' && Boolean(u.emailConfirmed)) ||
       (emailConfirmFilter === 'unconfirmed' && !u.emailConfirmed);
+
+    const matchesLastAccess =
+      lastAccessFilter === 'all' ||
+      (lastAccessFilter === 'accessed' && Boolean(u.lastSignInAt)) ||
+      (lastAccessFilter === 'never' && !u.lastSignInAt);
 
     const matchesType = 
       accountTypeFilter === 'all' || 
@@ -380,7 +435,23 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
       }
     }
 
-    return matchesSearch && matchesStatus && matchesEmailConfirm && matchesType && matchesDate;
+    return matchesSearch && matchesStatus && matchesEmailConfirm && matchesLastAccess && matchesType && matchesDate;
+  }).sort((a, b) => {
+    if (sortBy === 'recent') {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+    if (sortBy === 'oldest') {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }
+    if (sortBy === 'name') {
+      return a.fullName.localeCompare(b.fullName);
+    }
+    if (sortBy === 'last_access') {
+      const timeA = a.lastSignInAt ? new Date(a.lastSignInAt).getTime() : 0;
+      const timeB = b.lastSignInAt ? new Date(b.lastSignInAt).getTime() : 0;
+      return timeB - timeA;
+    }
+    return 0;
   });
 
   // Paginação
@@ -402,7 +473,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             Gerenciar Usuários do Portal
           </h2>
           <p className="text-xs text-gray-500">
-            Acesso centralizado para consulta, moderação de anunciantes, segurança de credenciais e histórico auditado.
+            Acesso centralizado e completo a TODOS os cadastros do Supabase Auth e perfis sincronizados.
           </p>
         </div>
 
@@ -420,7 +491,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             onClick={loadUsers}
             disabled={loading}
             className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl border border-gray-200 transition-colors cursor-pointer"
-            title="Atualizar lista de usuários"
+            title="Atualizar lista de usuários a partir do Supabase Auth e Banco de Dados"
           >
             <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#0056a4]' : ''}`} />
           </button>
@@ -447,17 +518,104 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
         </div>
       )}
 
+      {/* Cartões de Métricas e Estados dos Usuários */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        {/* Total */}
+        <button
+          onClick={() => { setStatusFilter('all'); setEmailConfirmFilter('all'); setLastAccessFilter('all'); setCurrentPage(1); }}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            statusFilter === 'all' && emailConfirmFilter === 'all' && lastAccessFilter === 'all'
+              ? 'bg-blue-900 text-white border-blue-950 shadow-md'
+              : 'bg-white text-gray-700 border-gray-100 hover:border-blue-200 shadow-xs'
+          }`}
+        >
+          <span className="text-[10px] font-black uppercase tracking-wider block opacity-75">Total de Cadastros</span>
+          <span className="text-xl font-black">{totalCount}</span>
+          <span className="text-[10px] block opacity-80 mt-0.5">Todos os registros</span>
+        </button>
+
+        {/* Ativos */}
+        <button
+          onClick={() => { setStatusFilter('active'); setEmailConfirmFilter('all'); setLastAccessFilter('all'); setCurrentPage(1); }}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            statusFilter === 'active'
+              ? 'bg-emerald-700 text-white border-emerald-800 shadow-md'
+              : 'bg-white text-gray-700 border-gray-100 hover:border-emerald-200 shadow-xs'
+          }`}
+        >
+          <span className="text-[10px] font-black uppercase tracking-wider block text-emerald-600">Contas Ativas</span>
+          <span className="text-xl font-black">{activeCount}</span>
+          <span className="text-[10px] block text-emerald-700 mt-0.5">Confirmadas & liberadas</span>
+        </button>
+
+        {/* Aguardando Confirmação */}
+        <button
+          onClick={() => { setStatusFilter('awaiting_confirmation'); setEmailConfirmFilter('all'); setLastAccessFilter('all'); setCurrentPage(1); }}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            statusFilter === 'awaiting_confirmation'
+              ? 'bg-amber-600 text-white border-amber-700 shadow-md'
+              : 'bg-white text-gray-700 border-gray-100 hover:border-amber-200 shadow-xs'
+          }`}
+        >
+          <span className="text-[10px] font-black uppercase tracking-wider block text-amber-600">Aguardando E-mail</span>
+          <span className="text-xl font-black">{awaitingConfirmCount}</span>
+          <span className="text-[10px] block text-amber-700 mt-0.5">Confirmação pendente</span>
+        </button>
+
+        {/* Suspensos ou Bloqueados */}
+        <button
+          onClick={() => { setStatusFilter('suspended'); setEmailConfirmFilter('all'); setLastAccessFilter('all'); setCurrentPage(1); }}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            statusFilter === 'suspended' || statusFilter === 'blocked'
+              ? 'bg-red-700 text-white border-red-800 shadow-md'
+              : 'bg-white text-gray-700 border-gray-100 hover:border-red-200 shadow-xs'
+          }`}
+        >
+          <span className="text-[10px] font-black uppercase tracking-wider block text-red-600">Suspensos / Bloqueados</span>
+          <span className="text-xl font-black">{suspendedBlockedCount}</span>
+          <span className="text-[10px] block text-red-700 mt-0.5">Acesso restringido</span>
+        </button>
+
+        {/* Nunca Acessaram */}
+        <button
+          onClick={() => { setLastAccessFilter('never'); setStatusFilter('all'); setEmailConfirmFilter('all'); setCurrentPage(1); }}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            lastAccessFilter === 'never'
+              ? 'bg-gray-800 text-white border-gray-900 shadow-md'
+              : 'bg-white text-gray-700 border-gray-100 hover:border-gray-300 shadow-xs'
+          }`}
+        >
+          <span className="text-[10px] font-black uppercase tracking-wider block text-gray-500">Nunca Acessaram</span>
+          <span className="text-xl font-black">{neverAccessedCount}</span>
+          <span className="text-[10px] block text-gray-500 mt-0.5">Sem primeiro login</span>
+        </button>
+
+        {/* Sem Perfil ou Incompleto */}
+        <button
+          onClick={() => { setStatusFilter('incomplete'); setEmailConfirmFilter('all'); setLastAccessFilter('all'); setCurrentPage(1); }}
+          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+            statusFilter === 'incomplete' || statusFilter === 'noprofile'
+              ? 'bg-orange-600 text-white border-orange-700 shadow-md'
+              : 'bg-white text-gray-700 border-gray-100 hover:border-orange-200 shadow-xs'
+          }`}
+        >
+          <span className="text-[10px] font-black uppercase tracking-wider block text-orange-600">Sem Perfil / Incomp.</span>
+          <span className="text-xl font-black">{incompleteOrNoProfileCount}</span>
+          <span className="text-[10px] block text-orange-700 mt-0.5">Auth direto ou dados pend.</span>
+        </button>
+      </div>
+
       {/* Barra de Filtros e Pesquisa Avançada */}
       <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Busca por Texto */}
-          <div className="md:col-span-5 relative">
+          <div className="md:col-span-4 relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              placeholder="Pesquisar por nome, e-mail, telefone, empresa ou cidade..."
+              placeholder="Buscar por nome, e-mail, telefone, empresa, CPF/CNPJ..."
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none transition-all"
             />
           </div>
@@ -469,10 +627,13 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
               className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-[#0056a4]"
             >
-              <option value="all">Todas as Situações</option>
+              <option value="all">Situação: Todas</option>
               <option value="active">Apenas Ativos</option>
+              <option value="awaiting_confirmation">Aguardando Confirmação</option>
               <option value="suspended">Apenas Suspensos</option>
               <option value="blocked">Apenas Bloqueados</option>
+              <option value="incomplete">Cadastro Incompleto</option>
+              <option value="noprofile">Sem Perfil no Banco (Auth)</option>
             </select>
           </div>
 
@@ -483,55 +644,91 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
               onChange={(e) => { setEmailConfirmFilter(e.target.value); setCurrentPage(1); }}
               className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-[#0056a4]"
             >
-              <option value="all">Confirmação de E-mail</option>
+              <option value="all">E-mail: Todos</option>
               <option value="confirmed">E-mail Confirmado</option>
-              <option value="unconfirmed">E-mail Pendente</option>
+              <option value="unconfirmed">Aguardando Confirmação</option>
             </select>
           </div>
 
-          {/* Filtro: Tipo de Cadastro (PF / PJ) */}
-          <div className="md:col-span-3">
+          {/* Filtro: Último Acesso */}
+          <div className="md:col-span-2">
             <select
-              value={accountTypeFilter}
-              onChange={(e) => { setAccountTypeFilter(e.target.value); setCurrentPage(1); }}
+              value={lastAccessFilter}
+              onChange={(e) => { setLastAccessFilter(e.target.value); setCurrentPage(1); }}
               className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-[#0056a4]"
             >
-              <option value="all">Pessoa Física & Jurídica</option>
-              <option value="pf">Pessoa Física (CPF)</option>
-              <option value="pj">Pessoa Jurídica (CNPJ)</option>
+              <option value="all">Último Acesso: Todos</option>
+              <option value="accessed">Já Acessaram o Portal</option>
+              <option value="never">Nunca Acessaram</option>
+            </select>
+          </div>
+
+          {/* Ordenação */}
+          <div className="md:col-span-2">
+            <select
+              value={sortBy}
+              onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-[#0056a4]"
+            >
+              <option value="recent">Mais Recentes Primeiro</option>
+              <option value="oldest">Mais Antigos Primeiro</option>
+              <option value="name">Nome (A-Z)</option>
+              <option value="last_access">Último Acesso Recente</option>
             </select>
           </div>
         </div>
 
         {/* Linha secundária de filtros rápidos e contador */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100 text-xs">
-          <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-gray-500 font-bold">Data de Registro:</span>
-            <div className="flex gap-1.5">
-              {[
-                { id: 'all', label: 'Todo o Período' },
-                { id: '7d', label: 'Últimos 7 dias' },
-                { id: '30d', label: 'Últimos 30 dias' },
-                { id: '90d', label: 'Últimos 90 dias' }
-              ].map(d => (
-                <button
-                  key={d.id}
-                  onClick={() => { setDateFilter(d.id); setCurrentPage(1); }}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                    dateFilter === d.id 
-                      ? 'bg-gray-900 text-white shadow-xs' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {d.label}
-                </button>
-              ))}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Tipo de Cadastro */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-400 font-bold text-[11px] uppercase">Tipo:</span>
+              <div className="flex gap-1">
+                {[
+                  { id: 'all', label: 'Todos' },
+                  { id: 'pf', label: 'Pessoa Física' },
+                  { id: 'pj', label: 'Pessoa Jurídica' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => { setAccountTypeFilter(t.id); setCurrentPage(1); }}
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      accountTypeFilter === t.id ? 'bg-[#0056a4] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Período de Registro */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-400 font-bold text-[11px] uppercase">Cadastro:</span>
+              <div className="flex gap-1">
+                {[
+                  { id: 'all', label: 'Todo o Período' },
+                  { id: '7d', label: '7 dias' },
+                  { id: '30d', label: '30 dias' },
+                  { id: '90d', label: '90 dias' }
+                ].map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => { setDateFilter(d.id); setCurrentPage(1); }}
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      dateFilter === d.id ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           <div className="text-gray-400 text-[11px] font-bold">
-            Exibindo {paginatedUsers.length} de {filteredUsers.length} resultados filtrados
+            Exibindo {paginatedUsers.length} de {filteredUsers.length} cadastros filtrados
           </div>
         </div>
       </div>
@@ -555,6 +752,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                 setSearchTerm('');
                 setStatusFilter('all');
                 setEmailConfirmFilter('all');
+                setLastAccessFilter('all');
                 setAccountTypeFilter('all');
                 setDateFilter('all');
               }}
@@ -571,9 +769,10 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   <th className="py-3.5 px-4">Nome / Identificação</th>
                   <th className="py-3.5 px-4">Tipo</th>
                   <th className="py-3.5 px-4">Contato / Localização</th>
-                  <th className="py-3.5 px-4">Cadastro</th>
-                  <th className="py-3.5 px-4 text-center">E-mail</th>
-                  <th className="py-3.5 px-4 text-center">Situação</th>
+                  <th className="py-3.5 px-4">Data do Cadastro</th>
+                  <th className="py-3.5 px-4 text-center">Confirmação E-mail</th>
+                  <th className="py-3.5 px-4 text-center">Situação da Conta</th>
+                  <th className="py-3.5 px-4 text-center">Último Acesso</th>
                   <th className="py-3.5 px-4 text-center">Classificados</th>
                   <th className="py-3.5 px-4 text-right">Ações</th>
                 </tr>
@@ -581,10 +780,9 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
               <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                 {paginatedUsers.map((u) => {
                   const isPF = (u.accountType || 'pf') === 'pf';
-                  const isSuspended = u.status === 'suspended';
-                  const isBlocked = u.status === 'blocked';
                   const isProtectedAdmin = u.email.toLowerCase() === 'tomsilvaconsignado@gmail.com';
                   const counts = classifiedCounts[u.id] || { total: 0, published: 0, pending: 0, rejected: 0 };
+                  const effectiveState = getUserEffectiveState(u);
 
                   return (
                     <tr 
@@ -602,7 +800,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                             className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 object-cover shrink-0"
                           />
                           <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="font-bold text-gray-900 truncate max-w-[200px]" title={u.fullName}>
                                 {u.fullName}
                               </p>
@@ -614,6 +812,14 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                               {u.role === 'editor' && (
                                 <span className="px-1.5 py-0.2 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider border border-blue-200">
                                   Editor
+                                </span>
+                              )}
+                              {u.hasProfile === false && (
+                                <span 
+                                  className="px-1.5 py-0.2 bg-amber-50 text-amber-800 text-[9px] font-black rounded uppercase tracking-wider border border-amber-200"
+                                  title="Este cadastro foi localizado no Supabase Auth sem perfil correspondente na tabela profiles"
+                                >
+                                  Auth Direto (Sem Perfil)
                                 </span>
                               )}
                             </div>
@@ -648,46 +854,64 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                       </td>
 
                       {/* Data de Cadastro */}
-                      <td className="py-3.5 px-4 whitespace-nowrap text-gray-500 text-[11px]">
+                      <td className="py-3.5 px-4 whitespace-nowrap text-gray-600 text-[11px]">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
-                          <span>
-                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : 'Data n/d'}
-                          </span>
+                          <span>{formatDateTime(u.createdAt)}</span>
                         </div>
                       </td>
 
                       {/* Situação da Confirmação de E-mail */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         {u.emailConfirmed ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-black uppercase rounded-full border border-emerald-200">
+                          <span 
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-800 text-[10px] font-black uppercase rounded-full border border-emerald-200"
+                            title={u.emailConfirmedAt ? `Confirmado em: ${formatDateTime(u.emailConfirmedAt)}` : 'E-mail confirmado'}
+                          >
                             <Check className="w-3 h-3 text-emerald-600" />
                             Confirmado
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-800 text-[10px] font-black uppercase rounded-full border border-amber-200">
-                            <AlertTriangle className="w-3 h-3 text-amber-600" />
-                            Pendente
-                          </span>
+                          <div className="inline-flex flex-col items-center gap-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-800 text-[10px] font-black uppercase rounded-full border border-amber-200">
+                              <AlertTriangle className="w-3 h-3 text-amber-600" />
+                              Aguardando
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleAdminResendEmail(u)}
+                              className="text-[9px] text-[#0056a4] hover:underline font-bold cursor-pointer"
+                              title="Reenviar e-mail com link de confirmação para este usuário"
+                            >
+                              Reenviar Link
+                            </button>
+                          </div>
                         )}
                       </td>
 
                       {/* Situação da Conta */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        {isBlocked ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-black text-white text-[10px] font-black uppercase rounded-full border border-gray-700">
-                            <Ban className="w-3 h-3 text-red-400" />
-                            Bloqueado
-                          </span>
-                        ) : isSuspended ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-red-50 text-red-700 text-[10px] font-black uppercase rounded-full border border-red-200">
-                            <ShieldAlert className="w-3 h-3 text-red-600" />
-                            Suspenso
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-black uppercase rounded-full ${effectiveState.badgeClass}`}>
+                          {effectiveState.key === 'blocked' && <Ban className="w-3 h-3 text-red-400" />}
+                          {effectiveState.key === 'suspended' && <ShieldAlert className="w-3 h-3 text-red-600" />}
+                          {effectiveState.key === 'awaiting_confirmation' && <AlertTriangle className="w-3 h-3 text-amber-600" />}
+                          {effectiveState.key === 'active' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                          {effectiveState.key === 'incomplete' && <HelpCircle className="w-3 h-3 text-orange-600" />}
+                          <span>{effectiveState.label}</span>
+                        </span>
+                      </td>
+
+                      {/* Último Acesso */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap text-[11px]">
+                        {u.lastSignInAt ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-gray-800" title={`Último login em: ${formatDateTime(u.lastSignInAt)}`}>
+                            <Clock className="w-3 h-3 text-blue-600 shrink-0" />
+                            <span>{formatDateTime(u.lastSignInAt)}</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase rounded-full border border-emerald-200">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Ativo
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-gray-100 text-gray-500 rounded-full text-[10px] font-bold">
+                            <Clock className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span>Nunca acessou</span>
                           </span>
                         )}
                       </td>
@@ -725,7 +949,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                             </span>
                           ) : (
                             <>
-                              {isSuspended || isBlocked ? (
+                              {u.status === 'suspended' || u.status === 'blocked' ? (
                                 <button
                                   onClick={() => setModerationModal({
                                     isOpen: true,
