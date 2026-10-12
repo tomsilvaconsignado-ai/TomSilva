@@ -25,7 +25,7 @@ import { Article, AdItem, CategorySlug, UserProfile, ClassifiedItem } from './ty
 import { newsService, adsService, authService, newsletterService, notificationsService } from './lib/supabase';
 import { INITIAL_ARTICLES, INITIAL_ADS } from './data/initialData';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
-import { updateClientHeadForArticle } from './lib/seo';
+import { updateClientHeadForArticle, getAppBasePath } from './lib/seo';
 
 export default function App() {
   const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
@@ -81,12 +81,36 @@ export default function App() {
       notificationsService.seedInitialNotificationsIfEmpty(user, arts);
     }
 
-    // Identifica se a página foi acessada diretamente por link permanente de notícia
-    const windowSlug = (window as any).__INITIAL_ARTICLE_SLUG__;
-    const pathMatch = window.location.pathname.match(/^\/(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
-    const searchSlug = new URLSearchParams(window.location.search).get('noticia') || new URLSearchParams(window.location.search).get('slug');
-    const initialSlug = windowSlug || (pathMatch ? decodeURIComponent(pathMatch[1]) : searchSlug);
+    // Extrai slug de notícia considerando SSR, rotas diretas, subdiretórios no GitHub Pages e fallback 404
+    const extractSlug = (): string | null => {
+      if (typeof window === 'undefined') return null;
+      const windowSlug = (window as any).__INITIAL_ARTICLE_SLUG__;
+      if (windowSlug) return windowSlug;
 
+      // 1. Procura no pathname em qualquer profundidade (ex: /noticia/slug ou /repo/noticia/slug)
+      const pathMatch = window.location.pathname.match(/(?:^|\/)(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
+      if (pathMatch && pathMatch[1]) {
+        return decodeURIComponent(pathMatch[1]);
+      }
+
+      // 2. Procura em query parameters diretos (?noticia=, ?slug=)
+      const params = new URLSearchParams(window.location.search);
+      const qNoticia = params.get('noticia') || params.get('slug');
+      if (qNoticia) return decodeURIComponent(qNoticia);
+
+      // 3. Suporte ao parâmetro p vindo do redirecionamento do 404.html do GitHub Pages (?p=/noticia/slug)
+      const pParam = params.get('p');
+      if (pParam) {
+        const pMatch = pParam.match(/(?:^|\/)(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
+        if (pMatch && pMatch[1]) {
+          return decodeURIComponent(pMatch[1]);
+        }
+      }
+
+      return null;
+    };
+
+    const initialSlug = extractSlug();
     if (initialSlug) {
       const found = arts.find(a => a.slug.toLowerCase() === initialSlug.toLowerCase() || a.id === initialSlug);
       if (found && found.status !== 'draft') {
@@ -116,9 +140,12 @@ export default function App() {
   // Monitora navegação pelo histórico do navegador (botões Voltar e Avançar)
   useEffect(() => {
     const handlePopState = () => {
-      const pathMatch = window.location.pathname.match(/^\/(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
-      const searchSlug = new URLSearchParams(window.location.search).get('noticia') || new URLSearchParams(window.location.search).get('slug');
-      const slug = pathMatch ? decodeURIComponent(pathMatch[1]) : searchSlug;
+      const pathMatch = window.location.pathname.match(/(?:^|\/)(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
+      const params = new URLSearchParams(window.location.search);
+      const searchSlug = params.get('noticia') || params.get('slug');
+      const pParam = params.get('p');
+      const pMatch = pParam ? pParam.match(/(?:^|\/)(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i) : null;
+      const slug = (pathMatch ? decodeURIComponent(pathMatch[1]) : (pMatch ? decodeURIComponent(pMatch[1]) : searchSlug));
 
       if (slug && articles.length > 0) {
         const found = articles.find(a => a.slug.toLowerCase() === slug.toLowerCase() || a.id === slug);
@@ -130,7 +157,9 @@ export default function App() {
         }
       }
 
-      if (window.location.pathname === '/' || !slug) {
+      const basePath = getAppBasePath();
+      const currentPath = window.location.pathname;
+      if (currentPath === '/' || currentPath === basePath || currentPath === basePath.replace(/\/$/, '') || !slug) {
         setSelectedArticle(null);
         setViewMode('home');
         document.title = 'Folha da Região - A notícia onde você estiver';
@@ -144,9 +173,12 @@ export default function App() {
   const handleSelectArticle = (art: Article) => {
     setSelectedArticle(art);
     setViewMode('article');
-    // Atualiza a URL canônica na barra de endereços do navegador
-    if (window.location.pathname !== `/noticia/${encodeURIComponent(art.slug)}`) {
-      window.history.pushState({ articleSlug: art.slug }, '', `/noticia/${encodeURIComponent(art.slug)}`);
+    // Atualiza a URL canônica na barra de endereços do navegador preservando a base da aplicação
+    const basePath = getAppBasePath();
+    const cleanBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
+    const targetUrl = `${cleanBase}noticia/${encodeURIComponent(art.slug)}`;
+    if (window.location.pathname !== targetUrl) {
+      window.history.pushState({ articleSlug: art.slug }, '', targetUrl);
     }
     updateClientHeadForArticle(art);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -158,8 +190,9 @@ export default function App() {
     setSelectedClassified(null);
     setCurrentCategory('todos');
     setSearchQuery('');
-    if (window.location.pathname !== '/') {
-      window.history.pushState({}, '', '/');
+    const basePath = getAppBasePath();
+    if (window.location.pathname !== basePath) {
+      window.history.pushState({}, '', basePath);
     }
     document.title = 'Folha da Região - A notícia onde você estiver';
     window.scrollTo({ top: 0, behavior: 'smooth' });

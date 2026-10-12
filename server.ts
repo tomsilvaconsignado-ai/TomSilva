@@ -242,12 +242,17 @@ async function startServer() {
     try {
       // 1. Identifica se há um slug de notícia na rota ou na query
       let articleSlug: string | null = null;
-      const pathMatch = req.path.match(/^\/(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
+      const pathMatch = req.path.match(/(?:^|\/)(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
 
       if (pathMatch) {
         articleSlug = decodeURIComponent(pathMatch[1]);
-      } else if (req.query.noticia || req.query.slug || req.query.p) {
-        articleSlug = String(req.query.noticia || req.query.slug || req.query.p);
+      } else if (req.query.noticia || req.query.slug) {
+        articleSlug = String(req.query.noticia || req.query.slug);
+      } else if (req.query.p) {
+        const pMatch = String(req.query.p).match(/(?:^|\/)(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
+        if (pMatch) {
+          articleSlug = decodeURIComponent(pMatch[1]);
+        }
       }
 
       const origin = getRequestOrigin(req);

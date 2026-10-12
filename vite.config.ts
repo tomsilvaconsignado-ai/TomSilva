@@ -4,10 +4,20 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
-  // Configuração automática para GitHub Pages quando construído no GitHub Actions
-  const isGitHubActions = process.env.GITHUB_ACTIONS === 'true';
-  const repoName = process.env.GITHUB_REPOSITORY ? `/${process.env.GITHUB_REPOSITORY.split('/')[1]}/` : '/TomSilva/';
-  const base = isGitHubActions ? repoName : './';
+  // Configuração inteligente da URL base para GitHub Pages e domínios personalizados
+  let base = './';
+  if (process.env.BASE_PATH) {
+    base = process.env.BASE_PATH;
+  } else if (process.env.CUSTOM_DOMAIN) {
+    base = '/';
+  } else if (process.env.GITHUB_ACTIONS === 'true' && process.env.GITHUB_REPOSITORY) {
+    const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
+    if (repo && repo.toLowerCase().endsWith('.github.io')) {
+      base = '/';
+    } else if (repo) {
+      base = `/${repo}/`;
+    }
+  }
 
   return {
     base,

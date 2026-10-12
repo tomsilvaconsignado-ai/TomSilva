@@ -24,19 +24,61 @@ export const stripHtml = (html: string = ''): string => {
 };
 
 /**
+ * Retorna o caminho base da aplicação (suporta tanto domínios raiz quanto subdiretórios no GitHub Pages)
+ */
+export const getAppBasePath = (): string => {
+  if (typeof window !== 'undefined') {
+    // 1. Tenta obter a base configurada pelo Vite
+    const viteBase = (import.meta as any).env?.BASE_URL;
+    if (viteBase && viteBase !== './' && viteBase !== '.') {
+      return viteBase.endsWith('/') ? viteBase : `${viteBase}/`;
+    }
+
+    // 2. Se estiver em subdiretório do GitHub Pages (ex: tomsilva.github.io/nome-do-repo/)
+    if (window.location.hostname.endsWith('github.io')) {
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      if (parts.length > 0 && !['noticia', 'noticias', 'artigo', 'artigos'].includes(parts[0].toLowerCase())) {
+        return `/${parts[0]}/`;
+      }
+    }
+
+    // 3. Fallback: extrai subdiretório anterior a rotas conhecidas de matérias
+    const match = window.location.pathname.match(/^(\/[^/]+)\/(?:noticia|noticias|artigo|artigos)/i);
+    if (match && match[1]) {
+      return `${match[1]}/`;
+    }
+  }
+
+  const base = (import.meta as any).env?.BASE_URL || '/';
+  return (base === './' || base === '.') ? '/' : (base.endsWith('/') ? base : `${base}/`);
+};
+
+/**
  * Retorna a URL canônica e permanente de uma notícia
+ * Preserva o domínio real e o subdiretório do repositório no GitHub Pages
  */
 export const getArticleCanonicalUrl = (slug: string, customOrigin?: string): string => {
   let origin = customOrigin;
+  let basePath = '/';
+
   if (!origin && typeof window !== 'undefined' && window.location?.origin) {
     origin = window.location.origin;
+    basePath = getAppBasePath();
   }
+
   if (!origin) {
     origin = DEFAULT_PORTAL_DOMAIN;
+    basePath = '/';
   }
-  // Remove barra final do origin
+
+  // Remove barras no final da origem
   origin = origin.replace(/\/+$/, '');
-  return `${origin}/noticia/${encodeURIComponent(slug)}`;
+  
+  // Normaliza o basePath garantindo barras adequadas
+  const cleanBase = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  const formattedBase = cleanBase.endsWith('/') ? cleanBase : `${cleanBase}/`;
+
+  return `${origin}${formattedBase}noticia/${encodeURIComponent(slug)}`;
 };
 
 /**

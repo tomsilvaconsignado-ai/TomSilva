@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folha da Região - Redirecionando...</title>
+    <!-- Open Graph Básico para Fallback -->
+    <meta property="og:site_name" content="Folha da Região" />
+    <meta property="og:title" content="Folha da Região - A notícia onde você estiver" />
+    <meta property="og:description" content="Notícias de última hora, política, cidades e esportes de Sergipe e região." />
+    <meta property="og:type" content="website" />
+    <script type="text/javascript">
+      // GitHub Pages SPA Router Redirect
+      // Redireciona requisições de rotas dinâmicas para a SPA principal preservando caminho e parâmetros
+      (function() {
+        var l = window.location;
+        var hostname = l.hostname;
+        var pathname = l.pathname;
+        
+        // Identifica se estamos em subdiretório do GitHub Pages (ex: tomsilva.github.io/repo-name/)
+        var pathSegments = pathname.split('/').filter(Boolean);
+        var repoSegment = '';
+        var routeSegments = pathSegments;
+
+        if (hostname.indexOf('github.io') > -1 && pathSegments.length > 0) {
+          // O primeiro segmento após o domínio é o nome do repositório
+          repoSegment = '/' + pathSegments[0];
+          routeSegments = pathSegments.slice(1);
+        }
+
+        var targetRoute = '/' + routeSegments.join('/');
+        var searchParams = l.search ? '&' + l.search.slice(1) : '';
+
+        // Redireciona para a raiz da SPA com o parâmetro de rota p
+        var targetUrl = l.protocol + '//' + l.host + repoSegment + '/?p=' + encodeURIComponent(targetRoute) + searchParams + l.hash;
+        l.replace(targetUrl);
+      })();
+    </script>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: #f8fafc;
+        color: #334155;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+        text-align: center;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e2e8f0;
+        border-top-color: #0056a4;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 16px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      h1 { font-size: 18px; font-weight: 700; margin: 0 0 8px; color: #0f172a; }
+      p { font-size: 14px; color: #64748b; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="spinner"></div>
+    <h1>Carregando notícia...</h1>
+    <p>Aguarde um instante, você está sendo redirecionado para a matéria.</p>
+  </body>
+</html>

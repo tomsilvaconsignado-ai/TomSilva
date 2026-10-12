@@ -22,6 +22,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&display=swap" rel="stylesheet" />
+    
+    <!-- Script de restauração de rotas SPA vindas do 404.html no GitHub Pages -->
+    <script type="text/javascript">
+      (function(l) {
+        if (l.search && l.search[1] === 'p') {
+          var params = new URLSearchParams(l.search);
+          var pRoute = params.get('p');
+          if (pRoute) {
+            params.delete('p');
+            var remainingSearch = params.toString();
+            var targetSearch = remainingSearch ? '?' + remainingSearch : '';
+            var basePath = l.pathname.replace(/\/$/, '');
+            var fullRoute = (pRoute.indexOf('/') === 0 ? pRoute : '/' + pRoute);
+            window.history.replaceState(null, null, basePath + fullRoute + targetSearch + l.hash);
+          }
+        }
+      })(window.location);
+    </script>
   </head>
   <body class="bg-gray-50 text-gray-900 antialiased font-sans selection:bg-[#0056a4] selection:text-white">
     <div id="root">
