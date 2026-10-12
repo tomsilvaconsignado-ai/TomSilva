@@ -22,7 +22,10 @@ import { ClassifiedDetail } from './components/classifieds/ClassifiedDetail';
 import { ClassifiedFormModal } from './components/classifieds/ClassifiedFormModal';
 import { MyClassifiedsModal } from './components/classifieds/MyClassifiedsModal';
 import { Article, AdItem, CategorySlug, UserProfile, ClassifiedItem } from './types/database';
-import { newsService, adsService, authService, newsletterService, notificationsService } from './lib/supabase';
+import { 
+  newsService, adsService, authService, newsletterService, 
+  notificationsService, supabase, isSupabaseConfigured 
+} from './lib/supabase';
 import { INITIAL_ARTICLES, INITIAL_ADS } from './data/initialData';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
 import { updateClientHeadForArticle, getAppBasePath } from './lib/seo';
@@ -124,6 +127,67 @@ export default function App() {
   useEffect(() => {
     loadData();
 
+    // 1. Processa rotas e links de confirmação de e-mail e recuperação de senha
+    const handleUrlAuthTokens = () => {
+      if (typeof window === 'undefined') return;
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash || '';
+
+      // A) Confirmação de E-mail via parâmetros de busca (?action=confirm-email&token=...) ou (?token=...&email=...)
+      const action = searchParams.get('action');
+      const queryToken = searchParams.get('token');
+      const queryEmail = searchParams.get('email');
+
+      if (action === 'confirm-email' && queryToken) {
+        setEmailConfirmToken(queryToken);
+      } else if (action === 'reset-password' && queryToken) {
+        setResetPasswordToken(queryToken);
+      } else if (queryToken && queryEmail) {
+        setEmailConfirmToken(queryToken);
+      }
+
+      // B) Confirmação de E-mail e Recuperação via hash (#confirm-email, #reset-password, #access_token)
+      if (hash.startsWith('#confirm-email')) {
+        const hashParams = new URLSearchParams(hash.replace('#confirm-email', '').replace(/^[?&]/, ''));
+        const hashToken = hashParams.get('token');
+        if (hashToken) {
+          setEmailConfirmToken(hashToken);
+        } else {
+          setEmailConfirmToken('supabase_verified');
+        }
+      } else if (hash.startsWith('#reset-password')) {
+        const hashParams = new URLSearchParams(hash.replace('#reset-password', '').replace(/^[?&]/, ''));
+        const hashToken = hashParams.get('token');
+        setResetPasswordToken(hashToken || 'supabase_recovery');
+      } else if (hash.includes('type=recovery')) {
+        setResetPasswordToken('supabase_recovery');
+      } else if (hash.includes('type=signup') || hash.includes('type=email_change')) {
+        setEmailConfirmToken('supabase_verified');
+      }
+    };
+
+    handleUrlAuthTokens();
+
+    // 2. Escuta eventos oficiais de autenticação do Supabase caso conectado
+    let supabaseSub: any = null;
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            setResetPasswordToken('supabase_recovery');
+          } else if (event === 'SIGNED_IN' && session?.user) {
+            authService.getCurrentUser().then(u => {
+              if (u) setCurrentUser(u);
+            });
+          }
+        });
+        supabaseSub = authListener?.subscription;
+      } catch (e) {
+        console.warn('Aviso: Falha ao registrar onAuthStateChange do Supabase', e);
+      }
+    }
+
     const handleAuthChange = () => {
       authService.getCurrentUser().then(user => {
         setCurrentUser(user);
@@ -134,7 +198,10 @@ export default function App() {
     };
 
     window.addEventListener('folha_auth_changed', handleAuthChange);
-    return () => window.removeEventListener('folha_auth_changed', handleAuthChange);
+    return () => {
+      window.removeEventListener('folha_auth_changed', handleAuthChange);
+      if (supabaseSub) supabaseSub.unsubscribe();
+    };
   }, []);
 
   // Monitora navegação pelo histórico do navegador (botões Voltar e Avançar)
@@ -646,6 +713,66 @@ export default function App() {
           />
         </>
       )}
+
+      {/* Modal de Confirmação de E-mail */}
+      {emailConfirmToken && (
+        <EmailConfirmationModal
+          isOpen={Boolean(emailConfirmToken)}
+          token={emailConfirmToken}
+          onClose={() => {
+            setEmailConfirmToken(null);
+            if (window.location.search.includes('action=confirm-email') || window.location.hash.includes('confirm-email')) {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+          }}
+          onGoToLogin={() => {
+            setEmailConfirmToken(null);
+            if (window.location.search.includes('action=confirm-email') || window.location.hash.includes('confirm-email')) {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+            handleOpenAuth('login');
+          }}
+        />
+      )}
+
+      {/* Modal de Redefinição de Senha */}
+      {resetPasswordToken && (
+        <ResetPasswordModal
+          isOpen={Boolean(resetPasswordToken)}
+          token={resetPasswordToken}
+          onClose={() => {
+            setResetPasswordToken(null);
+            if (window.location.search.includes('action=reset-password') || window.location.hash.includes('reset-password') || window.location.hash.includes('type=recovery')) {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+          }}
+          onSuccessGoToLogin={() => {
+            setResetPasswordToken(null);
+            if (window.location.search.includes('action=reset-password') || window.location.hash.includes('reset-password') || window.location.hash.includes('type=recovery')) {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+            handleOpenAuth('login');
+          }}
+        />
+      )}
+
+      {/* Caixa de E-mails Transacionais do Portal (Simulação e Homologação) */}
+      <EmailOutboxModal
+        isOpen={isOutboxModalOpen}
+        onClose={() => setIsOutboxModalOpen(false)}
+        onOpenActionUrl={(url) => {
+          setIsOutboxModalOpen(false);
+          window.location.href = url;
+        }}
+      />
+
+      {/* Notificação Flutuante de Disparo de E-mail */}
+      <EmailNotificationToast
+        onOpenOutbox={() => setIsOutboxModalOpen(true)}
+        onOpenActionUrl={(url) => {
+          window.location.href = url;
+        }}
+      />
     </div>
   );
 }

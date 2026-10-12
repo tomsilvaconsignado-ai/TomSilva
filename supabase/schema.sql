@@ -14,6 +14,23 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   role TEXT DEFAULT 'reader' CHECK (role IN ('admin', 'editor', 'reader')),
   avatar_url TEXT,
   interests TEXT[] DEFAULT ARRAY['Política', 'Cidades'], -- Categorias de interesse para notificações
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'blocked')),
+  account_type TEXT DEFAULT 'pf' CHECK (account_type IN ('pf', 'pj')),
+  phone TEXT,
+  city TEXT,
+  state TEXT DEFAULT 'SE',
+  cpf TEXT,
+  cnpj TEXT,
+  company_name TEXT,
+  trade_name TEXT,
+  legal_representative TEXT,
+  representative_cpf TEXT,
+  terms_accepted BOOLEAN DEFAULT true,
+  terms_accepted_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  terms_version TEXT DEFAULT 'v2.1',
+  moderation_reason TEXT,
+  moderation_at TIMESTAMP WITH TIME ZONE,
+  moderated_by TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
@@ -25,9 +42,29 @@ CREATE POLICY "Perfis visíveis publicamente"
   ON public.profiles FOR SELECT 
   USING (true);
 
-CREATE POLICY "Usuários podem atualizar seus próprios perfis" 
+CREATE POLICY "Usuários podem criar seus próprios perfis" 
+  ON public.profiles FOR INSERT 
+  WITH CHECK (auth.uid() = id);
+
+-- Usuários podem atualizar seus próprios dados cadastrais, mas NÃO podem alterar seu próprio papel (role)
+CREATE POLICY "Usuários podem atualizar seus próprios dados de perfil" 
   ON public.profiles FOR UPDATE 
-  USING (auth.uid() = id);
+  USING (auth.uid() = id)
+  WITH CHECK (
+    auth.uid() = id AND 
+    role = (SELECT p.role FROM public.profiles p WHERE p.id = auth.uid())
+  );
+
+-- Administradores possuem acesso irrestrito para gerenciar e moderar todos os perfis
+CREATE POLICY "Administradores gerenciam todos os perfis" 
+  ON public.profiles FOR ALL 
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role = 'admin'
+    )
+  );
 
 -- 3. Tabela de Categorias de Notícias
 CREATE TABLE IF NOT EXISTS public.categories (
@@ -330,16 +367,53 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 11. Trigger automático para criar Perfil quando novo usuário se cadastrar no Supabase Auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  parsed_interests TEXT[];
 BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role, avatar_url, interests)
+  -- Trata array de interesses de forma segura sem erro de cast
+  BEGIN
+    IF new.raw_user_meta_data->'interests' IS NOT NULL AND jsonb_typeof(new.raw_user_meta_data->'interests') = 'array' THEN
+      SELECT COALESCE(ARRAY_AGG(x), ARRAY['Política', 'Cidades']) 
+      INTO parsed_interests 
+      FROM jsonb_array_elements_text(new.raw_user_meta_data->'interests') AS x;
+    ELSE
+      parsed_interests := ARRAY['Política', 'Cidades'];
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    parsed_interests := ARRAY['Política', 'Cidades'];
+  END;
+
+  INSERT INTO public.profiles (
+    id, email, full_name, role, avatar_url, interests, account_type, phone, city, state, 
+    cpf, cnpj, company_name, trade_name, legal_representative, representative_cpf, 
+    terms_accepted, terms_accepted_at, terms_version, status
+  )
   VALUES (
     new.id,
     new.email,
-    COALESCE(new.raw_user_meta_data->>'full_name', 'Novo Leitor'),
+    COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
     COALESCE(new.raw_user_meta_data->>'role', 'reader'),
     COALESCE(new.raw_user_meta_data->>'avatar_url', 'https://api.dicebear.com/7.x/initials/svg?seed=' || new.email),
-    COALESCE((new.raw_user_meta_data->>'interests')::text[], ARRAY['Política', 'Cidades'])
-  );
+    COALESCE(parsed_interests, ARRAY['Política', 'Cidades']),
+    COALESCE(new.raw_user_meta_data->>'account_type', 'pf'),
+    new.raw_user_meta_data->>'phone',
+    COALESCE(new.raw_user_meta_data->>'city', 'Estância'),
+    COALESCE(new.raw_user_meta_data->>'state', 'SE'),
+    new.raw_user_meta_data->>'cpf',
+    new.raw_user_meta_data->>'cnpj',
+    new.raw_user_meta_data->>'company_name',
+    new.raw_user_meta_data->>'trade_name',
+    new.raw_user_meta_data->>'legal_representative',
+    new.raw_user_meta_data->>'representative_cpf',
+    COALESCE((new.raw_user_meta_data->>'terms_accepted')::boolean, true),
+    timezone('utc'::text, now()),
+    COALESCE(new.raw_user_meta_data->>'terms_version', 'v2.1'),
+    'active'
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    avatar_url = EXCLUDED.avatar_url,
+    updated_at = timezone('utc'::text, now());
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

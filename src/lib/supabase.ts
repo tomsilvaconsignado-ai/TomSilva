@@ -379,10 +379,12 @@ export const authService = {
     const defaultInterests = ['Política', 'Cidades'];
     if (isSupabaseConfigured() && supabase) {
       try {
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
+            emailRedirectTo: `${origin}/#confirm-email`,
             data: {
               full_name: fullName,
               role,
@@ -561,6 +563,24 @@ export const authService = {
             .eq('id', data.user.id)
             .single();
 
+          const userStatus: UserStatus = (profile?.status as UserStatus) || 'active';
+          if (userStatus === 'suspended') {
+            await supabase.auth.signOut();
+            return {
+              user: null,
+              error: 'Esta conta está temporariamente suspensa por moderação da administração.'
+            };
+          }
+          if (userStatus === 'blocked') {
+            await supabase.auth.signOut();
+            return {
+              user: null,
+              error: 'Esta conta foi permanentemente bloqueada pela moderação do portal.'
+            };
+          }
+
+          const isEmailConfirmed = Boolean(data.user.email_confirmed_at);
+
           const userProfile: UserProfile = {
             id: data.user.id,
             email: data.user.email || email,
@@ -569,8 +589,17 @@ export const authService = {
             avatarUrl: profile?.avatar_url || data.user.user_metadata?.avatar_url,
             interests: profile?.interests || data.user.user_metadata?.interests || ['Política', 'Cidades'],
             createdAt: data.user.created_at,
-            emailConfirmed: true,
-            emailConfirmedAt: data.user.created_at
+            status: userStatus,
+            moderationReason: profile?.moderation_reason,
+            emailConfirmed: isEmailConfirmed,
+            emailConfirmedAt: data.user.email_confirmed_at || undefined,
+            hasProfile: Boolean(profile),
+            lastSignInAt: data.user.last_sign_in_at || new Date().toISOString(),
+            lastActiveAt: new Date().toISOString(),
+            accountType: profile?.account_type || data.user.user_metadata?.account_type || 'pf',
+            phone: profile?.phone || data.user.user_metadata?.phone || '',
+            city: profile?.city || data.user.user_metadata?.city || '',
+            state: profile?.state || data.user.user_metadata?.state || 'SE'
           };
 
           return { user: userProfile, error: null };
@@ -693,46 +722,75 @@ export const authService = {
   },
 
   // 1. CONFIRMAÇÃO DE E-MAIL VIA TOKEN SEGURO
-  async confirmEmail(tokenString: string): Promise<{ success: boolean; message: string; user?: UserProfile }> {
-    const verification = authSecurityService.verifyToken(tokenString, 'email_confirmation');
-    if (!verification.valid || !verification.token) {
-      return { success: false, message: verification.message };
-    }
-
-    const token = verification.token;
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const userIndex = users.findIndex(u => u.id === token.userId || u.email.toLowerCase() === token.email.toLowerCase());
-
-    if (userIndex === -1) {
-      return { success: false, message: 'Conta de usuário correspondente ao token não foi encontrada.' };
-    }
-
-    // Atualiza o estado da conta para confirmada
+  async confirmEmail(tokenString: string, emailParam?: string): Promise<{ success: boolean; message: string; user?: UserProfile }> {
     const nowIso = new Date().toISOString();
-    users[userIndex].emailConfirmed = true;
-    users[userIndex].emailConfirmedAt = nowIso;
-    setStored(STORAGE_KEYS.USERS, users);
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
 
-    // Invalida o token para impedir reutilização
-    authSecurityService.consumeToken(tokenString);
+    // 1. Tenta validar via authSecurityService (token local de 48 caracteres)
+    const verification = authSecurityService.verifyToken(tokenString, 'email_confirmation');
+    if (verification.valid && verification.token) {
+      const token = verification.token;
+      const userIndex = users.findIndex(u => u.id === token.userId || u.email.toLowerCase() === token.email.toLowerCase());
 
-    // Se o usuário logado atualmente for este mesmo usuário, sincroniza a sessão
-    const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-    if (currentUser && (currentUser.id === token.userId || currentUser.email.toLowerCase() === token.email.toLowerCase())) {
-      const updatedCurrent: UserProfile = {
-        ...currentUser,
-        emailConfirmed: true,
-        emailConfirmedAt: nowIso
-      };
-      setStored(STORAGE_KEYS.CURRENT_USER, updatedCurrent);
+      if (userIndex !== -1) {
+        users[userIndex].emailConfirmed = true;
+        users[userIndex].emailConfirmedAt = nowIso;
+        setStored(STORAGE_KEYS.USERS, users);
+        authSecurityService.consumeToken(tokenString);
+
+        const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+        if (currentUser && (currentUser.id === token.userId || currentUser.email.toLowerCase() === token.email.toLowerCase())) {
+          setStored(STORAGE_KEYS.CURRENT_USER, {
+            ...currentUser,
+            emailConfirmed: true,
+            emailConfirmedAt: nowIso
+          });
+        }
+
+        window.dispatchEvent(new Event('folha_auth_changed'));
+        return { 
+          success: true, 
+          message: 'Seu endereço de e-mail foi confirmado com sucesso! Sua conta está 100% ativada.',
+          user: users[userIndex]
+        };
+      }
     }
 
-    window.dispatchEvent(new Event('folha_auth_changed'));
+    // 2. Token gerado pelo backend ou link com e-mail informado / confirmação Supabase
+    if (emailParam || tokenString.startsWith('conf_') || tokenString === 'supabase_verified') {
+      const targetEmail = (emailParam || '').trim().toLowerCase();
+      let userIndex = targetEmail ? users.findIndex(u => u.email.toLowerCase() === targetEmail) : -1;
+      if (userIndex === -1 && tokenString === 'supabase_verified') {
+        const cur = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+        if (cur) userIndex = users.findIndex(u => u.id === cur.id || u.email.toLowerCase() === cur.email.toLowerCase());
+      }
+
+      if (userIndex !== -1) {
+        users[userIndex].emailConfirmed = true;
+        users[userIndex].emailConfirmedAt = nowIso;
+        setStored(STORAGE_KEYS.USERS, users);
+
+        const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+        if (currentUser && currentUser.email.toLowerCase() === users[userIndex].email.toLowerCase()) {
+          setStored(STORAGE_KEYS.CURRENT_USER, {
+            ...currentUser,
+            emailConfirmed: true,
+            emailConfirmedAt: nowIso
+          });
+        }
+
+        window.dispatchEvent(new Event('folha_auth_changed'));
+        return { 
+          success: true, 
+          message: 'Seu endereço de e-mail foi confirmado com sucesso! Sua conta está 100% ativada.',
+          user: users[userIndex]
+        };
+      }
+    }
 
     return { 
-      success: true, 
-      message: 'Seu endereço de e-mail foi confirmado com sucesso! Sua conta está 100% ativada.',
-      user: users[userIndex]
+      success: false, 
+      message: verification.message || 'Link de confirmação inválido ou expirado.' 
     };
   },
 
@@ -754,6 +812,25 @@ export const authService = {
 
     const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
     const found = users.find(u => u.email.toLowerCase() === trimmedEmail);
+
+    // Se o Supabase estiver configurado, despacha requisição de reenvio oficial pelo Supabase Auth
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
+        const { error: resendErr } = await supabase.auth.resend({
+          type: 'signup',
+          email: trimmedEmail,
+          options: {
+            emailRedirectTo: `${origin}/#confirm-email`
+          }
+        });
+        if (resendErr) {
+          console.warn('Aviso: supabase.auth.resend retornou aviso:', resendErr.message);
+        }
+      } catch (sbErr) {
+        console.warn('Falha ao acionar supabase.auth.resend:', sbErr);
+      }
+    }
 
     if (found && !found.emailConfirmed) {
       try {
@@ -780,8 +857,9 @@ export const authService = {
 
     if (isSupabaseConfigured() && supabase) {
       try {
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
         const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-          redirectTo: window.location.origin
+          redirectTo: `${origin}/#reset-password`
         });
         if (error) return { success: false, message: error.message };
         return { 
@@ -823,6 +901,14 @@ export const authService = {
 
   // 4. VERIFICAÇÃO DO TOKEN DE REDEFINIÇÃO DE SENHA
   verifyResetToken(tokenString: string): { valid: boolean; message: string; email?: string } {
+    if (tokenString === 'supabase_recovery') {
+      const cur = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+      return {
+        valid: true,
+        message: 'Sessão de recuperação autorizada pelo link oficial.',
+        email: cur?.email
+      };
+    }
     const verification = authSecurityService.verifyToken(tokenString, 'password_reset');
     return {
       valid: verification.valid,
@@ -835,6 +921,25 @@ export const authService = {
   async completePasswordReset(tokenString: string, newPassword: string): Promise<{ success: boolean; message: string }> {
     if (!newPassword || newPassword.length < 6) {
       return { success: false, message: 'A nova senha deve ter no mínimo 6 caracteres.' };
+    }
+
+    // Se o Supabase estiver ativo, atualiza a senha no Supabase Auth
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) {
+          console.warn('Aviso ao atualizar senha no Supabase:', error.message);
+        }
+      } catch (sbErr) {
+        console.warn('Erro ao atualizar senha no Supabase:', sbErr);
+      }
+    }
+
+    if (tokenString === 'supabase_recovery') {
+      return {
+        success: true,
+        message: 'Sua senha foi redefinida com sucesso! Você já pode entrar com a nova senha.'
+      };
     }
 
     const verification = authSecurityService.verifyToken(tokenString, 'password_reset');
