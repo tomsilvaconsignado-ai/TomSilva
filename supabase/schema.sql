@@ -369,14 +369,20 @@ CREATE POLICY "Qualquer pessoa pode se inscrever na newsletter"
   WITH CHECK (true);
 
 -- 10. Funções RPC
-CREATE OR REPLACE FUNCTION increment_article_views(article_id TEXT)
-RETURNS VOID AS $$
+CREATE OR REPLACE FUNCTION public.increment_article_views(article_id TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
   UPDATE public.articles
   SET views_count = views_count + 1
   WHERE id = article_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.increment_article_views(TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION increment_classified_views(classified_id TEXT)
 RETURNS VOID AS $$
