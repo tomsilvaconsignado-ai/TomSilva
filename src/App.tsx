@@ -11,8 +11,7 @@ import { AdSlot } from './components/news/AdSlot';
 import { AuthModal } from './components/auth/AuthModal';
 import { EmailConfirmationModal } from './components/auth/EmailConfirmationModal';
 import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
-import { EmailOutboxModal } from './components/notifications/EmailOutboxModal';
-import { EmailNotificationToast } from './components/notifications/EmailNotificationToast';
+
 import { ArticleDetail } from './components/pages/ArticleDetail';
 import { InstitutionalPage } from './components/pages/InstitutionalPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
@@ -57,10 +56,9 @@ export default function App() {
   // Modal de Autenticação Administrativa Exclusiva (Acesso Restrito)
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   
-  // Modais de Segurança (Confirmação de E-mail, Redefinição de Senha e Caixa de E-mails)
+  // Modais de Segurança (Confirmação de E-mail e Redefinição de Senha)
   const [emailConfirmToken, setEmailConfirmToken] = useState<string | null>(null);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(null);
-  const [isOutboxModalOpen, setIsOutboxModalOpen] = useState(false);
 
   // Paginação de notícias
   const [visibleCount, setVisibleCount] = useState(7);
@@ -356,6 +354,8 @@ export default function App() {
   const handleSignOut = async () => {
     await authService.signOut();
     setCurrentUser(null);
+    setIsMyClassifiedsOpen(false);
+    setIsClassifiedFormOpen(false);
     if (viewMode === 'admin') {
       setViewMode('home');
     }
@@ -765,24 +765,6 @@ export default function App() {
           }}
         />
       )}
-
-      {/* Caixa de E-mails Transacionais do Portal (Simulação e Homologação) */}
-      <EmailOutboxModal
-        isOpen={isOutboxModalOpen}
-        onClose={() => setIsOutboxModalOpen(false)}
-        onOpenActionUrl={(url) => {
-          setIsOutboxModalOpen(false);
-          window.location.href = url;
-        }}
-      />
-
-      {/* Notificação Flutuante de Disparo de E-mail */}
-      <EmailNotificationToast
-        onOpenOutbox={() => setIsOutboxModalOpen(true)}
-        onOpenActionUrl={(url) => {
-          window.location.href = url;
-        }}
-      />
     </div>
   );
 }

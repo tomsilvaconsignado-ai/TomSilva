@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Upload, Trash2, Camera, AlertCircle, CheckCircle2, Briefcase, Plus, 
-  Image as ImageIcon, Mail, ShieldAlert, RotateCw, ArrowLeft, Send
+  Image as ImageIcon, Mail, ShieldAlert, ShieldCheck, RotateCw, ArrowLeft, Send, UserCheck
 } from 'lucide-react';
 import { ClassifiedItem, ClassifiedSection, ClassifiedType, PriceType, UserProfile, ClassifiedCategory } from '../../types/database';
-import { classifiedsService, authService } from '../../lib/supabase';
+import { classifiedsService, authService, checkProfileCompletion } from '../../lib/supabase';
 
 interface ClassifiedFormModalProps {
   isOpen: boolean;
@@ -56,6 +56,94 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Estados para preenchimento de perfil obrigatório antes de publicar
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profFullName, setProfFullName] = useState(currentUser?.fullName || '');
+  const [profAccountType, setProfAccountType] = useState<'pf' | 'pj'>(currentUser?.accountType || 'pf');
+  const [profPhone, setProfPhone] = useState(currentUser?.phone || '');
+  const [profCity, setProfCity] = useState(currentUser?.city || 'Estância');
+  const [profState, setProfState] = useState(currentUser?.state || 'SE');
+  const [profCpf, setProfCpf] = useState(currentUser?.cpf || '');
+  const [profCompanyName, setProfCompanyName] = useState(currentUser?.companyName || '');
+  const [profCnpj, setProfCnpj] = useState(currentUser?.cnpj || '');
+  const [profLegalRep, setProfLegalRep] = useState(currentUser?.legalRepresentative || '');
+  const [profTermsAccepted, setProfTermsAccepted] = useState(currentUser?.termsAccepted || false);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError(null);
+
+    if (!profFullName.trim()) {
+      setProfileError('Por favor, informe seu nome completo.');
+      return;
+    }
+    const cleanPhone = profPhone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      setProfileError('Informe um telefone ou WhatsApp válido com DDD.');
+      return;
+    }
+    if (!profCity.trim()) {
+      setProfileError('Informe sua cidade.');
+      return;
+    }
+
+    if (profAccountType === 'pj') {
+      if (!profCompanyName.trim()) {
+        setProfileError('Informe a Razão Social da empresa.');
+        return;
+      }
+      const cleanCnpj = profCnpj.replace(/\D/g, '');
+      if (cleanCnpj.length !== 14) {
+        setProfileError('Informe um CNPJ válido com 14 dígitos.');
+        return;
+      }
+      if (!profLegalRep.trim()) {
+        setProfileError('Informe o nome do representante legal.');
+        return;
+      }
+    } else {
+      const cleanCpf = profCpf.replace(/\D/g, '');
+      if (cleanCpf.length !== 11) {
+        setProfileError('Informe um CPF válido com 11 dígitos.');
+        return;
+      }
+    }
+
+    if (!profTermsAccepted) {
+      setProfileError('É obrigatório aceitar os Termos de Uso e Política de Privacidade.');
+      return;
+    }
+
+    setProfileSaving(true);
+    try {
+      const updated = await authService.updateProfile(currentUser.id, {
+        fullName: profFullName.trim(),
+        accountType: profAccountType,
+        phone: profPhone.trim(),
+        city: profCity.trim(),
+        state: profState.trim(),
+        cpf: profAccountType === 'pf' ? profCpf.trim() : undefined,
+        companyName: profAccountType === 'pj' ? profCompanyName.trim() : undefined,
+        cnpj: profAccountType === 'pj' ? profCnpj.trim() : undefined,
+        legalRepresentative: profAccountType === 'pj' ? profLegalRep.trim() : undefined,
+        termsAccepted: true,
+        termsAcceptedAt: new Date().toISOString(),
+        termsVersion: 'v2.1'
+      });
+
+      if (updated) {
+        setPhone(updated.phone || '');
+        setCity(updated.city || 'Estância');
+        setAdvertiserName(updated.fullName || '');
+      }
+    } catch (err: any) {
+      setProfileError(err.message || 'Erro ao salvar perfil.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   useEffect(() => {
     classifiedsService.getCategories(section).then((cats) => {
@@ -352,6 +440,194 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
               Voltar para meus classificados
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // BLOQUEIO DE SEGURANÇA: Completar cadastro obrigatório antes de publicar
+  const profileStatus = checkProfileCompletion(currentUser);
+  if (currentUser.role !== 'admin' && !profileStatus.isComplete) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+        <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl border border-gray-100 relative animate-in zoom-in-95 duration-200">
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-blue-50 text-[#0056a4] rounded-2xl flex items-center justify-center mx-auto mb-3 border border-blue-200 shadow-xs">
+              <ShieldCheck className="w-7 h-7" />
+            </div>
+            <span className="px-3 py-1 rounded-full bg-blue-100 text-[#0056a4] text-[10px] font-black uppercase tracking-wider inline-block mb-2">
+              Segurança dos Classificados
+            </span>
+            <h3 className="text-xl font-black uppercase tracking-tight text-gray-900">
+              Concluir Cadastro Obrigatório
+            </h3>
+            <p className="text-xs text-gray-600 leading-relaxed max-w-sm mx-auto mt-2">
+              Para publicar anúncios com credibilidade e segurança jurídica para toda a comunidade de leitores, é necessário preencher seus dados básicos de contato e identificação.
+            </p>
+          </div>
+
+          {profileError && (
+            <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <span>{profileError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveProfile} className="space-y-4 text-left">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                Tipo de Conta *
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
+                  <input
+                    type="radio"
+                    name="modal_prof_account_type"
+                    checked={profAccountType === 'pf'}
+                    onChange={() => setProfAccountType('pf')}
+                    className="text-[#0056a4]"
+                  />
+                  Pessoa Física (CPF)
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-800">
+                  <input
+                    type="radio"
+                    name="modal_prof_account_type"
+                    checked={profAccountType === 'pj'}
+                    onChange={() => setProfAccountType('pj')}
+                    className="text-[#0056a4]"
+                  />
+                  Pessoa Jurídica (CNPJ)
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                {profAccountType === 'pf' ? 'Nome Completo *' : 'Razão Social *'}
+              </label>
+              <input
+                type="text"
+                required
+                value={profAccountType === 'pf' ? profFullName : profCompanyName}
+                onChange={(e) => {
+                  if (profAccountType === 'pf') setProfFullName(e.target.value);
+                  else setProfCompanyName(e.target.value);
+                }}
+                placeholder={profAccountType === 'pf' ? 'Seu nome completo' : 'Razão Social da empresa'}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+              />
+            </div>
+
+            {profAccountType === 'pf' ? (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  CPF (apenas números) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={14}
+                  value={profCpf}
+                  onChange={(e) => setProfCpf(e.target.value)}
+                  placeholder="000.000.000-00"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    CNPJ *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={18}
+                    value={profCnpj}
+                    onChange={(e) => setProfCnpj(e.target.value)}
+                    placeholder="00.000.000/0000-00"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Representante Legal *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={profLegalRep}
+                    onChange={(e) => setProfLegalRep(e.target.value)}
+                    placeholder="Nome do responsável legal"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Telefone / WhatsApp *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={profPhone}
+                  onChange={(e) => setProfPhone(e.target.value)}
+                  placeholder="(79) 99999-9999"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Cidade *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={profCity}
+                  onChange={(e) => setProfCity(e.target.value)}
+                  placeholder="Estância"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                />
+              </div>
+            </div>
+
+            <label className="flex items-start gap-2.5 pt-2 cursor-pointer text-xs text-gray-600">
+              <input
+                type="checkbox"
+                required
+                checked={profTermsAccepted}
+                onChange={(e) => setProfTermsAccepted(e.target.checked)}
+                className="mt-0.5 rounded text-[#0056a4]"
+              />
+              <span>
+                Li e concordo com os <strong>Termos de Uso</strong> e as <strong>Políticas de Publicação de Anúncios</strong> do portal Folha da Região.
+              </span>
+            </label>
+
+            <button
+              type="submit"
+              disabled={profileSaving}
+              className="w-full py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-4"
+            >
+              {profileSaving ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              <span>Salvar Dados e Continuar para o Anúncio</span>
+            </button>
+          </form>
         </div>
       </div>
     );

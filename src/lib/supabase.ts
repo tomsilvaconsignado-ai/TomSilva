@@ -717,6 +717,62 @@ export const authService = {
     return updatedUser;
   },
 
+  async updateProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile | null> {
+    const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+    const updatedUser: UserProfile = {
+      ...(currentUser || ({} as any)),
+      ...data,
+      hasProfile: true
+    };
+
+    setStored(STORAGE_KEYS.CURRENT_USER, updatedUser);
+
+    // Atualiza na lista geral de usuários
+    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
+    const uIndex = users.findIndex(u => u.id === userId || (u.email && updatedUser.email && u.email.toLowerCase() === updatedUser.email.toLowerCase()));
+    if (uIndex !== -1) {
+      users[uIndex] = { ...users[uIndex], ...data, hasProfile: true };
+      setStored(STORAGE_KEYS.USERS, users);
+    }
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const payload: Record<string, any> = {};
+        if (data.fullName !== undefined) payload.full_name = data.fullName;
+        if (data.phone !== undefined) payload.phone = data.phone;
+        if (data.city !== undefined) payload.city = data.city;
+        if (data.state !== undefined) payload.state = data.state;
+        if (data.accountType !== undefined) payload.account_type = data.accountType;
+        if (data.cpf !== undefined) payload.cpf = data.cpf;
+        if (data.cnpj !== undefined) payload.cnpj = data.cnpj;
+        if (data.companyName !== undefined) payload.company_name = data.companyName;
+        if (data.tradeName !== undefined) payload.trade_name = data.tradeName;
+        if (data.legalRepresentative !== undefined) payload.legal_representative = data.legalRepresentative;
+        if (data.representativeCpf !== undefined) payload.representative_cpf = data.representativeCpf;
+        if (data.termsAccepted !== undefined) {
+          payload.terms_accepted = data.termsAccepted;
+          payload.terms_accepted_at = new Date().toISOString();
+          payload.terms_version = data.termsVersion || 'v2.1';
+        }
+        await supabase.from('profiles').update(payload).eq('id', userId);
+      } catch (e) {
+        console.warn('Erro ao atualizar perfil no Supabase:', e);
+      }
+    }
+
+    // Sincroniza também com o servidor
+    try {
+      fetch('/api/sync-user-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      }).catch(() => {});
+    } catch {}
+
+    window.dispatchEvent(new Event('folha_auth_changed'));
+    return updatedUser;
+  },
+
   async signOut(): Promise<void> {
     if (isSupabaseConfigured() && supabase) {
       try {
@@ -907,16 +963,10 @@ export const authService = {
         body: JSON.stringify({ email: trimmedEmail, origin })
       });
       const data = await resp.json();
-      if (data.notFound) {
-        return {
-          success: false,
-          message: data.message || 'Nenhum usuário foi localizado com este e-mail no portal. Verifique a digitação ou realize o seu cadastro.'
-        };
-      }
-      if (data.success && data.delivered) {
+      if (data && data.message) {
         return {
           success: true,
-          message: 'Link oficial de recuperação enviado com sucesso para o seu e-mail! Por favor, verifique sua caixa de entrada e a pasta de spam.'
+          message: data.message
         };
       }
     } catch (e) {
@@ -2213,8 +2263,132 @@ export const notificationsService = {
 };
 
 // ==========================================
-// SERVIÇO DE CLASSIFICADOS
+// VALIDAÇÃO DE PERFIL E SERVIÇO DE CLASSIFICADOS
 // ==========================================
+
+export function isUuid(str?: string | null): boolean {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
+export function checkProfileCompletion(user: UserProfile | null): { 
+  isComplete: boolean; 
+  missingFields: string[];
+} {
+  if (!user) {
+    return { isComplete: false, missingFields: ['Usuário não autenticado'] };
+  }
+  
+  const missing: string[] = [];
+  
+  if (!user.fullName?.trim()) {
+    missing.push('Nome Completo');
+  }
+  
+  const cleanPhone = (user.phone || '').replace(/\D/g, '');
+  if (cleanPhone.length < 10) {
+    missing.push('Telefone / WhatsApp com DDD');
+  }
+  
+  if (!user.city?.trim()) {
+    missing.push('Cidade');
+  }
+
+  if (user.accountType === 'pj') {
+    if (!user.companyName?.trim()) {
+      missing.push('Razão Social da Empresa');
+    }
+    const cleanCnpj = (user.cnpj || '').replace(/\D/g, '');
+    if (cleanCnpj.length !== 14) {
+      missing.push('CNPJ Válido (14 dígitos)');
+    }
+    if (!user.legalRepresentative?.trim()) {
+      missing.push('Nome do Representante Legal');
+    }
+  } else {
+    // PF
+    const cleanCpf = (user.cpf || '').replace(/\D/g, '');
+    if (cleanCpf.length !== 11) {
+      missing.push('CPF Válido (11 dígitos)');
+    }
+  }
+
+  if (!user.termsAccepted) {
+    missing.push('Aceite dos Termos de Uso e Política de Privacidade');
+  }
+
+  return {
+    isComplete: missing.length === 0,
+    missingFields: missing
+  };
+}
+
+function mapClassifiedRowToItem(row: any): ClassifiedItem {
+  return {
+    id: row.id,
+    code: row.code,
+    userId: row.user_id,
+    section: row.section,
+    type: row.type,
+    category: row.category,
+    title: row.title,
+    slug: row.slug,
+    description: row.description,
+    priceType: row.price_type,
+    price: row.price !== null && row.price !== undefined ? Number(row.price) : undefined,
+    city: row.city,
+    state: row.state || 'SE',
+    advertiserName: row.advertiser_name,
+    phone: row.phone,
+    images: Array.isArray(row.images) ? row.images : [],
+    jobRole: row.job_role || undefined,
+    jobArea: row.job_area || undefined,
+    contractType: row.contract_type || undefined,
+    workload: row.workload || undefined,
+    experience: row.experience || undefined,
+    requirements: row.requirements || undefined,
+    status: row.status,
+    rejectionReason: row.rejection_reason || undefined,
+    viewsCount: row.views_count || 0,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    expiresAt: row.expires_at
+  };
+}
+
+function mapClassifiedItemToRow(item: ClassifiedItem): any {
+  return {
+    id: item.id,
+    code: item.code,
+    user_id: item.userId,
+    section: item.section,
+    type: item.type,
+    category: item.category,
+    title: item.title,
+    slug: item.slug,
+    description: item.description,
+    price_type: item.priceType,
+    price: item.priceType === 'fixed' && item.price !== undefined ? item.price : null,
+    city: item.city,
+    state: item.state || 'SE',
+    advertiser_name: item.advertiserName,
+    phone: item.phone,
+    images: item.images || [],
+    job_role: item.jobRole || null,
+    job_area: item.jobArea || null,
+    contract_type: item.contractType || null,
+    workload: item.workload || null,
+    experience: item.experience || null,
+    requirements: item.requirements || null,
+    status: item.status,
+    rejection_reason: item.rejectionReason || null,
+    views_count: item.viewsCount || 0,
+    created_at: item.createdAt,
+    updated_at: item.updatedAt || item.createdAt,
+    expires_at: item.expiresAt
+  };
+}
+
 export const classifiedsService = {
   // Configurações
   async getSettings(): Promise<ClassifiedsSettings> {
@@ -2262,7 +2436,7 @@ export const classifiedsService = {
     setStored(STORAGE_KEYS.CLASSIFIED_CATEGORIES, categories.filter(c => c.id !== id));
   },
 
-  // Consulta de Anúncios com Checagem de Expiração
+  // Consulta de Anúncios com Checagem de Expiração e Sincronização Supabase
   async getClassifieds(options?: {
     section?: ClassifiedSection;
     category?: string;
@@ -2273,7 +2447,24 @@ export const classifiedsService = {
     sortBy?: 'recent' | 'price_asc' | 'price_desc';
     includeExpired?: boolean;
   }): Promise<ClassifiedItem[]> {
-    let items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
+    let remoteItems: ClassifiedItem[] = [];
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data, error } = await supabase.from('classifieds').select('*');
+        if (!error && data && data.length > 0) {
+          remoteItems = data.map(mapClassifiedRowToItem);
+        }
+      } catch (err) {
+        console.warn('Aviso: Falha ao consultar tabela classifieds no Supabase:', err);
+      }
+    }
+
+    const localItems = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
+    const map = new Map<string, ClassifiedItem>();
+    localItems.forEach(i => map.set(i.id, i));
+    remoteItems.forEach(i => map.set(i.id, i));
+
+    let items = Array.from(map.values());
     const now = new Date();
     let hasUpdates = false;
 
@@ -2338,19 +2529,51 @@ export const classifiedsService = {
   },
 
   async getClassifiedById(id: string): Promise<ClassifiedItem | null> {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data, error } = await supabase.from('classifieds').select('*').eq('id', id).maybeSingle();
+        if (!error && data) {
+          return mapClassifiedRowToItem(data);
+        }
+      } catch {}
+    }
     const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
     return items.find(item => item.id === id) || null;
   },
 
   async getClassifiedBySlug(slug: string): Promise<ClassifiedItem | null> {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data, error } = await supabase.from('classifieds').select('*').or(`slug.eq.${slug},id.eq.${slug}`).maybeSingle();
+        if (!error && data) {
+          return mapClassifiedRowToItem(data);
+        }
+      } catch {}
+    }
     const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
     return items.find(item => item.slug === slug || item.id === slug) || null;
   },
 
   async getUserClassifieds(userId: string): Promise<ClassifiedItem[]> {
+    let remoteItems: ClassifiedItem[] = [];
+    if (isSupabaseConfigured() && supabase && isUuid(userId)) {
+      try {
+        const { data, error } = await supabase.from('classifieds').select('*').eq('user_id', userId);
+        if (!error && data) {
+          remoteItems = data.map(mapClassifiedRowToItem);
+        }
+      } catch (err) {
+        console.warn('Falha ao consultar classificados remotos do usuário:', err);
+      }
+    }
+
     const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    return items
-      .filter(item => item.userId === userId)
+    const localUserItems = items.filter(item => item.userId === userId);
+    const map = new Map<string, ClassifiedItem>();
+    localUserItems.forEach(i => map.set(i.id, i));
+    remoteItems.forEach(i => map.set(i.id, i));
+
+    return Array.from(map.values())
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
@@ -2358,13 +2581,20 @@ export const classifiedsService = {
   async saveClassified(itemData: Partial<ClassifiedItem>, user: UserProfile): Promise<ClassifiedItem> {
     if (!user) throw new Error('Usuário não autenticado.');
 
-    // Bloqueio de segurança obrigatório: validação nas regras de segurança do sistema
+    // Bloqueio de segurança obrigatório: conta suspensa ou bloqueada
     if (user.status === 'suspended' || user.status === 'blocked') {
       throw new Error('Sua conta está com restrição administrativa e não pode publicar ou editar anúncios. Entre em contato com a moderação para revisão.');
     }
 
+    // Bloqueio de segurança: e-mail pendente de confirmação
     if (user.role !== 'admin' && !user.emailConfirmed) {
       throw new Error('Para publicar classificados, confirme primeiro seu endereço de e-mail. Enviamos uma mensagem com o link de confirmação para o endereço cadastrado.');
+    }
+
+    // Bloqueio de segurança: campos obrigatórios de perfil completos
+    const profileCheck = checkProfileCompletion(user);
+    if (!profileCheck.isComplete && user.role !== 'admin') {
+      throw new Error(`Complete seus dados cadastrais antes de publicar: ${profileCheck.missingFields.join(', ')}.`);
     }
 
     // Limitar rigorosamente upload a 3 imagens
@@ -2395,6 +2625,16 @@ export const classifiedsService = {
       // Se editou e requer aprovação (e não é admin), volta para pendente
       if (user.role !== 'admin' && settings.requireApproval && updated.status === 'published') {
         updated.status = 'pending';
+      }
+
+      // Persiste no Supabase caso configurado
+      if (isSupabaseConfigured() && supabase && isUuid(updated.userId)) {
+        try {
+          const row = mapClassifiedItemToRow(updated);
+          await supabase.from('classifieds').upsert([row]);
+        } catch (sbErr) {
+          console.warn('Erro ao atualizar anúncio na tabela classifieds do Supabase:', sbErr);
+        }
       }
 
       items[index] = updated;
@@ -2435,10 +2675,10 @@ export const classifiedsService = {
       description: itemData.description?.trim() || '',
       priceType: itemData.priceType || 'fixed',
       price: itemData.priceType === 'fixed' ? Number(itemData.price || 0) : undefined,
-      city: itemData.city?.trim() || 'Estância',
-      state: itemData.state?.trim() || 'SE',
+      city: itemData.city?.trim() || user.city || 'Estância',
+      state: itemData.state?.trim() || user.state || 'SE',
       advertiserName: itemData.advertiserName?.trim() || user.fullName,
-      phone: itemData.phone?.trim() || '',
+      phone: itemData.phone?.trim() || user.phone || '',
       images: sanitizedImages,
       // Campos de emprego
       jobRole: itemData.jobRole?.trim(),
@@ -2452,6 +2692,16 @@ export const classifiedsService = {
       createdAt: new Date().toISOString(),
       expiresAt
     };
+
+    // Persiste no Supabase caso configurado
+    if (isSupabaseConfigured() && supabase && isUuid(newItem.userId)) {
+      try {
+        const row = mapClassifiedItemToRow(newItem);
+        await supabase.from('classifieds').insert([row]);
+      } catch (sbErr) {
+        console.warn('Erro ao inserir anúncio na tabela classifieds do Supabase:', sbErr);
+      }
+    }
 
     items.unshift(newItem);
     setStored(STORAGE_KEYS.CLASSIFIEDS, items);
@@ -2467,6 +2717,14 @@ export const classifiedsService = {
     // Apenas dono ou administrador pode deletar
     if (target.userId !== user.id && user.role !== 'admin') {
       throw new Error('Você não tem permissão para excluir este anúncio.');
+    }
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('classifieds').delete().eq('id', id);
+      } catch (sbErr) {
+        console.warn('Erro ao deletar anúncio no Supabase:', sbErr);
+      }
     }
 
     const filtered = items.filter(i => i.id !== id);
@@ -2508,6 +2766,18 @@ export const classifiedsService = {
     }
     target.updatedAt = new Date().toISOString();
 
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('classifieds').update({
+          status: newStatus,
+          rejection_reason: rejectionReason || null,
+          updated_at: target.updatedAt
+        }).eq('id', id);
+      } catch (sbErr) {
+        console.warn('Erro ao atualizar status do anúncio no Supabase:', sbErr);
+      }
+    }
+
     setStored(STORAGE_KEYS.CLASSIFIEDS, items);
     window.dispatchEvent(new Event('folha_classifieds_updated'));
     return true;
@@ -2531,6 +2801,18 @@ export const classifiedsService = {
       target.status = settings.requireApproval && user.role !== 'admin' ? 'pending' : 'published';
     }
     target.updatedAt = new Date().toISOString();
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('classifieds').update({
+          expires_at: target.expiresAt,
+          status: target.status,
+          updated_at: target.updatedAt
+        }).eq('id', id);
+      } catch (sbErr) {
+        console.warn('Erro ao renovar anúncio no Supabase:', sbErr);
+      }
+    }
 
     setStored(STORAGE_KEYS.CLASSIFIEDS, items);
     window.dispatchEvent(new Event('folha_classifieds_updated'));

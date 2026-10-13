@@ -1025,23 +1025,12 @@ async function startServer() {
             options: { redirectTo }
           });
 
-          if (linkErr) {
-            const errStr = (linkErr.message || '').toLowerCase();
-            const errCode = (linkErr as any).code || '';
-            if (errStr.includes('not found') || errCode === 'user_not_found') {
-              return res.status(200).json({
-                success: false,
-                notFound: true,
-                message: 'Nenhum usuário foi localizado com este e-mail no portal. Verifique se o endereço foi digitado corretamente ou crie sua conta.'
-              });
-            }
-            console.warn('Aviso ao gerar link de recuperação no Supabase Admin:', linkErr.message);
-          } else if (linkData?.properties?.action_link) {
+          if (!linkErr && linkData?.properties?.action_link) {
             actionLink = linkData.properties.action_link;
             userFound = true;
           }
         } catch (adminErr: any) {
-          console.warn('Erro ao consultar Supabase admin generateLink:', adminErr);
+          console.warn('Aviso ao consultar Supabase admin generateLink:', adminErr);
         }
       }
 
@@ -1054,11 +1043,12 @@ async function startServer() {
         }
       }
 
-      if (!userFound && !actionLink) {
+      // Se o usuário não foi localizado em nenhuma base, retorna resposta neutra e segura
+      if (!userFound || !actionLink) {
         return res.status(200).json({
-          success: false,
-          notFound: true,
-          message: 'Nenhum usuário foi localizado com este e-mail no portal. Verifique se o endereço foi digitado corretamente ou crie sua conta.'
+          success: true,
+          delivered: false,
+          message: 'Se houver uma conta cadastrada com este endereço de e-mail, enviamos as instruções e o link seguro de recuperação para sua caixa de entrada.'
         });
       }
 
@@ -1115,7 +1105,7 @@ async function startServer() {
       return res.json({
         success: true,
         delivered: emailDelivered,
-        message: 'Link de recuperação enviado com sucesso para o seu e-mail! Por favor, verifique sua caixa de entrada e a pasta de spam.'
+        message: 'Se houver uma conta cadastrada com este endereço de e-mail, enviamos as instruções e o link seguro de recuperação para sua caixa de entrada.'
       });
     } catch (err: any) {
       console.error('Erro geral ao processar recuperação de senha:', err);
@@ -1151,17 +1141,7 @@ async function startServer() {
             options: { redirectTo }
           });
 
-          if (linkErr) {
-            const errStr = (linkErr.message || '').toLowerCase();
-            const errCode = (linkErr as any).code || '';
-            if (errStr.includes('not found') || errCode === 'user_not_found') {
-              return res.status(200).json({
-                success: false,
-                notFound: true,
-                message: 'Nenhum cadastro pendente foi localizado com este e-mail.'
-              });
-            }
-          } else if (linkData?.properties?.action_link) {
+          if (!linkErr && linkData?.properties?.action_link) {
             actionLink = linkData.properties.action_link;
             userFound = true;
           }
@@ -1178,11 +1158,11 @@ async function startServer() {
         }
       }
 
-      if (!userFound && !actionLink) {
+      if (!userFound || !actionLink) {
         return res.status(200).json({
-          success: false,
-          notFound: true,
-          message: 'Nenhum cadastro foi localizado com este e-mail. Por favor, verifique se digitou corretamente ou realize o seu cadastro.'
+          success: true,
+          delivered: false,
+          message: 'Se houver um cadastro pendente de confirmação com este endereço de e-mail, um novo link de ativação foi enviado para sua caixa de entrada.'
         });
       }
 
@@ -1234,11 +1214,62 @@ async function startServer() {
       return res.json({
         success: true,
         delivered: emailDelivered,
-        message: 'Link de confirmação reenviado com sucesso! Verifique sua caixa de entrada e spam.'
+        message: 'Se houver um cadastro pendente de confirmação com este endereço de e-mail, um novo link de ativação foi enviado para sua caixa de entrada.'
       });
     } catch (err: any) {
       console.error('Erro geral ao reenviar confirmação:', err);
       return res.status(500).json({ success: false, error: 'Erro ao reenviar confirmação de e-mail.' });
+    }
+  });
+
+  // ==========================================
+  // ROTAS DE API: CLASSIFICADOS (PROTEÇÃO E PERSISTÊNCIA)
+  // ==========================================
+  app.get('/api/classifieds', async (_req: Request, res: Response) => {
+    try {
+      const adminClient = getSupabaseAdminClient();
+      if (adminClient) {
+        const { data, error } = await adminClient.from('classifieds').select('*');
+        if (!error && data) {
+          return res.json({ success: true, classifieds: data });
+        }
+      }
+      return res.json({ success: true, classifieds: [] });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.post('/api/classifieds', async (req: Request, res: Response) => {
+    try {
+      const userId = (req.headers['x-user-id'] as string || '').trim();
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Usuário não autenticado.' });
+      }
+
+      const adData = req.body;
+      const adminClient = getSupabaseAdminClient();
+      if (adminClient) {
+        const { data: profile } = await adminClient.from('profiles').select('*').eq('id', userId).maybeSingle();
+        if (profile) {
+          if (profile.status === 'suspended' || profile.status === 'blocked') {
+            return res.status(403).json({ success: false, error: 'Conta com restrição administrativa não pode publicar anúncios.' });
+          }
+          if (profile.role !== 'admin' && (!profile.phone || !profile.city || (!profile.cpf && !profile.cnpj))) {
+            return res.status(400).json({ success: false, error: 'É necessário completar o cadastro (telefone, cidade, CPF/CNPJ) antes de publicar anúncios.' });
+          }
+        }
+
+        const { data, error } = await adminClient.from('classifieds').insert([adData]).select();
+        if (error) {
+          return res.status(400).json({ success: false, error: error.message });
+        }
+        return res.json({ success: true, classified: data?.[0] });
+      }
+
+      return res.status(503).json({ success: false, error: 'Serviço de banco de dados indisponível.' });
+    } catch (e: any) {
+      return res.status(500).json({ success: false, error: e.message });
     }
   });
 
