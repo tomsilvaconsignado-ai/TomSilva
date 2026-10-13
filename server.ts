@@ -37,13 +37,19 @@ function createEmailTransporter(smtpConfig?: {
     return null;
   }
 
+  // Remove espaços caso seja senha de aplicativo Google / Gmail (formato xxxx xxxx xxxx xxxx)
+  let cleanPass = pass;
+  if (host.includes('gmail.com') || host.includes('googlemail.com')) {
+    cleanPass = pass.replace(/\s+/g, '');
+  }
+
   return nodemailer.createTransport({
     host,
     port,
     secure,
     auth: {
       user,
-      pass,
+      pass: cleanPass,
     },
     tls: {
       rejectUnauthorized: false,
@@ -363,7 +369,7 @@ async function startServer() {
       const adminClient = getSupabaseAdminClient();
       if (adminClient) {
         try {
-          const { data: authUsersResult, error: authErr } = await adminClient.auth.admin.listUsers();
+          const { data: authUsersResult, error: authErr } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
           if (!authErr && authUsersResult?.users) {
             source = 'supabase_admin_api';
             // Busca tabela de perfis
@@ -988,6 +994,251 @@ async function startServer() {
         delivered: false,
         error: err.message || 'Erro ao despachar e-mail via servidor SMTP.'
       });
+    }
+  });
+
+  // API pública para solicitação de recuperação de senha com link oficial e envio SMTP
+  app.post('/api/auth/request-password-reset', async (req: Request, res: Response) => {
+    try {
+      const { email, origin: clientOrigin } = req.body;
+      const trimmedEmail = (email || '').trim().toLowerCase();
+
+      if (!trimmedEmail || !trimmedEmail.includes('@')) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Informe um endereço de e-mail válido para a recuperação.' 
+        });
+      }
+
+      const origin = (clientOrigin || getRequestOrigin(req)).replace(/\/+$/, '');
+      const redirectTo = `${origin}/?action=reset-password`;
+
+      const adminClient = getSupabaseAdminClient();
+      let actionLink: string | null = null;
+      let userFound = false;
+
+      if (adminClient) {
+        try {
+          const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
+            type: 'recovery',
+            email: trimmedEmail,
+            options: { redirectTo }
+          });
+
+          if (linkErr) {
+            const errStr = (linkErr.message || '').toLowerCase();
+            const errCode = (linkErr as any).code || '';
+            if (errStr.includes('not found') || errCode === 'user_not_found') {
+              return res.status(200).json({
+                success: false,
+                notFound: true,
+                message: 'Nenhum usuário foi localizado com este e-mail no portal. Verifique se o endereço foi digitado corretamente ou crie sua conta.'
+              });
+            }
+            console.warn('Aviso ao gerar link de recuperação no Supabase Admin:', linkErr.message);
+          } else if (linkData?.properties?.action_link) {
+            actionLink = linkData.properties.action_link;
+            userFound = true;
+          }
+        } catch (adminErr: any) {
+          console.warn('Erro ao consultar Supabase admin generateLink:', adminErr);
+        }
+      }
+
+      // Se não gerou via Supabase Admin (ex: usuário em cache), verifica na base local
+      if (!actionLink) {
+        const localUser = serverUsers.find(u => u.email.toLowerCase() === trimmedEmail);
+        if (localUser) {
+          userFound = true;
+          actionLink = `${origin}/?action=reset-password&token=rec_${Date.now()}&email=${encodeURIComponent(trimmedEmail)}`;
+        }
+      }
+
+      if (!userFound && !actionLink) {
+        return res.status(200).json({
+          success: false,
+          notFound: true,
+          message: 'Nenhum usuário foi localizado com este e-mail no portal. Verifique se o endereço foi digitado corretamente ou crie sua conta.'
+        });
+      }
+
+      // Dispara o e-mail pelo transporte SMTP verificado
+      let emailDelivered = false;
+      const transporter = createEmailTransporter();
+      if (transporter && actionLink) {
+        try {
+          const senderName = 'Folha da Região';
+          const senderEmail = process.env.SMTP_USER || 'contatomeasure@gmail.com';
+          const fromAddress = `"${senderName}" <${senderEmail}>`;
+
+          await transporter.sendMail({
+            from: fromAddress,
+            to: trimmedEmail,
+            subject: 'Recuperação de Senha — Folha da Região',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff;">
+                <div style="background-color: #0f172a; padding: 24px; border-bottom: 4px solid #0056a4; color: #ffffff; text-align: center;">
+                  <h1 style="margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase;">FOLHA DA REGIÃO</h1>
+                  <p style="margin: 4px 0 0 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Segurança e Recuperação de Acesso</p>
+                </div>
+                <div style="padding: 32px 24px; color: #334155; line-height: 1.6;">
+                  <h2 style="margin-top: 0; color: #0f172a; font-size: 18px;">Solicitação de Redefinição de Senha</h2>
+                  <p>Olá,</p>
+                  <p>Recebemos uma solicitação para redefinir a senha da sua conta associada ao e-mail <strong>${escapeHtml(trimmedEmail)}</strong> no portal <strong>Folha da Região</strong>.</p>
+                  <p>Para escolher uma nova senha e restabelecer o seu acesso imediato, clique no botão seguro abaixo:</p>
+                  <div style="text-align: center; margin: 32px 0;">
+                    <a href="${escapeHtml(actionLink)}" style="background-color: #0056a4; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
+                      Redefinir Minha Senha
+                    </a>
+                  </div>
+                  <p style="font-size: 12px; color: #64748b;">
+                    Se o botão não funcionar no seu aplicativo de e-mail, copie e cole o link a seguir no seu navegador:<br>
+                    <a href="${escapeHtml(actionLink)}" style="color: #0056a4; word-break: break-all; font-size: 12px;">${escapeHtml(actionLink)}</a>
+                  </p>
+                  <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 24px 0; border-radius: 4px; font-size: 12px; color: #92400e;">
+                    <strong>Atenção:</strong> Se você não solicitou a recuperação desta senha, por favor desconsidere este e-mail. A sua conta permanecerá segura com sua senha atual.
+                  </div>
+                </div>
+                <div style="background-color: #f8fafc; padding: 16px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0;">
+                  Folha da Região Online • Sergipe • Mensagem oficial automática
+                </div>
+              </div>
+            `,
+            text: `Folha da Região — Recuperação de Senha\n\nOlá!\n\nRecebemos uma solicitação para redefinir sua senha (${trimmedEmail}).\n\nPara redefinir sua senha, acesse o link:\n${actionLink}\n\nSe você não solicitou, por favor desconsidere este e-mail.`
+          });
+          emailDelivered = true;
+        } catch (mailErr: any) {
+          console.error('Erro ao despachar e-mail de recuperação via SMTP:', mailErr);
+        }
+      }
+
+      return res.json({
+        success: true,
+        delivered: emailDelivered,
+        message: 'Link de recuperação enviado com sucesso para o seu e-mail! Por favor, verifique sua caixa de entrada e a pasta de spam.'
+      });
+    } catch (err: any) {
+      console.error('Erro geral ao processar recuperação de senha:', err);
+      return res.status(500).json({ success: false, error: 'Erro ao processar recuperação de senha.' });
+    }
+  });
+
+  // API pública para reenvio de confirmação de cadastro
+  app.post('/api/auth/resend-confirmation', async (req: Request, res: Response) => {
+    try {
+      const { email, origin: clientOrigin } = req.body;
+      const trimmedEmail = (email || '').trim().toLowerCase();
+
+      if (!trimmedEmail || !trimmedEmail.includes('@')) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Informe um endereço de e-mail válido.' 
+        });
+      }
+
+      const origin = (clientOrigin || getRequestOrigin(req)).replace(/\/+$/, '');
+      const redirectTo = `${origin}/#confirm-email`;
+
+      const adminClient = getSupabaseAdminClient();
+      let actionLink: string | null = null;
+      let userFound = false;
+
+      if (adminClient) {
+        try {
+          const { data: linkData, error: linkErr } = await (adminClient.auth.admin.generateLink as any)({
+            type: 'signup',
+            email: trimmedEmail,
+            options: { redirectTo }
+          });
+
+          if (linkErr) {
+            const errStr = (linkErr.message || '').toLowerCase();
+            const errCode = (linkErr as any).code || '';
+            if (errStr.includes('not found') || errCode === 'user_not_found') {
+              return res.status(200).json({
+                success: false,
+                notFound: true,
+                message: 'Nenhum cadastro pendente foi localizado com este e-mail.'
+              });
+            }
+          } else if (linkData?.properties?.action_link) {
+            actionLink = linkData.properties.action_link;
+            userFound = true;
+          }
+        } catch (adminErr: any) {
+          console.warn('Erro ao consultar Supabase admin generateLink para confirmação:', adminErr);
+        }
+      }
+
+      if (!actionLink) {
+        const localUser = serverUsers.find(u => u.email.toLowerCase() === trimmedEmail);
+        if (localUser) {
+          userFound = true;
+          actionLink = `${origin}/#confirm-email?token=conf_${Date.now()}&email=${encodeURIComponent(trimmedEmail)}`;
+        }
+      }
+
+      if (!userFound && !actionLink) {
+        return res.status(200).json({
+          success: false,
+          notFound: true,
+          message: 'Nenhum cadastro foi localizado com este e-mail. Por favor, verifique se digitou corretamente ou realize o seu cadastro.'
+        });
+      }
+
+      let emailDelivered = false;
+      const transporter = createEmailTransporter();
+      if (transporter && actionLink) {
+        try {
+          const senderName = 'Folha da Região';
+          const senderEmail = process.env.SMTP_USER || 'contatomeasure@gmail.com';
+          const fromAddress = `"${senderName}" <${senderEmail}>`;
+
+          await transporter.sendMail({
+            from: fromAddress,
+            to: trimmedEmail,
+            subject: 'Confirmação e Ativação de Conta — Folha da Região',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff;">
+                <div style="background-color: #0f172a; padding: 24px; border-bottom: 4px solid #0056a4; color: #ffffff; text-align: center;">
+                  <h1 style="margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.5px; text-transform: uppercase;">FOLHA DA REGIÃO</h1>
+                  <p style="margin: 4px 0 0 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Ativação de Conta</p>
+                </div>
+                <div style="padding: 32px 24px; color: #334155; line-height: 1.6;">
+                  <h2 style="margin-top: 0; color: #0f172a; font-size: 18px;">Confirmação de Endereço de E-mail</h2>
+                  <p>Olá,</p>
+                  <p>Você solicitou um novo link para confirmar seu e-mail (<strong>${escapeHtml(trimmedEmail)}</strong>) e ativar seu cadastro no portal <strong>Folha da Região</strong>.</p>
+                  <div style="text-align: center; margin: 32px 0;">
+                    <a href="${escapeHtml(actionLink)}" style="background-color: #0056a4; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
+                      Confirmar e Ativar Minha Conta
+                    </a>
+                  </div>
+                  <p style="font-size: 12px; color: #64748b;">
+                    Ou copie e cole o link no navegador:<br>
+                    <a href="${escapeHtml(actionLink)}" style="color: #0056a4; word-break: break-all; font-size: 12px;">${escapeHtml(actionLink)}</a>
+                  </p>
+                </div>
+                <div style="background-color: #f8fafc; padding: 16px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0;">
+                  Folha da Região Online • Sergipe • Mensagem oficial automática
+                </div>
+              </div>
+            `,
+            text: `Folha da Região — Ativação de Conta\n\nPara confirmar seu e-mail e ativar sua conta, acesse o link:\n${actionLink}`
+          });
+          emailDelivered = true;
+        } catch (mailErr) {
+          console.error('Erro ao enviar e-mail de ativação via SMTP:', mailErr);
+        }
+      }
+
+      return res.json({
+        success: true,
+        delivered: emailDelivered,
+        message: 'Link de confirmação reenviado com sucesso! Verifique sua caixa de entrada e spam.'
+      });
+    } catch (err: any) {
+      console.error('Erro geral ao reenviar confirmação:', err);
+      return res.status(500).json({ success: false, error: 'Erro ao reenviar confirmação de e-mail.' });
     }
   });
 

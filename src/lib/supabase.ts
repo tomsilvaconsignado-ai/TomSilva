@@ -553,7 +553,16 @@ export const authService = {
         });
 
         if (error) {
-          return { user: null, error: error.message };
+          let friendlyError = error.message;
+          const msg = (error.message || '').toLowerCase();
+          if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+            friendlyError = 'E-mail ou senha incorretos. Por favor, verifique suas credenciais.';
+          } else if (msg.includes('email not confirmed')) {
+            friendlyError = 'Seu cadastro ainda aguarda confirmação de e-mail. Verifique sua caixa de entrada e spam, ou solicite o reenvio do link de confirmação.';
+          } else if (msg.includes('user not found')) {
+            friendlyError = 'Nenhum usuário cadastrado foi encontrado com este e-mail.';
+          }
+          return { user: null, error: friendlyError };
         }
 
         if (data.user) {
@@ -810,13 +819,38 @@ export const authService = {
       };
     }
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
+
+    // 1. Tenta envio prioritário e verificado pelo backend (Gera link oficial no Supabase Admin e envia via SMTP do Gmail)
+    try {
+      const resp = await fetch('/api/auth/resend-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail, origin })
+      });
+      const data = await resp.json();
+      if (data.notFound) {
+        return {
+          success: false,
+          message: data.message || 'Nenhum cadastro pendente foi localizado com este e-mail.'
+        };
+      }
+      if (data.success && data.delivered) {
+        return {
+          success: true,
+          message: 'Link oficial de confirmação enviado para seu e-mail! Por favor, verifique sua caixa de entrada e a pasta de spam.'
+        };
+      }
+    } catch (e) {
+      console.warn('Aviso: endpoint /api/auth/resend-confirmation indisponível, usando fallback:', e);
+    }
+
     const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
     const found = users.find(u => u.email.toLowerCase() === trimmedEmail);
 
-    // Se o Supabase estiver configurado, despacha requisição de reenvio oficial pelo Supabase Auth
+    // Se o Supabase estiver configurado, despacha também requisição pelo Supabase Auth
     if (isSupabaseConfigured() && supabase) {
       try {
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
         const { error: resendErr } = await supabase.auth.resend({
           type: 'signup',
           email: trimmedEmail,
@@ -841,7 +875,6 @@ export const authService = {
       }
     }
 
-    // Mensagem neutra para proteção de privacidade
     return {
       success: true,
       message: 'Se existir uma conta cadastrada com este endereço com confirmação pendente, enviamos um novo link de confirmação para sua caixa de entrada.'
@@ -864,12 +897,36 @@ export const authService = {
       };
     }
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
+
+    // 1. Tenta envio prioritário e verificado pelo backend (Gera link oficial no Supabase Admin e envia via SMTP do Gmail)
+    try {
+      const resp = await fetch('/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail, origin })
+      });
+      const data = await resp.json();
+      if (data.notFound) {
+        return {
+          success: false,
+          message: data.message || 'Nenhum usuário foi localizado com este e-mail no portal. Verifique a digitação ou realize o seu cadastro.'
+        };
+      }
+      if (data.success && data.delivered) {
+        return {
+          success: true,
+          message: 'Link oficial de recuperação enviado com sucesso para o seu e-mail! Por favor, verifique sua caixa de entrada e a pasta de spam.'
+        };
+      }
+    } catch (e) {
+      console.warn('Aviso: endpoint /api/auth/request-password-reset indisponível, usando fallback:', e);
+    }
+
     let supabaseError: string | null = null;
 
     if (isSupabaseConfigured() && supabase) {
       try {
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
-        // URL limpa sem fragmento hash '#' para compatibilidade total com a whitelist de Redirect URLs do Supabase
         const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
           redirectTo: `${origin}/?action=reset-password`
         });
@@ -904,10 +961,10 @@ export const authService = {
       };
     }
 
-    // Mensagem amigável e segura, orientando a verificar spam/lixo eletrônico
+    // Mensagem amigável e transparente
     return {
       success: true,
-      message: 'Solicitação de recuperação enviada com sucesso! Se existir uma conta associada a este e-mail, você receberá um link em instantes. Por favor, verifique sua caixa de entrada e a pasta de spam (lixo eletrônico).'
+      message: 'Solicitação de recuperação processada com sucesso! Se existir uma conta associada a este e-mail, você receberá um link em instantes. Por favor, verifique sua caixa de entrada e a pasta de spam (lixo eletrônico).'
     };
   },
 
