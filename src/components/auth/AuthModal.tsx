@@ -270,18 +270,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const fillDemoAccount = (demoRole: 'admin' | 'reader') => {
-    if (demoRole === 'admin') {
-      setEmail('tomsilvaconsignado@gmail.com');
-      setPassword('Folha@1234');
-      setMode('login');
-    } else {
-      setEmail('leitor@folhadaregiao.com.br');
-      setPassword('leitor123');
-      setMode('login');
-    }
-    setError(null);
-  };
 
   const configured = isSupabaseConfigured();
 
@@ -891,23 +879,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </form>
 
-            {/* Atalho de Demonstração para Testes de Leitor */}
-            <div className="pt-3 border-t border-gray-100">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2 text-center">
-                Acesso Rápido para Testes Públicos
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => fillDemoAccount('reader')}
-                  className="w-full py-2 px-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  title="Preencher conta de usuário comum para testes rápidos"
-                >
-                  <User className="w-3.5 h-3.5 text-blue-600" />
-                  Preencher com Conta de Leitor (leitor@folhadaregiao.com.br)
-                </button>
-              </div>
-            </div>
           </>
         )}
       </div>
