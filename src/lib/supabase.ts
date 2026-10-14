@@ -12,15 +12,35 @@ import { emailService, checkEmailRateLimit } from './emailService';
 import { authSecurityService } from './authSecurityService';
 
 // Configurações lidas do ambiente ou do localStorage (para configuração em tempo de execução)
-const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Configurações padrão do projeto oficial Supabase (garante comunicação 100% no GitHub Pages, Vercel e produção)
+export const DEFAULT_SUPABASE_URL = 'https://qqjqbdpemydxdzlufgfo.supabase.co';
+export const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_Iw8_Yc9-9V6b-y-TAnrbbQ_s1o43Nhu';
 
+// Configurações lidas do ambiente ou do localStorage (para configuração em tempo de execução)
+const envUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 const storedUrl = typeof window !== 'undefined' ? localStorage.getItem('folha_supabase_url') : null;
 const storedKey = typeof window !== 'undefined' ? localStorage.getItem('folha_supabase_anon_key') : null;
 
-const rawUrl = (storedUrl || envUrl || '').trim();
-const SUPABASE_URL = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
-const SUPABASE_KEY = (storedKey || envKey || '').trim();
+const sanitizeSupabaseUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (trimmed === 'https://seu-projeto.supabase.co' || !trimmed.startsWith('https://')) return '';
+  return trimmed.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+};
+
+const sanitizeSupabaseKey = (key: string | null | undefined): string => {
+  if (!key) return '';
+  const trimmed = key.trim();
+  if (trimmed === 'sua-chave-anon-publica-aqui' || trimmed.length < 20) return '';
+  return trimmed;
+};
+
+const resolvedUrl = sanitizeSupabaseUrl(storedUrl) || sanitizeSupabaseUrl(envUrl) || DEFAULT_SUPABASE_URL;
+const resolvedKey = sanitizeSupabaseKey(storedKey) || sanitizeSupabaseKey(envKey) || DEFAULT_SUPABASE_ANON_KEY;
+
+const SUPABASE_URL = resolvedUrl;
+const SUPABASE_KEY = resolvedKey;
 
 export const isSupabaseConfigured = (): boolean => {
   return Boolean(
@@ -42,6 +62,33 @@ export const saveSupabaseConfig = (url: string, key: string) => {
     localStorage.setItem('folha_supabase_url', url.trim());
     localStorage.setItem('folha_supabase_anon_key', key.trim());
     window.location.reload();
+  }
+};
+
+/**
+ * Gera URL de redirecionamento dinâmica segura preservando subdiretórios (ex: GitHub Pages /nome-do-repo/)
+ */
+export const getAuthRedirectUrl = (actionOrHash: string): string => {
+  if (typeof window === 'undefined') {
+    return actionOrHash.startsWith('#') 
+      ? `https://folhadaregiaonline.com.br/${actionOrHash}` 
+      : `https://folhadaregiaonline.com.br/?action=${actionOrHash}`;
+  }
+  try {
+    const u = new URL(window.location.href);
+    if (actionOrHash.startsWith('#')) {
+      u.hash = actionOrHash;
+      u.search = '';
+    } else {
+      u.search = `?action=${actionOrHash}`;
+      u.hash = '';
+    }
+    return u.toString();
+  } catch {
+    const origin = window.location.origin.replace(/\/+$/, '');
+    return actionOrHash.startsWith('#')
+      ? `${origin}/${actionOrHash}`
+      : `${origin}/?action=${actionOrHash}`;
   }
 };
 
@@ -379,12 +426,12 @@ export const authService = {
     const defaultInterests = ['Política', 'Cidades'];
     if (isSupabaseConfigured() && supabase) {
       try {
-        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
+        const confirmRedirectUrl = getAuthRedirectUrl('#confirm-email');
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${origin}/#confirm-email`,
+            emailRedirectTo: confirmRedirectUrl,
             data: {
               full_name: fullName,
               role,
@@ -904,18 +951,20 @@ export const authService = {
     const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
     const found = users.find(u => u.email.toLowerCase() === trimmedEmail);
 
-    // Se o Supabase estiver configurado, despacha também requisição pelo Supabase Auth
+    const confirmRedirectUrl = getAuthRedirectUrl('#confirm-email');
+
+    // Se o Supabase estiver configurado, despacha prioritariamente pelo Supabase Auth direto (funciona 100% no GitHub Pages)
     if (isSupabaseConfigured() && supabase) {
       try {
         const { error: resendErr } = await supabase.auth.resend({
           type: 'signup',
           email: trimmedEmail,
           options: {
-            emailRedirectTo: `${origin}/#confirm-email`
+            emailRedirectTo: confirmRedirectUrl
           }
         });
         if (resendErr) {
-          console.warn('Aviso: supabase.auth.resend retornou aviso:', resendErr.message);
+          console.warn('Aviso: supabase.auth.resend:', resendErr.message);
         }
       } catch (sbErr) {
         console.warn('Falha ao acionar supabase.auth.resend:', sbErr);
@@ -953,41 +1002,66 @@ export const authService = {
       };
     }
 
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
+    const redirectUrl = getAuthRedirectUrl('reset-password');
+    let supabaseSent = false;
+    let supabaseRateLimit = false;
 
-    // 1. Tenta envio prioritário e verificado pelo backend (Gera link oficial no Supabase Admin e envia via SMTP do Gmail)
+    // 1. Despacha DIRETAMENTE pelo Supabase Auth (opera 100% no cliente no GitHub Pages, Vercel e produção)
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+          redirectTo: redirectUrl
+        });
+        if (error) {
+          const errLower = error.message.toLowerCase();
+          if (errLower.includes('rate limit') || errLower.includes('frequency') || errLower.includes('too many') || errLower.includes('429')) {
+            supabaseRateLimit = true;
+          }
+          console.warn('Aviso do Supabase Auth ao solicitar recuperação:', error.message);
+        } else {
+          supabaseSent = true;
+        }
+      } catch (err: any) {
+        console.warn('Erro ao chamar resetPasswordForEmail no Supabase:', err);
+      }
+    }
+
+    // Se o Supabase acusou limite de taxa/frequência de envio
+    if (supabaseRateLimit) {
+      return {
+        success: false,
+        message: 'Limite de envio do Supabase atingido para este e-mail. Por segurança, aguarde cerca de 1 minuto antes de solicitar novamente.'
+      };
+    }
+
+    // 2. Se houver backend local/Node com SMTP do Gmail rodando, dispara também via servidor
     try {
       const resp = await fetch('/api/auth/request-password-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmedEmail, origin })
+        body: JSON.stringify({ 
+          email: trimmedEmail, 
+          origin: typeof window !== 'undefined' ? window.location.origin : undefined 
+        })
       });
-      const data = await resp.json();
-      if (data && data.message) {
-        return {
-          success: true,
-          message: data.message
-        };
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.message) {
+          return {
+            success: true,
+            message: data.message
+          };
+        }
       }
-    } catch (e) {
-      console.warn('Aviso: endpoint /api/auth/request-password-reset indisponível, usando fallback:', e);
+    } catch {
+      // Backend inacessível (ex: página estática no GitHub Pages). O envio direto do Supabase acima atende a requisição.
     }
 
-    let supabaseError: string | null = null;
-
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-          redirectTo: `${origin}/?action=reset-password`
-        });
-        if (error) {
-          console.warn('Aviso: supabase.auth.resetPasswordForEmail:', error.message);
-          supabaseError = error.message;
-        }
-      } catch (err: any) {
-        console.warn('Erro ao chamar resetPasswordForEmail no Supabase:', err);
-        supabaseError = err.message;
-      }
+    if (supabaseSent) {
+      return {
+        success: true,
+        message: 'Solicitação de recuperação processada com sucesso! As instruções e o link seguro foram enviados para o seu e-mail. Por favor, verifique sua caixa de entrada e a pasta de spam.'
+      };
     }
 
     // Se a conta existir na base local/servidor, prepara também envio pelo serviço do portal
@@ -1003,13 +1077,7 @@ export const authService = {
       }
     }
 
-    // Se houve erro específico de limite de envio do Supabase
-    if (supabaseError && (supabaseError.toLowerCase().includes('rate limit') || supabaseError.toLowerCase().includes('frequency') || supabaseError.toLowerCase().includes('too many'))) {
-      return {
-        success: false,
-        message: 'Limite de tentativas de recuperação atingido. Por segurança, aguarde alguns minutos antes de solicitar novamente.'
-      };
-    }
+
 
     // Mensagem amigável e transparente
     return {

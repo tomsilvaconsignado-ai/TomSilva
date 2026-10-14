@@ -45,7 +45,7 @@
     "id": 7,
     "name": "Controle Administrativo de Usuários via Supabase Admin",
     "status": "APROVADO",
-    "evidence": "Total de usuários listados: 7, Fonte: supabase_admin_api",
+    "evidence": "Total de usuários listados: 9, Fonte: supabase_admin_api",
     "notes": "Painel administrativo integrado ao Supabase Admin API com dados unificados."
   },
   {
@@ -73,7 +73,7 @@
     "id": 11,
     "name": "Classificados: Publicação Válida com Associação do ID Real",
     "status": "APROVADO",
-    "evidence": "Anúncio criado com ID: clf-audit-1791931100548, user_id: 90bb4657-2a9f-4238-af18-c79576fd7f92, Código: CL-7592",
+    "evidence": "Anúncio criado com ID: clf-audit-1791939686534, user_id: 90bb4657-2a9f-4238-af18-c79576fd7f92, Código: CL-3071",
     "notes": "Anúncio salvo no banco com chave estrangeira oficial do usuário."
   },
   {
