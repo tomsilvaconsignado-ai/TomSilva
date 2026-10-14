@@ -432,14 +432,16 @@ export const authService = {
           };
         }
 
+        const oauthName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Usuário';
+        const oauthAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture;
         return {
           id: session.user.id,
           email: session.user.email || '',
-          fullName: session.user.user_metadata?.full_name || 'Usuário',
-          role: (session.user.user_metadata?.role as any) || 'reader',
-          avatarUrl: session.user.user_metadata?.avatar_url,
-          interests: session.user.user_metadata?.interests || ['Política', 'Cidades'],
-          createdAt: session.user.created_at
+          fullName: profile?.full_name || oauthName,
+          role: (profile?.role || session.user.user_metadata?.role as any) || 'reader',
+          avatarUrl: profile?.avatar_url || oauthAvatar,
+          interests: profile?.interests || session.user.user_metadata?.interests || ['Política', 'Cidades'],
+          createdAt: profile?.created_at || session.user.created_at
         };
       } catch (err) {
         console.warn('Erro ao checar sessão Supabase, utilizando fallback local', err);
@@ -622,6 +624,31 @@ export const authService = {
     window.dispatchEvent(new Event('folha_auth_changed'));
 
     return { user: safeProfile, error: null };
+  },
+
+  async signInWithGoogle(): Promise<{ error: string | null }> {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const redirectUrl = getAuthRedirectUrl('');
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUrl,
+            queryParams: {
+              access_type: 'offline',
+              prompt: 'select_account',
+            },
+          },
+        });
+        if (error) {
+          return { error: error.message };
+        }
+        return { error: null };
+      } catch (err: any) {
+        return { error: err.message || 'Erro ao iniciar autenticação com o Google.' };
+      }
+    }
+    return { error: 'Supabase não configurado nesta página.' };
   },
 
   async signIn(email: string, password: string): Promise<AuthResponse> {
