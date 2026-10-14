@@ -225,6 +225,18 @@ function getRequestOrigin(req: Request): string {
 }
 
 /**
+ * Retorna a origem pública segura para e-mails (garante que links não apontem para domínios protegidos *.run.app)
+ */
+function getSafePublicOrigin(req: Request, clientOrigin?: string): string {
+  const candidate = (clientOrigin || getRequestOrigin(req) || '').trim().replace(/\/+$/, '');
+  const isDevHost = candidate.includes('.run.app') || candidate.includes('localhost') || candidate.includes('127.0.0.1');
+  if (isDevHost) {
+    return (process.env.VITE_SITE_URL || process.env.SITE_URL || 'https://folhadaregiaonline.com.br').replace(/\/+$/, '');
+  }
+  return candidate;
+}
+
+/**
  * Injeta metadados Open Graph dinâmicos no HTML
  */
 function injectHtmlMetadata(html: string, metadataBlock: string): string {
@@ -603,7 +615,7 @@ async function startServer() {
       const userName = target?.fullName || email.split('@')[0];
 
       const token = 'conf_' + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
-      const origin = getRequestOrigin(req);
+      const origin = getSafePublicOrigin(req);
       const confirmUrl = `${origin}/#confirm-email?token=${token}&email=${encodeURIComponent(email)}`;
 
       const transporter = createEmailTransporter(smtpConfig);
@@ -1021,7 +1033,7 @@ async function startServer() {
         });
       }
 
-      const origin = (clientOrigin || getRequestOrigin(req)).replace(/\/+$/, '');
+      const origin = getSafePublicOrigin(req, clientOrigin);
       const redirectTo = `${origin}/?action=reset-password`;
 
       const adminClient = getSupabaseAdminClient();
@@ -1137,7 +1149,7 @@ async function startServer() {
         });
       }
 
-      const origin = (clientOrigin || getRequestOrigin(req)).replace(/\/+$/, '');
+      const origin = getSafePublicOrigin(req, clientOrigin);
       const redirectTo = `${origin}/#confirm-email`;
 
       const adminClient = getSupabaseAdminClient();

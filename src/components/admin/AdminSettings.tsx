@@ -7,7 +7,7 @@ import {
   Link as LinkIcon, Send, Server, Key, AtSign, Inbox, RefreshCw, Radio
 } from 'lucide-react';
 import { PortalSettings } from '../../types/database';
-import { portalSettingsService, usersService } from '../../lib/supabase';
+import { portalSettingsService, usersService, getProductionSiteUrl, setProductionSiteUrl } from '../../lib/supabase';
 import { emailService } from '../../lib/emailService';
 import { getAssetUrl } from '../../lib/assets';
 
@@ -26,6 +26,7 @@ export const AdminSettings: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [activeInstSubTab, setActiveInstSubTab] = useState<'sobreNos' | 'expediente' | 'privacidade'>('sobreNos');
   const [logoUrlInput, setLogoUrlInput] = useState('');
+  const [prodSiteUrl, setProdSiteUrl] = useState(() => getProductionSiteUrl());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Estados de E-mail & Comunicação
@@ -1561,6 +1562,47 @@ export const AdminSettings: React.FC = () => {
                     <span>Ver Caixa de E-mails</span>
                   </button>
                 </div>
+              </div>
+            </div>
+
+            {/* Configuração da URL de Produção do Site para E-mails */}
+            <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-xs space-y-3">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                <Globe className="w-4 h-4 text-[#0056a4]" />
+                <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
+                  URL Pública do Site (GitHub Pages / Domínio Próprio)
+                </h4>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Esta URL é utilizada para direcionar os links de <strong>recuperação de senha</strong> e <strong>ativação de conta</strong> enviados por e-mail, garantindo que o usuário seja levado para o seu site publicado e nunca para a tela de erro do sandbox.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="url"
+                  value={prodSiteUrl}
+                  onChange={(e) => {
+                    setProdSiteUrl(e.target.value);
+                  }}
+                  placeholder="Ex: https://tomsilvaconsignado.github.io/folhadaregiao/ ou https://folhadaregiaonline.com.br"
+                  className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-[#0056a4]"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!prodSiteUrl.trim() || !prodSiteUrl.trim().startsWith('http')) {
+                      setNotice({ message: 'Informe uma URL válida iniciando com http:// ou https://', type: 'error' });
+                      return;
+                    }
+                    setProductionSiteUrl(prodSiteUrl);
+                    setNotice({ message: `URL de produção salva: ${prodSiteUrl.trim()}`, type: 'success' });
+                  }}
+                  className="px-5 py-2.5 bg-[#0056a4] text-white text-xs font-bold rounded-xl hover:bg-[#004482] transition cursor-pointer shrink-0 shadow-xs"
+                >
+                  Salvar URL
+                </button>
+              </div>
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed">
+                <strong>Configuração no Supabase Dashboard:</strong> Em <em>Authentication &gt; URL Configuration</em>, altere o <strong>Site URL</strong> para a URL do seu GitHub Pages / domínio (remova qualquer URL contendo <code>.run.app</code>) e adicione <code>https://*.github.io/**</code> nas <strong>Redirect URLs</strong>.
               </div>
             </div>
 

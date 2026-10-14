@@ -66,30 +66,63 @@ export const saveSupabaseConfig = (url: string, key: string) => {
 };
 
 /**
+ * URL do portal em produção (usada para links enviados por e-mail quando disparados do ambiente de desenvolvimento)
+ */
+export const DEFAULT_PRODUCTION_URL = 'https://folhadaregiaonline.com.br';
+
+export const getProductionSiteUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('folha_production_url');
+    if (saved && saved.startsWith('http')) return saved.replace(/\/+$/, '');
+  }
+  return (import.meta.env.VITE_SITE_URL || DEFAULT_PRODUCTION_URL).replace(/\/+$/, '');
+};
+
+export const setProductionSiteUrl = (url: string) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('folha_production_url', url.trim().replace(/\/+$/, ''));
+  }
+};
+
+/**
  * Gera URL de redirecionamento dinâmica segura preservando subdiretórios (ex: GitHub Pages /nome-do-repo/)
+ * NUNCA direciona para domínios de preview restritos (*.run.app) que exigem login interno do Google Cloud/AI Studio
  */
 export const getAuthRedirectUrl = (actionOrHash: string): string => {
   if (typeof window === 'undefined') {
+    const prod = getProductionSiteUrl();
     return actionOrHash.startsWith('#') 
-      ? `https://folhadaregiaonline.com.br/${actionOrHash}` 
-      : `https://folhadaregiaonline.com.br/?action=${actionOrHash}`;
+      ? `${prod}/${actionOrHash.replace(/^\/+/, '')}` 
+      : `${prod}/?action=${actionOrHash}`;
   }
-  try {
-    const u = new URL(window.location.href);
-    if (actionOrHash.startsWith('#')) {
-      u.hash = actionOrHash;
-      u.search = '';
-    } else {
-      u.search = `?action=${actionOrHash}`;
-      u.hash = '';
-    }
-    return u.toString();
-  } catch {
-    const origin = window.location.origin.replace(/\/+$/, '');
-    return actionOrHash.startsWith('#')
-      ? `${origin}/${actionOrHash}`
-      : `${origin}/?action=${actionOrHash}`;
+
+  const hostname = window.location.hostname.toLowerCase();
+  const isDevPreview = hostname.includes('.run.app') || hostname.includes('localhost') || hostname === '127.0.0.1';
+
+  // 1. Se estiver rodando no GitHub Pages (ex: usuario.github.io/repo/) ou em domínio de produção próprio:
+  if (!isDevPreview) {
+    try {
+      const u = new URL(window.location.href);
+      if (actionOrHash.startsWith('#')) {
+        u.hash = actionOrHash;
+        u.search = '';
+      } else {
+        u.search = `?action=${actionOrHash}`;
+        u.hash = '';
+      }
+      // Salva automaticamente no storage para reutilização
+      const cleanBase = `${u.origin}${u.pathname}`.replace(/\/+$/, '');
+      try { localStorage.setItem('folha_production_url', cleanBase); } catch {}
+      return u.toString();
+    } catch {}
   }
+
+  // 2. Se estiver rodando dentro do preview interno do Google AI Studio (ais-dev-...run.app):
+  // NUNCA use a URL do *.run.app! Qualquer clique externo resulta na tela de erro do Google Studio IA!
+  const targetBase = getProductionSiteUrl();
+  return actionOrHash.startsWith('#')
+    ? `${targetBase}/${actionOrHash.replace(/^\/+/, '')}`
+    : `${targetBase}/?action=${actionOrHash}`;
 };
 
 // Instância do Supabase oficial
@@ -1041,7 +1074,7 @@ export const authService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: trimmedEmail, 
-          origin: typeof window !== 'undefined' ? window.location.origin : undefined 
+          origin: getProductionSiteUrl()
         })
       });
       if (resp.ok) {

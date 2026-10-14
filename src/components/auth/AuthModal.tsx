@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { 
   X, Mail, Lock, User, CheckCircle2, AlertCircle, Shield, Sparkles, 
-  Building2, Phone, MapPin, Eye, EyeOff, ShieldCheck, FileText 
+  Building2, Phone, MapPin, Eye, EyeOff, ShieldCheck, FileText, Globe, AlertTriangle 
 } from 'lucide-react';
-import { authService, isSupabaseConfigured } from '../../lib/supabase';
+import { authService, isSupabaseConfigured, getProductionSiteUrl, setProductionSiteUrl } from '../../lib/supabase';
 import { UserProfile, AccountType } from '../../types/database';
 import { TermsModal } from './TermsModal';
 
@@ -819,6 +819,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">
                     Informe seu e-mail cadastrado. Enviaremos as instruções oficiais de recuperação de senha com link seguro. Caso não localize na caixa de entrada, verifique também sua pasta de <strong>Spam / Lixo Eletrônico</strong>.
                   </p>
+
+                  {/* Informações de ambiente para teste */}
+                  {typeof window !== 'undefined' && (window.location.hostname.includes('.run.app') || window.location.hostname.includes('localhost')) && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs space-y-2 text-left">
+                      <div className="flex items-center gap-1.5 font-bold text-blue-900">
+                        <Globe className="w-4 h-4 text-[#0056a4] shrink-0" />
+                        <span>Destino dos Links de E-mail:</span>
+                      </div>
+                      <p className="text-[11px] text-blue-800 break-all leading-tight font-mono bg-white p-2 rounded border border-blue-150">
+                        {getProductionSiteUrl()}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = getProductionSiteUrl();
+                            const novo = prompt('Informe a URL pública do seu site no GitHub Pages ou domínio (ex: https://tomsilvaconsignado.github.io/folhadaregiao/):', cur);
+                            if (novo && novo.trim().startsWith('http')) {
+                              setProductionSiteUrl(novo.trim());
+                              alert(`URL pública atualizada para: ${novo.trim()}`);
+                            }
+                          }}
+                          className="text-[11px] text-[#0056a4] hover:underline font-bold cursor-pointer"
+                        >
+                          Alterar URL de Produção
+                        </button>
+                        <span className="text-gray-300">•</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            window.dispatchEvent(new CustomEvent('folha_direct_reset_password'));
+                          }}
+                          className="text-[11px] text-emerald-700 hover:underline font-bold cursor-pointer"
+                        >
+                          Testar Redefinição Direta Aqui
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="text-right mt-2">
                     <button
                       type="button"

@@ -132,6 +132,28 @@ export default function App() {
       const searchParams = new URLSearchParams(window.location.search);
       const hash = window.location.hash || '';
 
+      // Verifica se a URL retornou erro de autenticação (ex: link expirado pelo Supabase)
+      const errorParam = searchParams.get('error') || (hash.includes('error=') ? new URLSearchParams(hash.substring(1)).get('error') : null);
+      const errorDesc = searchParams.get('error_description') || (hash.includes('error_description=') ? new URLSearchParams(hash.substring(1)).get('error_description') : null);
+      if (errorDesc || errorParam) {
+        console.warn('Erro retornado na URL de autenticação:', errorParam, errorDesc);
+        const decoded = errorDesc ? decodeURIComponent(errorDesc.replace(/\+/g, ' ')) : 'O link de recuperação ou confirmação é inválido ou expirou.';
+        alert(decoded);
+        return;
+      }
+
+      // Suporte a fluxo PKCE (?code=xxxx)
+      const code = searchParams.get('code');
+      if (code && isSupabaseConfigured() && supabase) {
+        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+          if (!error && (data?.session || searchParams.get('action') === 'reset-password')) {
+            setResetPasswordToken('supabase_recovery');
+          }
+        }).catch(err => {
+          console.warn('Falha ao trocar código PKCE por sessão:', err);
+        });
+      }
+
       // A) Confirmação de E-mail e Recuperação via parâmetros de busca
       const action = searchParams.get('action');
       const queryToken = searchParams.get('token');
@@ -205,9 +227,16 @@ export default function App() {
       });
     };
 
+    const handleDirectReset = () => {
+      setResetPasswordToken('supabase_recovery');
+    };
+
     window.addEventListener('folha_auth_changed', handleAuthChange);
+    window.addEventListener('folha_direct_reset_password', handleDirectReset);
+
     return () => {
       window.removeEventListener('folha_auth_changed', handleAuthChange);
+      window.removeEventListener('folha_direct_reset_password', handleDirectReset);
       if (supabaseSub) supabaseSub.unsubscribe();
     };
   }, []);

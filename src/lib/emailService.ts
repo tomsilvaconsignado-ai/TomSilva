@@ -128,6 +128,28 @@ const generateBaseHtml = (title: string, contentHtml: string, actionUrl?: string
   `.trim();
 };
 
+export const getPublicPortalBaseUrl = (): string => {
+  if (typeof window === 'undefined') {
+    return 'https://folhadaregiaonline.com.br';
+  }
+  const hostname = window.location.hostname.toLowerCase();
+  const isDevPreview = hostname.includes('.run.app') || hostname.includes('localhost') || hostname === '127.0.0.1';
+
+  if (!isDevPreview) {
+    const origin = window.location.origin.replace(/\/+$/, '');
+    const pathname = window.location.pathname.replace(/\/+$/, '');
+    const base = pathname ? `${origin}${pathname}` : origin;
+    try { localStorage.setItem('folha_production_url', base); } catch {}
+    return base;
+  }
+
+  const saved = localStorage.getItem('folha_production_url');
+  if (saved && saved.startsWith('http')) {
+    return saved.replace(/\/+$/, '');
+  }
+  return 'https://folhadaregiaonline.com.br';
+};
+
 export const emailService = {
   getOutbox(): OutboxEmail[] {
     return getStoredEmails();
@@ -140,9 +162,8 @@ export const emailService = {
 
   // 1. E-MAIL DE CONFIRMAÇÃO DE CADASTRO
   async sendEmailConfirmation(user: UserProfile, token: string): Promise<OutboxEmail> {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiao.com.br';
-    const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-    const actionUrl = `${origin}${pathname}?action=confirm-email&token=${encodeURIComponent(token)}`;
+    const base = getPublicPortalBaseUrl();
+    const actionUrl = `${base}/?action=confirm-email&token=${encodeURIComponent(token)}`;
 
     const contentHtml = `
       <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${user.fullName}!</h2>
@@ -185,9 +206,8 @@ export const emailService = {
 
   // 2. REENVIO DO E-MAIL DE CONFIRMAÇÃO
   async sendResendConfirmation(user: UserProfile, token: string): Promise<OutboxEmail> {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiao.com.br';
-    const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-    const actionUrl = `${origin}${pathname}?action=confirm-email&token=${encodeURIComponent(token)}`;
+    const base = getPublicPortalBaseUrl();
+    const actionUrl = `${base}/?action=confirm-email&token=${encodeURIComponent(token)}`;
 
     const contentHtml = `
       <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${user.fullName}!</h2>
@@ -230,9 +250,8 @@ export const emailService = {
 
   // 3. RECUPERAÇÃO DE SENHA
   async sendPasswordReset(user: UserProfile, token: string): Promise<OutboxEmail> {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiao.com.br';
-    const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-    const actionUrl = `${origin}${pathname}?action=reset-password&token=${encodeURIComponent(token)}`;
+    const base = getPublicPortalBaseUrl();
+    const actionUrl = `${base}/?action=reset-password&token=${encodeURIComponent(token)}`;
 
     const contentHtml = `
       <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${user.fullName}!</h2>
