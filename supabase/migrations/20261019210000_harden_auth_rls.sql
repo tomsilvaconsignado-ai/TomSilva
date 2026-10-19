@@ -437,4 +437,38 @@ REVOKE EXECUTE ON FUNCTION public.increment_classified_views(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.increment_article_views(TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.increment_classified_views(TEXT) TO anon, authenticated, service_role;
 
+-- ------------------------------------------------------------------------------
+-- 10. Limpeza: policies duplicadas encontradas no banco de produção que não
+--     existem no schema.sql (policies permissivas somam com OR, então qualquer
+--     sobra antiga reabriria o acesso que as regras acima fecham)
+-- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Apenas editores e admins podem gerenciar notícias" ON public.articles;
+DROP POLICY IF EXISTS "Apenas admins moderam denúncias" ON public.classified_reports;
+DROP POLICY IF EXISTS "Apenas administradores alteram configurações de classificados" ON public.classified_settings;
+DROP POLICY IF EXISTS "Configurações de classificados públicas" ON public.classified_settings;
+DROP POLICY IF EXISTS "Anúncios publicados visíveis publicamente" ON public.classifieds;
+DROP POLICY IF EXISTS "Usuários gerenciam seus comentários ou administradores" ON public.comments;
+DROP POLICY IF EXISTS "Apenas administradores visualizam assinantes" ON public.newsletter_subscribers;
+DROP POLICY IF EXISTS "Usuários podem atualizar leitura das suas notificações" ON public.notifications;
+
+-- Usuário pode criar notificação para si mesmo (comportamento já existente em produção)
+DROP POLICY IF EXISTS "Criadores e admins podem inserir notificações" ON public.notifications;
+CREATE POLICY "Criadores e admins podem inserir notificações"
+  ON public.notifications FOR INSERT
+  TO authenticated
+  WITH CHECK ((SELECT auth.uid()) = user_id OR (SELECT public.is_editor_or_admin()));
+
+DROP POLICY IF EXISTS "Categorias públicas para leitura" ON public.categories;
+CREATE POLICY "Categorias públicas para leitura"
+  ON public.categories FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "Apenas administradores gerenciam categorias" ON public.categories;
+CREATE POLICY "Apenas administradores gerenciam categorias"
+  ON public.categories FOR ALL
+  TO authenticated
+  USING ((SELECT public.is_admin()))
+  WITH CHECK ((SELECT public.is_admin()));
+
 COMMIT;
