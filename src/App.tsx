@@ -161,9 +161,8 @@ export default function App() {
       const queryType = searchParams.get('type');
       const tokenHash = searchParams.get('token_hash');
 
-      if (action === 'reset-password' || queryType === 'recovery') {
-        setResetPasswordToken(queryToken || 'supabase_recovery');
-      } else if (tokenHash && queryType === 'recovery') {
+      // token_hash precisa ser verificado antes de abrir o modal, senão updateUser roda sem sessão
+      if (tokenHash && queryType === 'recovery') {
         if (isSupabaseConfigured() && supabase) {
           supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error }) => {
             if (!error) {
@@ -171,6 +170,8 @@ export default function App() {
             }
           });
         }
+      } else if (action === 'reset-password' || queryType === 'recovery') {
+        setResetPasswordToken(queryToken || 'supabase_recovery');
       } else if (action === 'confirm-email' && queryToken) {
         setEmailConfirmToken(queryToken);
       } else if (queryToken && queryEmail) {
