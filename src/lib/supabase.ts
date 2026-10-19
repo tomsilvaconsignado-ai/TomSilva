@@ -438,7 +438,7 @@ export const authService = {
           id: session.user.id,
           email: session.user.email || '',
           fullName: profile?.full_name || oauthName,
-          role: (profile?.role || session.user.user_metadata?.role as any) || 'reader',
+          role: profile?.role || 'reader',
           avatarUrl: profile?.avatar_url || oauthAvatar,
           interests: profile?.interests || session.user.user_metadata?.interests || ['Política', 'Cidades'],
           createdAt: profile?.created_at || session.user.created_at
@@ -469,7 +469,6 @@ export const authService = {
             emailRedirectTo: confirmRedirectUrl,
             data: {
               full_name: fullName,
-              role,
               interests: defaultInterests,
               ...additionalData
             }
@@ -701,7 +700,7 @@ export const authService = {
             id: data.user.id,
             email: data.user.email || email,
             fullName: profile?.full_name || data.user.user_metadata?.full_name || 'Usuário',
-            role: profile?.role || data.user.user_metadata?.role || 'reader',
+            role: profile?.role || 'reader',
             avatarUrl: profile?.avatar_url || data.user.user_metadata?.avatar_url,
             interests: profile?.interests || data.user.user_metadata?.interests || ['Política', 'Cidades'],
             createdAt: data.user.created_at,
