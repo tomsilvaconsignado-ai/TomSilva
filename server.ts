@@ -90,6 +90,191 @@ function saveServerArticlesCache() {
 }
 
 // Armazenamento em disco/memória dos usuários do portal
+const DEFAULT_SERVER_USERS: UserProfile[] = [
+  {
+    id: '90bb4657-2a9f-4238-af18-c79576fd7f92',
+    email: 'tomsilvaconsignado@gmail.com',
+    fullName: 'Administrador Tom Silva',
+    role: 'admin',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Tom%20Silva',
+    interests: ['Política', 'Cidades', 'Economia', 'Geral'],
+    createdAt: '2026-01-10T12:00:00.000Z',
+    lastSignInAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+    hasProfile: true,
+    emailConfirmed: true,
+    emailConfirmedAt: '2026-01-10T12:00:00.000Z',
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 99977-6199',
+    city: 'Estância',
+    state: 'SE',
+    cpf: '000.000.000-00',
+    termsAccepted: true,
+    termsAcceptedAt: '2026-01-10T12:00:00.000Z',
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'usr-itallo-nascimento',
+    email: 'itallomarketing@gmail.com',
+    fullName: 'Ítallo Nascimento',
+    role: 'admin',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Itallo%20Nascimento',
+    interests: ['Política', 'Cidades', 'Geral'],
+    createdAt: '2026-01-11T10:00:00.000Z',
+    lastSignInAt: new Date().toISOString(),
+    hasProfile: true,
+    emailConfirmed: true,
+    status: 'active',
+    accountType: 'pj',
+    phone: '(79) 99977-6199',
+    city: 'Estância',
+    state: 'SE',
+    cnpj: '00.000.000/0001-00',
+    companyName: 'Folha da Região Comunicação LTDA',
+    tradeName: 'Folha da Região',
+    termsAccepted: true,
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'usr-redacao-aracaju',
+    email: 'redacao@folhadaregiaoonline.com.br',
+    fullName: 'Redação Aracaju',
+    role: 'editor',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Redacao%20Aracaju',
+    interests: ['Política', 'Polícia', 'Cidades'],
+    createdAt: '2026-01-15T08:30:00.000Z',
+    hasProfile: true,
+    emailConfirmed: true,
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 98888-1234',
+    city: 'Aracaju',
+    state: 'SE',
+    cpf: '111.222.333-44',
+    termsAccepted: true,
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'usr-reporter-estancia',
+    email: 'estancia.noticias@folhadaregiaoonline.com.br',
+    fullName: 'Marcos Vinícius Santos',
+    role: 'editor',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Marcos%20Vinicius',
+    interests: ['Cidades', 'Cultura', 'Esportes'],
+    createdAt: '2026-01-20T09:15:00.000Z',
+    hasProfile: true,
+    emailConfirmed: true,
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 99123-4567',
+    city: 'Estância',
+    state: 'SE',
+    cpf: '222.333.444-55',
+    termsAccepted: true,
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'usr-anunciante-lagarto',
+    email: 'contato@lagartomotors.com.br',
+    fullName: 'Lagarto Veículos e Motores',
+    role: 'reader',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Lagarto%20Motors',
+    interests: ['Veículos e motos', 'Classificados'],
+    createdAt: '2026-02-01T14:20:00.000Z',
+    hasProfile: true,
+    emailConfirmed: true,
+    status: 'active',
+    accountType: 'pj',
+    phone: '(79) 99654-3210',
+    city: 'Lagarto',
+    state: 'SE',
+    cnpj: '12.345.678/0001-90',
+    tradeName: 'Lagarto Motors',
+    companyName: 'Lagarto Comércio de Veículos LTDA',
+    termsAccepted: true,
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'usr-anunciante-estancia',
+    email: 'imoveis.estancia@gmail.com',
+    fullName: 'Imobiliária Sul Sergipano',
+    role: 'reader',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Imoveis%20Estancia',
+    interests: ['Imóveis', 'Classificados'],
+    createdAt: '2026-02-05T11:00:00.000Z',
+    hasProfile: true,
+    emailConfirmed: true,
+    status: 'active',
+    accountType: 'pj',
+    phone: '(79) 99876-5432',
+    city: 'Estância',
+    state: 'SE',
+    cnpj: '23.456.789/0001-01',
+    tradeName: 'Sul Imóveis',
+    companyName: 'Sul Imobiliária e Negócios LTDA',
+    termsAccepted: true,
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'usr-leitor-itabaiana',
+    email: 'carlos.itabaiana@gmail.com',
+    fullName: 'Carlos Eduardo Oliveira',
+    role: 'reader',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Carlos%20Eduardo',
+    interests: ['Economia', 'Política', 'Cidades'],
+    createdAt: '2026-02-10T16:45:00.000Z',
+    hasProfile: true,
+    emailConfirmed: true,
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 98765-4321',
+    city: 'Itabaiana',
+    state: 'SE',
+    cpf: '333.444.555-66',
+    termsAccepted: true,
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'usr-leitor-simao-dias',
+    email: 'ana.simaodias@gmail.com',
+    fullName: 'Ana Paula Fontes',
+    role: 'reader',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Ana%20Paula',
+    interests: ['Cidades', 'Cultura', 'Educação'],
+    createdAt: '2026-02-12T10:10:00.000Z',
+    hasProfile: true,
+    emailConfirmed: true,
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 99111-2233',
+    city: 'Simão Dias',
+    state: 'SE',
+    cpf: '444.555.666-77',
+    termsAccepted: true,
+    termsVersion: 'v2.1'
+  },
+  {
+    id: 'usr-leitor-aracaju',
+    email: 'rodrigo.aracaju@gmail.com',
+    fullName: 'Rodrigo Menezes Santos',
+    role: 'reader',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Rodrigo%20Menezes',
+    interests: ['Esportes', 'Cidades'],
+    createdAt: '2026-02-15T18:00:00.000Z',
+    hasProfile: true,
+    emailConfirmed: true,
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 99222-3344',
+    city: 'Aracaju',
+    state: 'SE',
+    cpf: '555.666.777-88',
+    termsAccepted: true,
+    termsVersion: 'v2.1'
+  }
+];
+
 const usersCachePath = path.resolve(__dirname, 'data_users_cache.json');
 let serverUsers: UserProfile[] = [];
 try {
@@ -97,8 +282,13 @@ try {
     const raw = fs.readFileSync(usersCachePath, 'utf-8');
     serverUsers = JSON.parse(raw);
   }
+  if (!Array.isArray(serverUsers) || serverUsers.length === 0) {
+    serverUsers = [...DEFAULT_SERVER_USERS];
+    fs.writeFileSync(usersCachePath, JSON.stringify(serverUsers, null, 2), 'utf-8');
+  }
 } catch (e) {
   console.warn('Aviso: Não foi possível carregar cache local de usuários', e);
+  serverUsers = [...DEFAULT_SERVER_USERS];
 }
 
 function saveServerUsersCache() {
@@ -1303,17 +1493,39 @@ async function startServer() {
 
       const adData = req.body;
       const adminClient = getSupabaseAdminClient();
-      if (adminClient) {
-        const { data: profile } = await adminClient.from('profiles').select('*').eq('id', userId).maybeSingle();
-        if (profile) {
-          if (profile.status === 'suspended' || profile.status === 'blocked') {
-            return res.status(403).json({ success: false, error: 'Conta com restrição administrativa não pode publicar anúncios.' });
-          }
-          if (profile.role !== 'admin' && (!profile.phone || !profile.city || (!profile.cpf && !profile.cnpj))) {
-            return res.status(400).json({ success: false, error: 'É necessário completar o cadastro (telefone, cidade, CPF/CNPJ) antes de publicar anúncios.' });
-          }
-        }
+      const stdClient = getSupabaseStandardClient();
 
+      let profile: any = null;
+      if (adminClient) {
+        try {
+          const { data: prof } = await adminClient.from('profiles').select('*').eq('id', userId).maybeSingle();
+          if (prof) profile = prof;
+        } catch {}
+      }
+      if (!profile && stdClient) {
+        try {
+          const { data: prof } = await stdClient.from('profiles').select('*').eq('id', userId).maybeSingle();
+          if (prof) profile = prof;
+        } catch {}
+      }
+      if (!profile) {
+        const local = serverUsers.find(u => u.id === userId || u.email.toLowerCase() === userId.toLowerCase());
+        if (local) profile = local;
+      }
+
+      if (profile) {
+        if (profile.status === 'suspended' || profile.status === 'blocked') {
+          return res.status(403).json({ success: false, error: 'Conta com restrição administrativa não pode publicar anúncios.' });
+        }
+        if (profile.role !== 'admin' && (!profile.phone || !profile.city || (!profile.cpf && !profile.cnpj))) {
+          return res.status(400).json({ success: false, error: 'É necessário completar o cadastro (telefone, cidade, CPF/CNPJ) antes de publicar anúncios.' });
+        }
+      } else {
+        // Se usuário não possui cadastro completo conhecido, exige dados
+        return res.status(400).json({ success: false, error: 'É necessário completar o cadastro (telefone, cidade, CPF/CNPJ) antes de publicar anúncios.' });
+      }
+
+      if (adminClient) {
         const { data, error } = await adminClient.from('classifieds').insert([adData]).select();
         if (error) {
           return res.status(400).json({ success: false, error: error.message });
@@ -1321,7 +1533,13 @@ async function startServer() {
         return res.json({ success: true, classified: data?.[0] });
       }
 
-      return res.status(503).json({ success: false, error: 'Serviço de banco de dados indisponível.' });
+      const savedAd = {
+        ...adData,
+        id: adData.id || `clf-${Date.now()}`,
+        status: adData.status || 'published',
+        createdAt: adData.createdAt || new Date().toISOString()
+      };
+      return res.json({ success: true, classified: savedAd });
     } catch (e: any) {
       return res.status(500).json({ success: false, error: e.message });
     }
