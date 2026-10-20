@@ -912,11 +912,40 @@ export const authService = {
 
     // 2. Token gerado pelo backend ou link com e-mail informado / confirmação Supabase
     if (emailParam || tokenString.startsWith('conf_') || tokenString === 'supabase_verified') {
-      const targetEmail = (emailParam || '').trim().toLowerCase();
+      let targetEmail = (emailParam || '').trim().toLowerCase();
+      if (!targetEmail && typeof window !== 'undefined') {
+        const searchParams = new URLSearchParams(window.location.search);
+        const hash = window.location.hash || '';
+        targetEmail = (searchParams.get('email') || '').toLowerCase();
+        if (!targetEmail && hash.includes('email=')) {
+          const hashParams = new URLSearchParams(hash.replace('#confirm-email', '').replace(/^[?&]/, ''));
+          targetEmail = (hashParams.get('email') || '').toLowerCase();
+        }
+      }
+      if (!targetEmail) {
+        const cur = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+        if (cur?.email) targetEmail = cur.email.toLowerCase();
+      }
+
       let userIndex = targetEmail ? users.findIndex(u => u.email.toLowerCase() === targetEmail) : -1;
       if (userIndex === -1 && tokenString === 'supabase_verified') {
         const cur = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
         if (cur) userIndex = users.findIndex(u => u.id === cur.id || u.email.toLowerCase() === cur.email.toLowerCase());
+      }
+      if (userIndex === -1 && targetEmail) {
+        const newUser: any = {
+          id: `usr-${Date.now()}`,
+          email: targetEmail,
+          fullName: targetEmail.split('@')[0],
+          role: 'reader',
+          status: 'active',
+          emailConfirmed: true,
+          emailConfirmedAt: nowIso,
+          createdAt: nowIso,
+          hasProfile: true
+        };
+        users.push(newUser);
+        userIndex = users.length - 1;
       }
 
       if (userIndex !== -1) {

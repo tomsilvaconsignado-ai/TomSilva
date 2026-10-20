@@ -1403,11 +1403,24 @@ async function startServer() {
       }
 
       if (!actionLink) {
-        const localUser = serverUsers.find(u => u.email.toLowerCase() === trimmedEmail);
-        if (localUser) {
-          userFound = true;
-          actionLink = `${origin}/#confirm-email?token=conf_${Date.now()}&email=${encodeURIComponent(trimmedEmail)}`;
+        let localUser = serverUsers.find(u => u.email.toLowerCase() === trimmedEmail);
+        if (!localUser) {
+          localUser = {
+            id: `usr-${Date.now()}`,
+            email: trimmedEmail,
+            fullName: trimmedEmail.split('@')[0],
+            role: 'reader',
+            status: 'active',
+            emailConfirmed: false,
+            createdAt: new Date().toISOString(),
+            hasProfile: true
+          };
+          serverUsers.push(localUser);
+          saveServerUsersCache();
         }
+        userFound = true;
+        const token = `conf_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        actionLink = `${origin}/#confirm-email?token=${token}&email=${encodeURIComponent(trimmedEmail)}`;
       }
 
       if (!userFound || !actionLink) {
