@@ -146,15 +146,21 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
   };
 
   useEffect(() => {
+    if (!isOpen) return;
     classifiedsService.getCategories(section).then((cats) => {
       setCategories(cats);
       if (!initialData && cats.length > 0) {
         setCategory(cats[0].name);
       }
     });
-  }, [section]);
+  }, [section, isOpen, initialData]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const isJob = section === 'vagas_emprego' || section === 'procuro_emprego';
 
@@ -308,13 +314,6 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
       setResendingEmail(false);
     }
   };
-
-  useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
 
   if (!isOpen) return null;
 
