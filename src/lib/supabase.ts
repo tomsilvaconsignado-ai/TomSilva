@@ -633,31 +633,6 @@ export const authService = {
     return { user: safeProfile, error: null };
   },
 
-  async signInWithGoogle(): Promise<{ error: string | null }> {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const redirectUrl = getAuthRedirectUrl('');
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: redirectUrl,
-            queryParams: {
-              access_type: 'offline',
-              prompt: 'select_account',
-            },
-          },
-        });
-        if (error) {
-          return { error: error.message };
-        }
-        return { error: null };
-      } catch (err: any) {
-        return { error: err.message || 'Erro ao iniciar autenticação com o Google.' };
-      }
-    }
-    return { error: 'Supabase não configurado nesta página.' };
-  },
-
   async signIn(email: string, password: string): Promise<AuthResponse> {
     if (isSupabaseConfigured() && supabase) {
       try {
