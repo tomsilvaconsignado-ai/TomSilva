@@ -1,4 +1,5 @@
 import { OutboxEmail, UserProfile } from '../types/database';
+import { getApiAuthHeaders } from './supabase';
 
 const OUTBOX_STORAGE_KEY = 'folha_outbox_emails_v1';
 const RATE_LIMIT_STORAGE_KEY = 'folha_email_rate_limits_v1';
@@ -57,7 +58,7 @@ async function dispatchEmailToBackend(email: OutboxEmail): Promise<{ delivered: 
 
     const res = await fetch('/api/send-email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(await getApiAuthHeaders()) },
       body: JSON.stringify({
         to: email.to,
         subject: email.subject,
@@ -389,7 +390,7 @@ export const emailService = {
     try {
       const res = await fetch('/api/test-smtp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getApiAuthHeaders()) },
         body: JSON.stringify({ testRecipient, smtpConfig })
       });
       const data = await res.json();

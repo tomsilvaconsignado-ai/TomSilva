@@ -8,7 +8,7 @@ import {
   Clock, Database, HelpCircle
 } from 'lucide-react';
 import { UserProfile, UserRole, UserStatus, UserAuditLog, ClassifiedReport } from '../../types/database';
-import { usersService, authService } from '../../lib/supabase';
+import { usersService, authService, getApiAuthHeaders } from '../../lib/supabase';
 import { emailService } from '../../lib/emailService';
 
 interface AdminManageUsersProps {
@@ -153,8 +153,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': currentUser.role,
-          'x-admin-email': currentUser.email
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify({
           serviceRoleKey: serviceKeyModal.keyInput.trim()

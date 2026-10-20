@@ -130,6 +130,14 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured()
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
+// Cabeçalho Authorization com o JWT da sessão atual (o servidor valida o token e o papel no banco)
+export const getApiAuthHeaders = async (): Promise<Record<string, string>> => {
+  if (!supabase) return {};
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // ==========================================
 // CAMADA DE PERSISTÊNCIA LOCAL (LOCAL STORAGE)
 // Garante funcionamento completo mesmo antes de conectar as chaves
@@ -438,7 +446,7 @@ export const authService = {
           id: session.user.id,
           email: session.user.email || '',
           fullName: profile?.full_name || oauthName,
-          role: (profile?.role || session.user.user_metadata?.role as any) || 'reader',
+          role: profile?.role || 'reader',
           avatarUrl: profile?.avatar_url || oauthAvatar,
           interests: profile?.interests || session.user.user_metadata?.interests || ['Política', 'Cidades'],
           createdAt: profile?.created_at || session.user.created_at
@@ -469,7 +477,6 @@ export const authService = {
             emailRedirectTo: confirmRedirectUrl,
             data: {
               full_name: fullName,
-              role,
               interests: defaultInterests,
               ...additionalData
             }
@@ -701,7 +708,7 @@ export const authService = {
             id: data.user.id,
             email: data.user.email || email,
             fullName: profile?.full_name || data.user.user_metadata?.full_name || 'Usuário',
-            role: profile?.role || data.user.user_metadata?.role || 'reader',
+            role: profile?.role || 'reader',
             avatarUrl: profile?.avatar_url || data.user.user_metadata?.avatar_url,
             interests: profile?.interests || data.user.user_metadata?.interests || ['Política', 'Cidades'],
             createdAt: data.user.created_at,
@@ -1012,6 +1019,7 @@ export const authService = {
     const found = users.find(u => u.email.toLowerCase() === trimmedEmail);
 
     const confirmRedirectUrl = getAuthRedirectUrl('#confirm-email');
+    let supabaseResent = false;
 
     // Se o Supabase estiver configurado, despacha prioritariamente pelo Supabase Auth direto (funciona 100% no GitHub Pages)
     if (isSupabaseConfigured() && supabase) {
@@ -1025,13 +1033,16 @@ export const authService = {
         });
         if (resendErr) {
           console.warn('Aviso: supabase.auth.resend:', resendErr.message);
+        } else {
+          supabaseResent = true;
         }
       } catch (sbErr) {
         console.warn('Falha ao acionar supabase.auth.resend:', sbErr);
       }
     }
 
-    if (found && !found.emailConfirmed) {
+    // O link local não confirma contas do Supabase: só envia se o Supabase não despachou o e-mail oficial
+    if (!supabaseResent && found && !found.emailConfirmed) {
       try {
         const securityToken = authSecurityService.createToken(found.id, found.email, 'email_confirmation');
         await emailService.sendResendConfirmation(found, securityToken.token);
@@ -1094,27 +1105,30 @@ export const authService = {
       };
     }
 
-    // 2. Se houver backend local/Node com SMTP do Gmail rodando, dispara também via servidor
-    try {
-      const resp = await fetch('/api/auth/request-password-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: trimmedEmail, 
-          origin: getProductionSiteUrl()
-        })
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data && data.message) {
-          return {
-            success: true,
-            message: data.message
-          };
+    // 2. Só recorre ao backend Node (SMTP próprio) se o Supabase não despachou o e-mail.
+    // Gerar um segundo link de recuperação no servidor invalida o link que o Supabase acabou de enviar.
+    if (!supabaseSent) {
+      try {
+        const resp = await fetch('/api/auth/request-password-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: trimmedEmail,
+            origin: getProductionSiteUrl()
+          })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && data.message) {
+            return {
+              success: true,
+              message: data.message
+            };
+          }
         }
+      } catch {
+        // Backend inacessível (ex: página estática no GitHub Pages).
       }
-    } catch {
-      // Backend inacessível (ex: página estática no GitHub Pages). O envio direto do Supabase acima atende a requisição.
     }
 
     if (supabaseSent) {
@@ -1706,8 +1720,7 @@ export const usersService = {
     try {
       const response = await fetch('/api/admin/users', {
         headers: {
-          'x-admin-role': adminUser?.role || 'admin',
-          'x-admin-email': adminUser?.email || 'tomsilvaconsignado@gmail.com'
+          ...(await getApiAuthHeaders())
         }
       });
       if (response.ok) {
@@ -1841,8 +1854,7 @@ export const usersService = {
       const url = userId ? `/api/admin/audit-logs?userId=${encodeURIComponent(userId)}` : '/api/admin/audit-logs';
       const resp = await fetch(url, {
         headers: {
-          'x-admin-role': 'admin',
-          'x-admin-email': 'tomsilvaconsignado@gmail.com'
+          ...(await getApiAuthHeaders())
         }
       });
       if (resp.ok) {
@@ -1877,8 +1889,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': 'admin',
-          'x-admin-email': 'tomsilvaconsignado@gmail.com'
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify(newLog)
       }).catch(() => {});
@@ -1927,8 +1938,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': adminUser.role,
-          'x-admin-email': adminUser.email
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify({
           userId: targetUserId,
@@ -2017,8 +2027,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': adminUser.role,
-          'x-admin-email': adminUser.email
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify({
           userId: targetUserId,
@@ -2073,8 +2082,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': adminUser.role,
-          'x-admin-email': adminUser.email
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify({
           userId: target.id,
@@ -2120,8 +2128,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': adminUser.role,
-          'x-admin-email': adminUser.email
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify({
           userId: targetUserId,
