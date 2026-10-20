@@ -221,16 +221,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (res.error) {
           setError(res.error);
         } else if (res.user) {
-          if (res.user.role === 'admin' || res.user.emailConfirmed) {
-            setSuccessMessage(`Cadastro concluído com sucesso! Bem-vindo, ${res.user.fullName}.`);
-            setTimeout(() => {
-              onSuccess(res.user!);
-              onClose();
-            }, 800);
-          } else {
-            // Conta criada em estado pendente de confirmação
-            setRegisteredUnconfirmedUser(res.user);
-          }
+          setSuccessMessage(`Cadastro concluído com sucesso! Bem-vindo(a), ${res.user.fullName}.`);
+          setTimeout(() => {
+            onSuccess(res.user!);
+            onClose();
+          }, 600);
         }
       } else if (mode === 'forgot') {
         if (!email.trim() || !email.includes('@')) {

@@ -1547,7 +1547,7 @@ async function startServer() {
     try {
       const userId = (req.headers['x-user-id'] as string || '').trim();
       if (!userId) {
-        return res.status(401).json({ success: false, error: 'Usuário não autenticado.' });
+        return res.status(401).json({ success: false, error: 'Usuário não autenticado. Faça login para publicar anúncios.' });
       }
 
       const adData = req.body;
@@ -1572,16 +1572,13 @@ async function startServer() {
         if (local) profile = local;
       }
 
-      if (profile) {
-        if (profile.status === 'suspended' || profile.status === 'blocked') {
-          return res.status(403).json({ success: false, error: 'Conta com restrição administrativa não pode publicar anúncios.' });
-        }
-        if (profile.role !== 'admin' && (!profile.phone || !profile.city || (!profile.cpf && !profile.cnpj))) {
-          return res.status(400).json({ success: false, error: 'É necessário completar o cadastro (telefone, cidade, CPF/CNPJ) antes de publicar anúncios.' });
-        }
-      } else {
-        // Se usuário não possui cadastro completo conhecido, exige dados
-        return res.status(400).json({ success: false, error: 'É necessário completar o cadastro (telefone, cidade, CPF/CNPJ) antes de publicar anúncios.' });
+      if (!profile) {
+        return res.status(401).json({ success: false, error: 'É necessário ter uma conta cadastrada no portal para publicar anúncios.' });
+      }
+
+      // Bloqueio apenas para conta inativa ou com restrição administrativa
+      if (profile.status === 'suspended' || profile.status === 'blocked' || profile.status === 'inactive') {
+        return res.status(403).json({ success: false, error: 'Conta inativa ou com restrição administrativa não pode publicar anúncios.' });
       }
 
       if (adminClient) {

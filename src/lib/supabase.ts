@@ -2732,22 +2732,22 @@ export const classifiedsService = {
 
   // Cadastro e Edição com Validações de Segurança
   async saveClassified(itemData: Partial<ClassifiedItem>, user: UserProfile): Promise<ClassifiedItem> {
-    if (!user) throw new Error('Usuário não autenticado.');
+    if (!user) throw new Error('Usuário não autenticado. Faça login para publicar anúncios.');
 
-    // Bloqueio de segurança obrigatório: conta suspensa ou bloqueada
-    if (user.status === 'suspended' || user.status === 'blocked') {
-      throw new Error('Sua conta está com restrição administrativa e não pode publicar ou editar anúncios. Entre em contato com a moderação para revisão.');
+    // Bloqueio de segurança: contas inativas, suspensas ou bloqueadas não podem publicar
+    if (user.status === 'suspended' || user.status === 'blocked' || user.status === 'inactive') {
+      throw new Error('Sua conta está inativa ou com restrição administrativa e não pode publicar ou editar anúncios. Entre em contato com a moderação para revisão.');
     }
 
-    // Bloqueio de segurança: e-mail pendente de confirmação
-    if (user.role !== 'admin' && !user.emailConfirmed) {
-      throw new Error('Para publicar classificados, confirme primeiro seu endereço de e-mail. Enviamos uma mensagem com o link de confirmação para o endereço cadastrado.');
+    // Validações básicas de preenchimento do anúncio
+    if (!itemData.title?.trim()) {
+      throw new Error('Informe o título do anúncio.');
     }
-
-    // Bloqueio de segurança: campos obrigatórios de perfil completos
-    const profileCheck = checkProfileCompletion(user);
-    if (!profileCheck.isComplete && user.role !== 'admin') {
-      throw new Error(`Complete seus dados cadastrais antes de publicar: ${profileCheck.missingFields.join(', ')}.`);
+    if (!itemData.phone?.trim()) {
+      throw new Error('Informe um telefone de contato para o anúncio.');
+    }
+    if (!itemData.city?.trim()) {
+      throw new Error('Informe a cidade do anúncio.');
     }
 
     // Limitar rigorosamente upload a 3 imagens

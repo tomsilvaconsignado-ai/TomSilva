@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, Upload, Trash2, Camera, AlertCircle, CheckCircle2, Briefcase, Plus, 
-  Image as ImageIcon, Mail, ShieldAlert, ShieldCheck, RotateCw, ArrowLeft, Send, UserCheck
+  Image as ImageIcon, ShieldAlert, ShieldCheck, RotateCw, ArrowLeft, UserCheck
 } from 'lucide-react';
 import { ClassifiedItem, ClassifiedSection, ClassifiedType, PriceType, UserProfile, ClassifiedCategory } from '../../types/database';
 import { classifiedsService, authService, checkProfileCompletion } from '../../lib/supabase';
@@ -34,12 +34,6 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
   const [state, setState] = useState(initialData?.state || 'SE');
   const [advertiserName, setAdvertiserName] = useState(initialData?.advertiserName || currentUser.fullName);
   
-  // Estado de reenvio de confirmação
-  const [resendingEmail, setResendingEmail] = useState(false);
-  const [resendStatusMessage, setResendStatusMessage] = useState<string | null>(null);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [manualToken, setManualToken] = useState('');
-  const [validatingToken, setValidatingToken] = useState(false);
   const [phone, setPhone] = useState(initialData?.phone || '');
   
   // Imagens: Limite estrito de no máximo 3 fotografias
@@ -298,70 +292,12 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
     }
   };
 
-  const handleResendConfirmation = async () => {
-    if (resendCooldown > 0 || resendingEmail) return;
-    setResendingEmail(true);
-    setResendStatusMessage(null);
-    try {
-      const res = await authService.resendConfirmationEmail(currentUser.email);
-      setResendStatusMessage(res.message);
-      if (res.success) {
-        setResendCooldown(60);
-      } else if (res.remainingSeconds) {
-        setResendCooldown(res.remainingSeconds);
-      }
-    } catch (e: any) {
-      setResendStatusMessage(e.message || 'Erro ao reenviar e-mail de confirmação.');
-    } finally {
-      setResendingEmail(false);
-    }
-  };
+  if (!isOpen || !currentUser) return null;
 
-  const handleValidateManualToken = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const tokenToValidate = manualToken.trim();
-    if (!tokenToValidate) return;
-    setValidatingToken(true);
-    setResendStatusMessage(null);
-    try {
-      const res = await authService.confirmEmail(tokenToValidate, currentUser.email);
-      if (res.success) {
-        setResendStatusMessage('✅ E-mail confirmado com sucesso! Liberando formulário...');
-        currentUser.emailConfirmed = true;
-        window.dispatchEvent(new Event('folha_auth_changed'));
-      } else {
-        setResendStatusMessage(`❌ ${res.message || 'Código de confirmação inválido ou expirado.'}`);
-      }
-    } catch (err: any) {
-      setResendStatusMessage(`❌ ${err.message || 'Erro ao validar código.'}`);
-    } finally {
-      setValidatingToken(false);
-    }
-  };
-
-  const handleQuickConfirm = async () => {
-    setValidatingToken(true);
-    setResendStatusMessage(null);
-    try {
-      const token = `conf_${Date.now()}_instant`;
-      const res = await authService.confirmEmail(token, currentUser.email);
-      if (res.success) {
-        setResendStatusMessage('✅ E-mail confirmado e conta ativada com sucesso!');
-        currentUser.emailConfirmed = true;
-        window.dispatchEvent(new Event('folha_auth_changed'));
-      }
-    } catch (err: any) {
-      setResendStatusMessage('Erro ao validar.');
-    } finally {
-      setValidatingToken(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  // BLOQUEIO DE SEGURANÇA: Conta suspensa ou bloqueada não pode publicar
-  if (currentUser.status === 'suspended' || currentUser.status === 'blocked') {
+  // BLOQUEIO DE SEGURANÇA: Visitantes sem conta ativa (inativa, suspensa ou bloqueada) não podem publicar
+  if (currentUser.status === 'suspended' || currentUser.status === 'blocked' || currentUser.status === 'inactive') {
     const isSuspended = currentUser.status === 'suspended';
+    const isInactive = currentUser.status === 'inactive';
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
         <div className="bg-white rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-gray-100 relative text-center animate-in zoom-in-95 duration-200">
@@ -377,7 +313,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
           </div>
 
           <span className="px-3 py-1 rounded-full bg-red-100 text-red-900 text-[10px] font-black uppercase tracking-wider inline-block mb-3">
-            {isSuspended ? 'Conta Temporariamente Suspensa' : 'Conta Bloqueada por Moderação'}
+            {isSuspended ? 'Conta Temporariamente Suspensa' : isInactive ? 'Conta Inativa' : 'Conta Bloqueada por Moderação'}
           </span>
 
           <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-2">
@@ -385,7 +321,9 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
           </h3>
 
           <p className="text-sm text-gray-600 leading-relaxed max-w-md mx-auto mb-4">
-            Sua conta está com restrição administrativa e não pode publicar ou gerenciar classificados no momento.
+            {isInactive
+              ? 'Sua conta está inativa no sistema. Entre em contato com a equipe para reativar seu acesso.'
+              : 'Sua conta está com restrição administrativa e não pode publicar ou gerenciar classificados no momento.'}
           </p>
 
           {currentUser.moderationReason && (
@@ -410,123 +348,6 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
             <ArrowLeft className="w-4 h-4" />
             Voltar para meus classificados
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  // BLOQUEIO DE SEGURANÇA OBRIGATÓRIO: Usuário sem confirmação de e-mail não pode publicar
-  if (currentUser.role !== 'admin' && !currentUser.emailConfirmed) {
-    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-        <div className="bg-white rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-gray-100 relative text-center animate-in zoom-in-95 duration-200">
-          <button
-            onClick={onClose}
-            className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-amber-200 shadow-xs">
-            <Mail className="w-8 h-8" />
-          </div>
-
-          <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black uppercase tracking-wider inline-block mb-3">
-            Confirmação de E-mail Obrigatória
-          </span>
-
-          <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-2">
-            Validação de E-mail Pendente
-          </h3>
-
-          <p className="text-sm text-gray-600 leading-relaxed max-w-md mx-auto mb-4">
-            Para publicar classificados, confirme primeiro seu endereço de e-mail. Enviamos uma mensagem com o link de confirmação para o endereço cadastrado.
-          </p>
-
-          <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl mb-4 text-xs text-gray-600">
-            Endereço cadastrado: <strong className="text-gray-900">{currentUser.email}</strong>
-          </div>
-
-          {resendStatusMessage && (
-            <div className="p-3.5 mb-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2.5 text-left animate-in fade-in">
-              <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{resendStatusMessage}</span>
-            </div>
-          )}
-
-          {/* Opção 1: Validação direta por código/token de ativação */}
-          <form onSubmit={handleValidateManualToken} className="mb-4 p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-left space-y-2">
-            <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider">
-              Já recebeu o código de ativação por e-mail?
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={manualToken}
-                onChange={(e) => setManualToken(e.target.value)}
-                placeholder="Cole o código ou token aqui"
-                className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-mono font-medium outline-none focus:ring-2 focus:ring-[#0056a4]"
-              />
-              <button
-                type="submit"
-                disabled={validatingToken || !manualToken.trim()}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs"
-              >
-                {validatingToken ? (
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                )}
-                Confirmar
-              </button>
-            </div>
-            <p className="text-[10px] text-gray-500">
-              Copie o código enviado para seu e-mail ou clique no link seguro recebido.
-            </p>
-          </form>
-
-          {/* Se for o administrador do portal ou endereço do responsável, permite validação rápida */}
-          {(currentUser.email.toLowerCase() === 'tomsilvaconsignado@gmail.com' || currentUser.email.toLowerCase() === 'tomsilva26@gmail.com' || currentUser.email.toLowerCase().includes('admin')) && (
-            <div className="mb-4">
-              <button
-                type="button"
-                onClick={handleQuickConfirm}
-                disabled={validatingToken}
-                className="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <ShieldCheck className="w-4 h-4 text-amber-600" />
-                Validar e Ativar Minha Conta Imediatamente (Administrador)
-              </button>
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={handleResendConfirmation}
-              disabled={resendingEmail || resendCooldown > 0}
-              className="flex-1 py-3 px-4 bg-[#0056a4] hover:bg-[#004482] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
-            >
-              {resendingEmail ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-              {resendCooldown > 0 ? `Aguarde (${resendCooldown}s)` : 'Reenviar e-mail de confirmação'}
-            </button>
-
-            <button
-              onClick={() => {
-                onClose();
-                if (onOpenMyClassifieds) {
-                  onOpenMyClassifieds();
-                }
-              }}
-              className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Voltar para meus classificados
-            </button>
-          </div>
         </div>
       </div>
     );
