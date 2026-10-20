@@ -1,5 +1,6 @@
 import { OutboxEmail, UserProfile } from '../types/database';
 import { getApiAuthHeaders } from './supabase';
+import { escapeHtml } from './seo';
 
 const OUTBOX_STORAGE_KEY = 'folha_outbox_emails_v1';
 const RATE_LIMIT_STORAGE_KEY = 'folha_email_rate_limits_v1';
@@ -130,25 +131,40 @@ const generateBaseHtml = (title: string, contentHtml: string, actionUrl?: string
 };
 
 export const getPublicPortalBaseUrl = (): string => {
-  if (typeof window === 'undefined') {
-    return 'https://folhadaregiaonline.com.br';
-  }
-  const hostname = window.location.hostname.toLowerCase();
-  const isDevPreview = hostname.includes('.run.app') || hostname.includes('localhost') || hostname === '127.0.0.1';
+  if (typeof window !== 'undefined') {
+    // 1. Limpeza proativa de URLs antigas sem DNS armazenadas no navegador
+    try {
+      const saved = localStorage.getItem('folha_production_url');
+      if (saved && (saved.includes('folhadaregiaonline.com.br') || saved.includes('folhadaregiaoonline.com.br'))) {
+        localStorage.removeItem('folha_production_url');
+      }
+    } catch {}
 
-  if (!isDevPreview) {
-    const origin = window.location.origin.replace(/\/+$/, '');
-    const pathname = window.location.pathname.replace(/\/+$/, '');
-    const base = pathname ? `${origin}${pathname}` : origin;
-    try { localStorage.setItem('folha_production_url', base); } catch {}
-    return base;
+    const origin = (window.location.origin || '').replace(/\/+$/, '');
+    const pathname = (window.location.pathname || '').replace(/\/+$/, '');
+    const currentUrl = pathname ? `${origin}${pathname}` : origin;
+
+    // 2. Se estiver navegando em uma URL funcional ativa (ex: *.run.app, localhost, github.io)
+    if (origin.startsWith('http') && !origin.includes('folhadaregiaonline.com.br') && !origin.includes('folhadaregiaoonline.com.br')) {
+      return currentUrl;
+    }
+
+    // 3. Fallback para URL de produção segura salva no localStorage
+    try {
+      const validSaved = localStorage.getItem('folha_production_url');
+      if (validSaved && validSaved.startsWith('http') && !validSaved.includes('folhadaregiaonline.com.br') && !validSaved.includes('folhadaregiaoonline.com.br')) {
+        return validSaved.replace(/\/+$/, '');
+      }
+    } catch {}
   }
 
-  const saved = localStorage.getItem('folha_production_url');
-  if (saved && saved.startsWith('http')) {
-    return saved.replace(/\/+$/, '');
+  // 4. Fallback seguro garantido em produção funcional (GitHub Pages ou env APP_URL)
+  const envUrl = (typeof process !== 'undefined' && (process.env.APP_URL || process.env.VITE_SITE_URL || process.env.SITE_URL)) || '';
+  if (envUrl && envUrl.startsWith('http') && !envUrl.includes('folhadaregiaonline.com.br') && !envUrl.includes('folhadaregiaoonline.com.br')) {
+    return envUrl.replace(/\/+$/, '');
   }
-  return 'https://folhadaregiaonline.com.br';
+
+  return 'https://tomsilvaconsignado-ai.github.io/TomSilva';
 };
 
 export const emailService = {
@@ -167,9 +183,13 @@ export const emailService = {
     const actionUrl = `${base}/?action=confirm-email&token=${encodeURIComponent(token)}`;
 
     const contentHtml = `
-      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${user.fullName}!</h2>
+      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${escapeHtml(user.fullName)}!</h2>
       <p>Agradecemos por se cadastrar na <strong>Folha da Região</strong>.</p>
       <p>Para concluir a ativação da sua conta, garantir a autenticidade e liberar a publicação de classificados e comentários, confirme seu endereço de e-mail clicando no botão abaixo:</p>
+      <div style="background-color: #f1f5f9; border: 1px dashed #cbd5e1; padding: 14px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <span style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">Código de ativação direta:</span>
+        <strong style="font-size: 16px; letter-spacing: 1px; color: #0f172a; font-family: monospace;">${escapeHtml(token)}</strong>
+      </div>
     `;
 
     const bodyHtml = generateBaseHtml(
@@ -211,9 +231,13 @@ export const emailService = {
     const actionUrl = `${base}/?action=confirm-email&token=${encodeURIComponent(token)}`;
 
     const contentHtml = `
-      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${user.fullName}!</h2>
+      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${escapeHtml(user.fullName)}!</h2>
       <p>Você solicitou o reenvio do link de confirmação de e-mail para a sua conta no portal <strong>Folha da Região</strong>.</p>
       <p>Clique no botão abaixo para validar seu e-mail e ativar todas as funções da sua conta:</p>
+      <div style="background-color: #f1f5f9; border: 1px dashed #cbd5e1; padding: 14px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <span style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">Código de ativação direta:</span>
+        <strong style="font-size: 16px; letter-spacing: 1px; color: #0f172a; font-family: monospace;">${escapeHtml(token)}</strong>
+      </div>
     `;
 
     const bodyHtml = generateBaseHtml(

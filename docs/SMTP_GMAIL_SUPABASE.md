@@ -46,22 +46,27 @@ Abra: <https://supabase.com/dashboard/project/qqjqbdpemydxdzlufgfo/auth/rate-lim
 
 Abra: <https://supabase.com/dashboard/project/qqjqbdpemydxdzlufgfo/auth/url-configuration>
 
-**Site URL**: `https://folhadaregiaonline.com.br`
+⚠️ **ATENÇÃO CRÍTICA**: NÃO configure `https://folhadaregiaonline.com.br` no campo **Site URL** enquanto o seu domínio próprio não tiver DNS/apontamento configurado e funcionando! Usar esse domínio sem DNS faz com que qualquer link de confirmação do e-mail caia na tela de erro: `DNS_PROBE_FINISHED_NXDOMAIN`.
 
-Esse é o endereço usado quando um link não informa destino, e aparece como `{{ .SiteURL }}` no rodapé dos e-mails.
+**Site URL Recomendada**:
+```
+https://tomsilvaconsignado-ai.github.io/TomSilva
+```
+*(ou a URL do seu ambiente de desenvolvimento/preview no Google Cloud Run se estiver testando por lá)*
 
-**Redirect URLs**: adicione todas as linhas abaixo.
+**Redirect URLs**: adicione todas as linhas abaixo (uma por linha):
 
 ```
+https://tomsilvaconsignado-ai.github.io/TomSilva/**
+https://*.run.app/**
+http://localhost:3000/**
 https://folhadaregiaonline.com.br/**
 https://www.folhadaregiaonline.com.br/**
-https://tomsilvaconsignado-ai.github.io/TomSilva/**
-http://localhost:3000/**
 ```
 
-Por que usar `/**`: o app monta o link de retorno a partir da página em que o usuário está (`getAuthRedirectUrl` em `src/lib/supabase.ts`). Pode ser a home ou a página de uma notícia, sempre com `?action=reset-password` ou `#confirm-email`. O `**` aceita qualquer caminho. Se o endereço de retorno não estiver nessa lista, o Supabase manda o usuário para a Site URL, e o modal de nova senha pode não abrir.
+Por que usar `/**`: o app monta o link de retorno a partir da página em que o usuário está (`getAuthRedirectUrl` em `src/lib/supabase.ts`). Pode ser a home ou a página de uma notícia, sempre com `?action=reset-password` ou `#confirm-email`. O `**` aceita qualquer caminho. Se o endereço de retorno não estiver nessa lista, o Supabase manda o usuário para a Site URL.
 
-> Confira qual endereço está no ar de fato. O deploy atual é feito pelo GitHub Pages (`.github/workflows/deploy.yml`) e o repositório não tem arquivo `CNAME`. Se o domínio próprio ainda não aponta para o GitHub Pages, o site real é o `github.io`, e é ele que deve ficar como Site URL até o domínio ser ligado.
+> **Importante**: O deploy público ativo do portal é feito pelo GitHub Pages (`https://tomsilvaconsignado-ai.github.io/TomSilva`). Só altere a Site URL para `https://folhadaregiaonline.com.br` quando você tiver contratado e configurado o DNS do domínio no Registro.br / Cloudflare.
 
 ## 5. Templates de e-mail em português
 

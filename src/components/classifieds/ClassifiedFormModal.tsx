@@ -38,6 +38,8 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendStatusMessage, setResendStatusMessage] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [manualToken, setManualToken] = useState('');
+  const [validatingToken, setValidatingToken] = useState(false);
   const [phone, setPhone] = useState(initialData?.phone || '');
   
   // Imagens: Limite estrito de no máximo 3 fotografias
@@ -315,6 +317,46 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
     }
   };
 
+  const handleValidateManualToken = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const tokenToValidate = manualToken.trim();
+    if (!tokenToValidate) return;
+    setValidatingToken(true);
+    setResendStatusMessage(null);
+    try {
+      const res = await authService.confirmEmail(tokenToValidate, currentUser.email);
+      if (res.success) {
+        setResendStatusMessage('✅ E-mail confirmado com sucesso! Liberando formulário...');
+        currentUser.emailConfirmed = true;
+        window.dispatchEvent(new Event('folha_auth_changed'));
+      } else {
+        setResendStatusMessage(`❌ ${res.message || 'Código de confirmação inválido ou expirado.'}`);
+      }
+    } catch (err: any) {
+      setResendStatusMessage(`❌ ${err.message || 'Erro ao validar código.'}`);
+    } finally {
+      setValidatingToken(false);
+    }
+  };
+
+  const handleQuickConfirm = async () => {
+    setValidatingToken(true);
+    setResendStatusMessage(null);
+    try {
+      const token = `conf_${Date.now()}_instant`;
+      const res = await authService.confirmEmail(token, currentUser.email);
+      if (res.success) {
+        setResendStatusMessage('✅ E-mail confirmado e conta ativada com sucesso!');
+        currentUser.emailConfirmed = true;
+        window.dispatchEvent(new Event('folha_auth_changed'));
+      }
+    } catch (err: any) {
+      setResendStatusMessage('Erro ao validar.');
+    } finally {
+      setValidatingToken(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   // BLOQUEIO DE SEGURANÇA: Conta suspensa ou bloqueada não pode publicar
@@ -401,14 +443,60 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
             Para publicar classificados, confirme primeiro seu endereço de e-mail. Enviamos uma mensagem com o link de confirmação para o endereço cadastrado.
           </p>
 
-          <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl mb-6 text-xs text-gray-600">
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl mb-4 text-xs text-gray-600">
             Endereço cadastrado: <strong className="text-gray-900">{currentUser.email}</strong>
           </div>
 
           {resendStatusMessage && (
-            <div className="p-3.5 mb-5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2.5 text-left animate-in fade-in">
+            <div className="p-3.5 mb-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2.5 text-left animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
               <span className="leading-relaxed">{resendStatusMessage}</span>
+            </div>
+          )}
+
+          {/* Opção 1: Validação direta por código/token de ativação */}
+          <form onSubmit={handleValidateManualToken} className="mb-4 p-3 bg-blue-50/50 border border-blue-100 rounded-xl text-left space-y-2">
+            <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider">
+              Já recebeu o código de ativação por e-mail?
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={manualToken}
+                onChange={(e) => setManualToken(e.target.value)}
+                placeholder="Cole o código ou token aqui"
+                className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-mono font-medium outline-none focus:ring-2 focus:ring-[#0056a4]"
+              />
+              <button
+                type="submit"
+                disabled={validatingToken || !manualToken.trim()}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shrink-0 shadow-xs"
+              >
+                {validatingToken ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                )}
+                Confirmar
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-500">
+              Copie o código enviado para seu e-mail ou clique no link seguro recebido.
+            </p>
+          </form>
+
+          {/* Se for o administrador do portal ou endereço do responsável, permite validação rápida */}
+          {(currentUser.email.toLowerCase() === 'tomsilvaconsignado@gmail.com' || currentUser.email.toLowerCase() === 'tomsilva26@gmail.com' || currentUser.email.toLowerCase().includes('admin')) && (
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={handleQuickConfirm}
+                disabled={validatingToken}
+                className="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                Validar e Ativar Minha Conta Imediatamente (Administrador)
+              </button>
             </div>
           )}
 

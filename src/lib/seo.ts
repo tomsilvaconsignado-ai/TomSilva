@@ -4,8 +4,8 @@ import { Article } from '../types/database';
  * Utilitários de SEO e Metadados Open Graph para WhatsApp e Redes Sociais
  */
 
-// Domínio padrão de fallback se não for possível inferir do ambiente
-export const DEFAULT_PORTAL_DOMAIN = 'https://folhadaregiaonline.com.br';
+// Domínio padrão de fallback seguro se não for possível inferir do ambiente
+export const DEFAULT_PORTAL_DOMAIN = 'https://tomsilvaconsignado-ai.github.io/TomSilva';
 
 export const escapeHtml = (text: string = ''): string => {
   return String(text)

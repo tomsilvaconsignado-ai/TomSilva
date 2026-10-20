@@ -272,6 +272,26 @@ const DEFAULT_SERVER_USERS: UserProfile[] = [
     cpf: '555.666.777-88',
     termsAccepted: true,
     termsVersion: 'v2.1'
+  },
+  {
+    id: 'usr-1792464050896',
+    email: 'tomsilva26@gmail.com',
+    fullName: 'Tom Silva',
+    role: 'reader',
+    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=Tom%20Silva',
+    interests: ['Classificados', 'Geral', 'Cidades'],
+    createdAt: '2026-10-20T02:40:50.896Z',
+    hasProfile: true,
+    emailConfirmed: true,
+    emailConfirmedAt: '2026-10-20T03:00:00.000Z',
+    status: 'active',
+    accountType: 'pf',
+    phone: '(79) 99977-6199',
+    city: 'Estância',
+    state: 'SE',
+    cpf: '000.000.000-00',
+    termsAccepted: true,
+    termsVersion: 'v2.1'
   }
 ];
 
@@ -442,21 +462,34 @@ async function isAuthorizedAdmin(req: Request, adminOnly = false): Promise<boole
 function getRequestOrigin(req: Request): string {
   const forwardedProto = req.get('x-forwarded-proto');
   const forwardedHost = req.get('x-forwarded-host');
-  const host = forwardedHost || req.get('host') || 'folhadaregiaonline.com.br';
+  let host = forwardedHost || req.get('host') || '';
+  if (!host || host.includes('folhadaregiaonline.com.br') || host.includes('folhadaregiaoonline.com.br')) {
+    if (process.env.APP_URL) {
+      try {
+        host = new URL(process.env.APP_URL).host;
+      } catch {}
+    }
+    if (!host) {
+      host = 'localhost:3000';
+    }
+  }
   const proto = forwardedProto || (req.secure ? 'https' : 'http');
   return `${proto}://${host}`;
 }
 
 /**
- * Retorna a origem pública segura para e-mails (garante que links não apontem para domínios protegidos *.run.app)
+ * Retorna a origem pública segura para e-mails (garante links funcionais no GitHub Pages ou preview)
  */
 function getSafePublicOrigin(req: Request, clientOrigin?: string): string {
-  const candidate = (clientOrigin || getRequestOrigin(req) || '').trim().replace(/\/+$/, '');
-  const isDevHost = candidate.includes('.run.app') || candidate.includes('localhost') || candidate.includes('127.0.0.1');
-  if (isDevHost) {
-    return (process.env.VITE_SITE_URL || process.env.SITE_URL || 'https://folhadaregiaonline.com.br').replace(/\/+$/, '');
+  const candidate = (clientOrigin || '').trim().replace(/\/+$/, '');
+  if (candidate.startsWith('http') && !candidate.includes('folhadaregiaonline.com.br') && !candidate.includes('folhadaregiaoonline.com.br')) {
+    return candidate;
   }
-  return candidate;
+  const reqOrigin = getRequestOrigin(req).trim().replace(/\/+$/, '');
+  if (reqOrigin.startsWith('http') && !reqOrigin.includes('folhadaregiaonline.com.br') && !reqOrigin.includes('folhadaregiaoonline.com.br')) {
+    return reqOrigin;
+  }
+  return (process.env.APP_URL || process.env.VITE_SITE_URL || process.env.SITE_URL || 'https://tomsilvaconsignado-ai.github.io/TomSilva').replace(/\/+$/, '');
 }
 
 /**
@@ -1402,6 +1435,8 @@ async function startServer() {
         }
       }
 
+      const confirmationToken = `conf_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
       if (!actionLink) {
         let localUser = serverUsers.find(u => u.email.toLowerCase() === trimmedEmail);
         if (!localUser) {
@@ -1419,8 +1454,7 @@ async function startServer() {
           saveServerUsersCache();
         }
         userFound = true;
-        const token = `conf_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        actionLink = `${origin}/#confirm-email?token=${token}&email=${encodeURIComponent(trimmedEmail)}`;
+        actionLink = `${origin}/#confirm-email?token=${confirmationToken}&email=${encodeURIComponent(trimmedEmail)}`;
       }
 
       if (!userFound || !actionLink) {
@@ -1453,10 +1487,14 @@ async function startServer() {
                   <h2 style="margin-top: 0; color: #0f172a; font-size: 18px;">Confirmação de Endereço de E-mail</h2>
                   <p>Olá,</p>
                   <p>Você solicitou um novo link para confirmar seu e-mail (<strong>${escapeHtml(trimmedEmail)}</strong>) e ativar seu cadastro no portal <strong>Folha da Região</strong>.</p>
-                  <div style="text-align: center; margin: 32px 0;">
+                  <div style="text-align: center; margin: 28px 0;">
                     <a href="${escapeHtml(actionLink)}" style="background-color: #0056a4; color: #ffffff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;">
                       Confirmar e Ativar Minha Conta
                     </a>
+                  </div>
+                  <div style="background-color: #f1f5f9; border: 1px dashed #cbd5e1; padding: 14px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                    <span style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">Código de ativação direta:</span>
+                    <strong style="font-size: 16px; letter-spacing: 1px; color: #0f172a; font-family: monospace;">${escapeHtml(confirmationToken)}</strong>
                   </div>
                   <p style="font-size: 12px; color: #64748b;">
                     Ou copie e cole o link no navegador:<br>

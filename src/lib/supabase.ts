@@ -68,25 +68,40 @@ export const saveSupabaseConfig = (url: string, key: string) => {
 /**
  * URL do portal em produção (usada para links enviados por e-mail quando disparados do ambiente de desenvolvimento)
  */
-export const DEFAULT_PRODUCTION_URL = 'https://folhadaregiaonline.com.br';
+export const DEFAULT_PRODUCTION_URL = 'https://tomsilvaconsignado-ai.github.io/TomSilva';
 
 export const getProductionSiteUrl = (): string => {
   if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('folha_production_url');
-    if (saved && saved.startsWith('http')) return saved.replace(/\/+$/, '');
+    try {
+      const saved = localStorage.getItem('folha_production_url');
+      if (saved && (saved.includes('folhadaregiaonline.com.br') || saved.includes('folhadaregiaoonline.com.br'))) {
+        localStorage.removeItem('folha_production_url');
+      } else if (saved && saved.startsWith('http')) {
+        return saved.replace(/\/+$/, '');
+      }
+    } catch {}
   }
-  return (import.meta.env.VITE_SITE_URL || DEFAULT_PRODUCTION_URL).replace(/\/+$/, '');
+  const envUrl = (import.meta.env.VITE_SITE_URL || '').trim();
+  if (envUrl && !envUrl.includes('folhadaregiaonline.com.br') && !envUrl.includes('folhadaregiaoonline.com.br')) {
+    return envUrl.replace(/\/+$/, '');
+  }
+  return DEFAULT_PRODUCTION_URL;
 };
 
 export const setProductionSiteUrl = (url: string) => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('folha_production_url', url.trim().replace(/\/+$/, ''));
+    const clean = url.trim().replace(/\/+$/, '');
+    if (clean.includes('folhadaregiaonline.com.br') || clean.includes('folhadaregiaoonline.com.br')) {
+      // Ignora gravação de domínio sem apontamento DNS para proteger links
+      return;
+    }
+    localStorage.setItem('folha_production_url', clean);
   }
 };
 
 /**
  * Gera URL de redirecionamento dinâmica segura preservando subdiretórios (ex: GitHub Pages /nome-do-repo/)
- * NUNCA direciona para domínios de preview restritos (*.run.app) que exigem login interno do Google Cloud/AI Studio
+ * NUNCA direciona para domínios sem DNS ativo (*.folhadaregiaonline.com.br)
  */
 export const getAuthRedirectUrl = (actionOrHash: string): string => {
   if (typeof window === 'undefined') {
@@ -97,10 +112,9 @@ export const getAuthRedirectUrl = (actionOrHash: string): string => {
   }
 
   const hostname = window.location.hostname.toLowerCase();
-  const isDevPreview = hostname.includes('.run.app') || hostname.includes('localhost') || hostname === '127.0.0.1';
 
-  // 1. Se estiver rodando no GitHub Pages (ex: usuario.github.io/repo/) ou em domínio de produção próprio:
-  if (!isDevPreview) {
+  // 1. Se estiver rodando em qualquer ambiente acessível (localhost, *.run.app, tomsilvaconsignado-ai.github.io):
+  if (!hostname.includes('folhadaregiaonline.com.br') && !hostname.includes('folhadaregiaoonline.com.br')) {
     try {
       const u = new URL(window.location.href);
       if (actionOrHash.startsWith('#')) {
@@ -110,15 +124,11 @@ export const getAuthRedirectUrl = (actionOrHash: string): string => {
         u.search = `?action=${actionOrHash}`;
         u.hash = '';
       }
-      // Salva automaticamente no storage para reutilização
-      const cleanBase = `${u.origin}${u.pathname}`.replace(/\/+$/, '');
-      try { localStorage.setItem('folha_production_url', cleanBase); } catch {}
       return u.toString();
     } catch {}
   }
 
-  // 2. Se estiver rodando dentro do preview interno do Google AI Studio (ais-dev-...run.app):
-  // NUNCA use a URL do *.run.app! Qualquer clique externo resulta na tela de erro do Google Studio IA!
+  // 2. Fallback seguro garantido se estiver rodando em domínio sem apontamento DNS:
   const targetBase = getProductionSiteUrl();
   return actionOrHash.startsWith('#')
     ? `${targetBase}/${actionOrHash.replace(/^\/+/, '')}`
@@ -993,7 +1003,11 @@ export const authService = {
       };
     }
 
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://folhadaregiaonline.com.br';
+    const origin = typeof window !== 'undefined'
+      ? (!window.location.hostname.includes('folhadaregiaonline.com.br') && !window.location.hostname.includes('folhadaregiaoonline.com.br')
+          ? `${window.location.origin}${window.location.pathname}`.replace(/\/+$/, '')
+          : getProductionSiteUrl())
+      : getProductionSiteUrl();
 
     // 1. Tenta envio prioritário e verificado pelo backend (Gera link oficial no Supabase Admin e envia via SMTP do Gmail)
     try {
