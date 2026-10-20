@@ -130,6 +130,14 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured()
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
+// Cabeçalho Authorization com o JWT da sessão atual (o servidor valida o token e o papel no banco)
+export const getApiAuthHeaders = async (): Promise<Record<string, string>> => {
+  if (!supabase) return {};
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // ==========================================
 // CAMADA DE PERSISTÊNCIA LOCAL (LOCAL STORAGE)
 // Garante funcionamento completo mesmo antes de conectar as chaves
@@ -1712,8 +1720,7 @@ export const usersService = {
     try {
       const response = await fetch('/api/admin/users', {
         headers: {
-          'x-admin-role': adminUser?.role || 'admin',
-          'x-admin-email': adminUser?.email || 'tomsilvaconsignado@gmail.com'
+          ...(await getApiAuthHeaders())
         }
       });
       if (response.ok) {
@@ -1847,8 +1854,7 @@ export const usersService = {
       const url = userId ? `/api/admin/audit-logs?userId=${encodeURIComponent(userId)}` : '/api/admin/audit-logs';
       const resp = await fetch(url, {
         headers: {
-          'x-admin-role': 'admin',
-          'x-admin-email': 'tomsilvaconsignado@gmail.com'
+          ...(await getApiAuthHeaders())
         }
       });
       if (resp.ok) {
@@ -1883,8 +1889,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': 'admin',
-          'x-admin-email': 'tomsilvaconsignado@gmail.com'
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify(newLog)
       }).catch(() => {});
@@ -1933,8 +1938,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': adminUser.role,
-          'x-admin-email': adminUser.email
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify({
           userId: targetUserId,
@@ -2023,8 +2027,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': adminUser.role,
-          'x-admin-email': adminUser.email
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify({
           userId: targetUserId,
@@ -2079,8 +2082,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': adminUser.role,
-          'x-admin-email': adminUser.email
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify({
           userId: target.id,
@@ -2126,8 +2128,7 @@ export const usersService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-role': adminUser.role,
-          'x-admin-email': adminUser.email
+          ...(await getApiAuthHeaders())
         },
         body: JSON.stringify({
           userId: targetUserId,

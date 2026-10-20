@@ -193,24 +193,49 @@ function getSupabaseAdminClient() {
 }
 
 /**
+ * Valida o JWT do Supabase enviado em "Authorization: Bearer <token>" e retorna
+ * o papel do usuário lido do banco (nunca de cabeçalhos ou do corpo da requisição)
+ */
+async function getAuthenticatedRole(req: Request): Promise<{ userId: string; role: string } | null> {
+  const authHeader = (req.headers.authorization || '').trim();
+  const token = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
+  if (!token) return null;
+
+  let supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
+  supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+  const anonKey = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+  if (!supabaseUrl || !anonKey) return null;
+
+  try {
+    const userClient = createSupabaseClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser(token);
+    if (userErr || !userData?.user) return null;
+
+    // RLS permite ao usuário ler apenas o próprio perfil
+    const { data: profile } = await userClient
+      .from('profiles')
+      .select('role, status')
+      .eq('id', userData.user.id)
+      .single();
+    if (!profile || profile.status !== 'active') return null;
+
+    return { userId: userData.user.id, role: profile.role };
+  } catch (e) {
+    console.warn('Falha ao validar token do Supabase:', e);
+    return null;
+  }
+}
+
+/**
  * Valida autorização de administrador da requisição de forma estrita
  */
-function isAuthorizedAdmin(req: Request): boolean {
-  const adminEmail = (
-    (req.headers['x-admin-email'] as string) ||
-    req.body?.adminUser?.email ||
-    ''
-  ).toLowerCase().trim();
-
-  const adminRole = (
-    (req.headers['x-admin-role'] as string) ||
-    req.body?.adminUser?.role ||
-    ''
-  ).toLowerCase().trim();
-  
-  if (adminRole === 'admin' || adminRole === 'editor') return true;
-  if (adminEmail === 'tomsilvaconsignado@gmail.com') return true;
-  return false;
+async function isAuthorizedAdmin(req: Request, adminOnly = false): Promise<boolean> {
+  const auth = await getAuthenticatedRole(req);
+  if (auth?.role === 'admin') return true;
+  return !adminOnly && auth?.role === 'editor';
 }
 
 /**
@@ -379,7 +404,7 @@ async function startServer() {
   // 1. Listagem completa de todos os usuários (Supabase Auth + Perfis + Cache Servidor)
   app.get('/api/admin/users', async (req: Request, res: Response) => {
     try {
-      if (!isAuthorizedAdmin(req)) {
+      if (!(await isAuthorizedAdmin(req))) {
         return res.status(403).json({ 
           success: false, 
           error: 'Acesso restrito. Apenas administradores autorizados podem consultar os usuários do portal.' 
@@ -533,7 +558,7 @@ async function startServer() {
   // 1.1 Configurar Chave service_role de forma estritamente protegida no Servidor
   app.post('/api/admin/save-service-key', async (req: Request, res: Response) => {
     try {
-      if (!isAuthorizedAdmin(req)) {
+      if (!(await isAuthorizedAdmin(req, true))) {
         return res.status(403).json({ success: false, error: 'Acesso restrito a administradores.' });
       }
       const { serviceRoleKey } = req.body;
@@ -602,7 +627,7 @@ async function startServer() {
   // 3. Reenvio de e-mail de confirmação pelo administrador
   app.post('/api/admin/resend-confirmation', async (req: Request, res: Response) => {
     try {
-      if (!isAuthorizedAdmin(req)) {
+      if (!(await isAuthorizedAdmin(req))) {
         return res.status(403).json({ success: false, error: 'Acesso restrito a administradores autorizados.' });
       }
 
@@ -689,7 +714,7 @@ async function startServer() {
   // 4. Moderação de Situação de Conta (Suspender, Bloquear, Reativar)
   app.post('/api/admin/moderate-user', async (req: Request, res: Response) => {
     try {
-      if (!isAuthorizedAdmin(req)) {
+      if (!(await isAuthorizedAdmin(req, true))) {
         return res.status(403).json({ success: false, error: 'Acesso restrito.' });
       }
 
@@ -772,7 +797,7 @@ async function startServer() {
   // 5. Confirmação manual de e-mail pelo Administrador
   app.post('/api/admin/confirm-email', async (req: Request, res: Response) => {
     try {
-      if (!isAuthorizedAdmin(req)) {
+      if (!(await isAuthorizedAdmin(req, true))) {
         return res.status(403).json({ success: false, error: 'Acesso restrito.' });
       }
 
@@ -822,7 +847,7 @@ async function startServer() {
   // 6. Alteração de papel / privilégio com justificativa
   app.post('/api/admin/update-role', async (req: Request, res: Response) => {
     try {
-      if (!isAuthorizedAdmin(req)) {
+      if (!(await isAuthorizedAdmin(req, true))) {
         return res.status(403).json({ success: false, error: 'Acesso restrito.' });
       }
 
@@ -869,8 +894,8 @@ async function startServer() {
   });
 
   // 7. Consulta de Logs de Auditoria
-  app.get('/api/admin/audit-logs', (req: Request, res: Response) => {
-    if (!isAuthorizedAdmin(req)) {
+  app.get('/api/admin/audit-logs', async (req: Request, res: Response) => {
+    if (!(await isAuthorizedAdmin(req))) {
       return res.status(403).json({ error: 'Acesso restrito.' });
     }
     const userId = req.query.userId as string;
@@ -881,8 +906,8 @@ async function startServer() {
   });
 
   // 8. Registro de Log de Auditoria
-  app.post('/api/admin/audit-logs', (req: Request, res: Response) => {
-    if (!isAuthorizedAdmin(req)) {
+  app.post('/api/admin/audit-logs', async (req: Request, res: Response) => {
+    if (!(await isAuthorizedAdmin(req))) {
       return res.status(403).json({ error: 'Acesso restrito.' });
     }
     const newLog: UserAuditLog = {
@@ -898,6 +923,9 @@ async function startServer() {
   // API para testar conectividade e envio SMTP do portal
   app.post('/api/test-smtp', async (req: Request, res: Response) => {
     try {
+      if (!(await isAuthorizedAdmin(req, true))) {
+        return res.status(403).json({ success: false, error: 'Acesso restrito a administradores.' });
+      }
       const { testRecipient, smtpConfig } = req.body;
       if (!testRecipient || !testRecipient.includes('@')) {
         return res.status(400).json({ success: false, error: 'Informe um endereço de e-mail de destino válido para o teste.' });
@@ -974,6 +1002,9 @@ async function startServer() {
   // API para envio de e-mails transacionais (recuperação de senha, ativação, avisos aos usuários)
   app.post('/api/send-email', async (req: Request, res: Response) => {
     try {
+      if (!(await getAuthenticatedRole(req))) {
+        return res.status(401).json({ success: false, error: 'Faça login para enviar e-mails pelo portal.' });
+      }
       const { to, subject, html, text, fromName, fromEmail, replyTo, smtpConfig } = req.body;
       if (!to || !to.includes('@') || !subject) {
         return res.status(400).json({ success: false, error: 'Parâmetros de e-mail inválidos (destinatário e assunto obrigatórios).' });
