@@ -435,6 +435,8 @@ export default function App() {
   const sidebarAds = ads.filter(a => a.placement === 'sidebar');
   const articleAds = ads.filter(a => a.placement === 'article');
   const footerAds = ads.filter(a => a.placement === 'footer');
+  const ads300x300 = ads.filter(a => (a.adFormat === '300x300' || a.aspectRatio === '1 / 1') && a.placement !== 'sidebar_300x900' && a.placement !== 'sidebar_300x600');
+  const ads300x900 = ads.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.adFormat === '300x600' || a.placement === 'sidebar_300x600');
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-[#0056a4] selection:text-white flex flex-col">
@@ -606,9 +608,9 @@ export default function App() {
 
               {/* COLUNA LATERAL (4 Colunas) */}
               <aside className="lg:col-span-4 space-y-8">
-                {/* Espaço Publicitário da Coluna Lateral Direita (Sidebar) */}
-                <div>
-                  <AdSlot placement="sidebar" ads={sidebarAds} />
+                {/* Espaço Publicitário Formato 300x300 (Quadrado - Carrossel Independente) */}
+                <div className="flex justify-center w-full">
+                  <AdSlot format="300x300" placement="sidebar" ads={ads300x300} />
                 </div>
 
                 {/* Widget Mais Lidas */}
@@ -628,6 +630,11 @@ export default function App() {
                     ))}
                   </div>
                 </section>
+
+                {/* Espaço Publicitário Formato 300x900 (Vertical - Carrossel Independente) */}
+                <div className="flex justify-center w-full">
+                  <AdSlot format="300x900" placement="sidebar_300x900" ads={ads300x900} />
+                </div>
 
                 {/* Widget Newsletter Folha News */}
                 <section className="bg-gray-900 text-white p-6 md:p-8 rounded-xl shadow-lg relative overflow-hidden">
@@ -670,11 +677,12 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer Fixo */}
+      {/* Footer Fixo (Publicidade integrada internamente imediatamente acima dos direitos reservados e área administrativa) */}
       <Footer
         onOpenInstitutional={handleOpenInstitutional}
         onOpenAdmin={handleOpenAdminLogin}
         onGoHome={handleGoHome}
+        footerAds={footerAds}
         onOpenClassifieds={() => {
           setCurrentCategory('classificados');
           setViewMode('classifieds');
@@ -683,11 +691,6 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
-
-      {/* Banner Publicitário de Rodapé */}
-      <div className="container mx-auto px-4 py-4 max-w-5xl">
-        <AdSlot placement="footer" ads={footerAds} />
-      </div>
 
       {/* Modal de Autenticação (Login / Cadastro / Recuperação) */}
       <AuthModal

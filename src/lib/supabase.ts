@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { 
-  Article, AdItem, AdPlacement, AdStatus, PlacementSetting, PlacementMode, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
+  Article, AdItem, AdPlacement, AdFormat, FormatCarouselSetting, AdStatus, PlacementSetting, PlacementMode, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
   ClassifiedItem, ClassifiedCategory, ClassifiedReport, ClassifiedsSettings,
   ClassifiedSection, ClassifiedType, ClassifiedStatus, PortalSettings
 } from '../types/database';
@@ -166,7 +166,8 @@ export const STORAGE_KEYS = {
   CLASSIFIED_SETTINGS: 'folha_classified_settings_v1',
   USER_AUDIT_LOGS: 'folha_user_audit_logs_v1',
   PORTAL_SETTINGS: 'folha_portal_settings_v1',
-  ADS_SETTINGS: 'folha_ads_settings_v1'
+  ADS_SETTINGS: 'folha_ads_settings_v1',
+  ADS_FORMAT_SETTINGS: 'folha_ads_format_settings_v1'
 };
 
 const memoryStore = new Map<string, string>();
@@ -1565,16 +1566,62 @@ export const newsService = {
 // ==========================================
 // SERVIÇO DE PUBLICIDADE E CARROSSEL POR ESPAÇO
 // ==========================================
+// ==========================================
+// ==========================================
+// SERVIÇO DE PUBLICIDADE E CARROSSEL POR FORMATO E ESPAÇO
+// ==========================================
 export const DEFAULT_PLACEMENT_SETTINGS: Record<AdPlacement, PlacementSetting> = {
-  header: { placement: 'header', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 },
-  feed: { placement: 'feed', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 },
-  sidebar: { placement: 'sidebar', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 },
-  article: { placement: 'article', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 },
-  footer: { placement: 'footer', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5 }
+  header: { placement: 'header', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '728x90' },
+  feed: { placement: 'feed', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '728x90' },
+  sidebar: { placement: 'sidebar', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '300x300' },
+  sidebar_300x900: { placement: 'sidebar_300x900', mode: 'carousel', isPaused: false, defaultDurationSeconds: 8, preferredFormat: '300x900' },
+  sidebar_300x600: { placement: 'sidebar_300x600', mode: 'carousel', isPaused: false, defaultDurationSeconds: 8, preferredFormat: '300x900' },
+  article: { placement: 'article', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '300x300' },
+  footer: { placement: 'footer', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '728x90' }
+};
+
+export const DEFAULT_FORMAT_SETTINGS: Record<'300x300' | '300x900' | '300x600', FormatCarouselSetting> = {
+  '300x300': { format: '300x300', durationSeconds: 5, isPaused: false, mode: 'carousel' },
+  '300x900': { format: '300x900', durationSeconds: 8, isPaused: false, mode: 'carousel' },
+  '300x600': { format: '300x600', durationSeconds: 8, isPaused: false, mode: 'carousel' }
 };
 
 export const adsService = {
-  // Retorna configurações de modo (fixo vs carrossel) e status para os 5 espaços
+  // Retorna configurações dos temporizadores e modos independentes por formato (300x300 e 300x900)
+  getFormatSettings(): Record<'300x300' | '300x900' | '300x600', FormatCarouselSetting> {
+    const stored = getStored<Partial<Record<'300x300' | '300x900' | '300x600', FormatCarouselSetting>>>(
+      STORAGE_KEYS.ADS_FORMAT_SETTINGS,
+      {}
+    );
+    return {
+      '300x300': { ...DEFAULT_FORMAT_SETTINGS['300x300'], ...(stored['300x300'] || {}) },
+      '300x900': { ...DEFAULT_FORMAT_SETTINGS['300x900'], ...(stored['300x900'] || {}) },
+      '300x600': { ...DEFAULT_FORMAT_SETTINGS['300x600'], ...(stored['300x600'] || stored['300x900'] || {}) }
+    };
+  },
+
+  async saveFormatSetting(
+    format: '300x300' | '300x900' | '300x600', 
+    update: Partial<FormatCarouselSetting>
+  ): Promise<FormatCarouselSetting> {
+    const current = this.getFormatSettings();
+    const updated: FormatCarouselSetting = {
+      ...current[format],
+      ...update,
+      format
+    };
+    const newSettings = {
+      ...current,
+      [format]: updated
+    };
+    setStored(STORAGE_KEYS.ADS_FORMAT_SETTINGS, newSettings);
+    if (typeof window !== 'undefined') {
+      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { format } }));
+    }
+    return updated;
+  },
+
+  // Retorna configurações de modo (fixo vs carrossel), status e formato preferido para os espaços
   getPlacementSettings(): Record<AdPlacement, PlacementSetting> {
     const stored = getStored<Partial<Record<AdPlacement, PlacementSetting>>>(
       STORAGE_KEYS.ADS_SETTINGS, 
@@ -1584,6 +1631,8 @@ export const adsService = {
       header: { ...DEFAULT_PLACEMENT_SETTINGS.header, ...(stored.header || {}) },
       feed: { ...DEFAULT_PLACEMENT_SETTINGS.feed, ...(stored.feed || {}) },
       sidebar: { ...DEFAULT_PLACEMENT_SETTINGS.sidebar, ...(stored.sidebar || {}) },
+      sidebar_300x900: { ...DEFAULT_PLACEMENT_SETTINGS.sidebar_300x900, ...(stored.sidebar_300x900 || {}) },
+      sidebar_300x600: { ...DEFAULT_PLACEMENT_SETTINGS.sidebar_300x600, ...(stored.sidebar_300x600 || {}) },
       article: { ...DEFAULT_PLACEMENT_SETTINGS.article, ...(stored.article || {}) },
       footer: { ...DEFAULT_PLACEMENT_SETTINGS.footer, ...(stored.footer || {}) }
     };
@@ -1625,8 +1674,11 @@ export const adsService = {
             mediaUrl: item.media_url,
             mediaType: item.media_type,
             placement: item.placement,
+            adFormat: item.ad_format || (item.aspect_ratio === '1 / 3' ? '300x900' : item.aspect_ratio === '970 / 90' ? '970x90' : item.aspect_ratio === '728 / 90' ? '728x90' : '300x300'),
             aspectRatio: item.aspect_ratio || '1 / 1',
             maxWidth: item.max_width,
+            width: item.width || 300,
+            height: item.height || 300,
             active: item.active,
             status: item.status || 'active',
             startDate: item.start_date,
@@ -1647,75 +1699,199 @@ export const adsService = {
       }
     }
 
-    const rawAds = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
-    // Normaliza dados para garantir campos de carrossel em anúncios legados
-    return rawAds.map(ad => ({
-      ...ad,
-      status: ad.status || (ad.active ? 'active' : 'paused'),
-      durationSeconds: ad.durationSeconds || 5,
-      displayOrder: ad.displayOrder || 1,
-      openInNewTab: ad.openInNewTab ?? true,
-      altText: ad.altText || ad.title,
-      impressionsCount: ad.impressionsCount || 0,
-      clicksCount: ad.clicksCount || 0
-    }));
+    let rawAds = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
+
+    // Garante presença dos anúncios 300x900 caso storage possua apenas dados antigos
+    const has300x900 = rawAds.some(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.height === 900);
+    if (!has300x900) {
+      const initial300x900 = INITIAL_ADS.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900');
+      if (initial300x900.length > 0) {
+        rawAds = [...rawAds, ...initial300x900];
+        setStored(STORAGE_KEYS.ADS, rawAds);
+      }
+    }
+
+    // Normaliza dados para garantir campos de carrossel e dimensões estritas
+    return rawAds.map(ad => {
+      const is970 = ad.adFormat === '970x90' || ad.aspectRatio === '970 / 90' || ad.aspectRatio === '970/90' || ad.width === 970;
+      const is728 = ad.adFormat === '728x90' || ad.aspectRatio === '728 / 90' || ad.aspectRatio === '728/90' || (ad.placement === 'header' || ad.placement === 'feed' || ad.placement === 'footer');
+      const is900 = ad.adFormat === '300x900' || ad.adFormat === '300x600' || ad.placement === 'sidebar_300x900' || ad.placement === 'sidebar_300x600' || ad.aspectRatio === '1 / 3' || ad.aspectRatio === '1 / 2' || ad.height === 900 || ad.height === 600;
+      const is300 = ad.adFormat === '300x300' || ad.aspectRatio === '1 / 1' || ad.aspectRatio === '1/1' || ad.placement === 'sidebar' || ad.placement === 'article';
+
+      let computedFormat: AdFormat = '300x300';
+      let computedRatio = '1 / 1';
+      let computedWidth = 300;
+      let computedHeight = 300;
+      let computedMaxWidth = 300;
+
+      if (is970) {
+        computedFormat = '970x90';
+        computedRatio = '970 / 90';
+        computedWidth = 970;
+        computedHeight = 90;
+        computedMaxWidth = 970;
+      } else if (is728 && !is900 && !is300) {
+        computedFormat = '728x90';
+        computedRatio = '728 / 90';
+        computedWidth = 728;
+        computedHeight = 90;
+        computedMaxWidth = 728;
+      } else if (is900) {
+        computedFormat = '300x900';
+        computedRatio = '1 / 3';
+        computedWidth = 300;
+        computedHeight = 900;
+        computedMaxWidth = 300;
+      } else {
+        computedFormat = '300x300';
+        computedRatio = '1 / 1';
+        computedWidth = 300;
+        computedHeight = 300;
+        computedMaxWidth = 300;
+      }
+
+      return {
+        ...ad,
+        adFormat: computedFormat,
+        aspectRatio: computedRatio,
+        width: computedWidth,
+        height: computedHeight,
+        maxWidth: computedMaxWidth,
+        status: ad.status || (ad.active ? 'active' : 'paused'),
+        durationSeconds: ad.durationSeconds || (is900 ? 8 : 5),
+        displayOrder: ad.displayOrder || 1,
+        openInNewTab: ad.openInNewTab ?? true,
+        altText: ad.altText || ad.title,
+        impressionsCount: ad.impressionsCount || 0,
+        clicksCount: ad.clicksCount || 0
+      };
+    });
   },
 
   async getAllAds(): Promise<AdItem[]> {
     return this.getAds();
   },
 
+  // Retorna os anúncios de um formato específico ordenados
+  async getAdsByFormat(format: '300x300' | '300x900' | '300x600' | '728x90' | '970x90'): Promise<AdItem[]> {
+    const all = await this.getAds();
+    return all
+      .filter(a => {
+        if (format === '300x900' || format === '300x600') {
+          return a.adFormat === '300x900' || a.adFormat === '300x600' || a.placement === 'sidebar_300x900' || a.placement === 'sidebar_300x600' || a.aspectRatio === '1 / 3';
+        }
+        if (format === '300x300') {
+          return a.adFormat === '300x300' || (a.aspectRatio === '1 / 1' && a.placement !== 'sidebar_300x900' && a.placement !== 'sidebar_300x600');
+        }
+        if (format === '970x90') {
+          return a.adFormat === '970x90' || a.aspectRatio === '970 / 90';
+        }
+        if (format === '728x90') {
+          return a.adFormat === '728x90' || a.aspectRatio === '728 / 90';
+        }
+        return false;
+      })
+      .sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1));
+  },
+
   // Retorna os anúncios de um espaço específico ordenados pela ordem de exibição
   async getAdsByPlacement(placement: AdPlacement): Promise<AdItem[]> {
     const all = await this.getAds();
     return all
-      .filter(a => a.placement === placement)
+      .filter(a => {
+        if (placement === 'sidebar_300x900' || placement === 'sidebar_300x600') {
+          return a.placement === 'sidebar_300x900' || a.placement === 'sidebar_300x600' || a.adFormat === '300x900';
+        }
+        return a.placement === placement;
+      })
       .sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1));
   },
 
   async saveAd(ad: Omit<AdItem, 'id' | 'createdAt'> & { id?: string }): Promise<AdItem> {
     const ads = await this.getAds();
 
+    const is970 = ad.adFormat === '970x90';
+    const is728 = ad.adFormat === '728x90';
+    const is900 = ad.adFormat === '300x900' || ad.adFormat === '300x600' || ad.placement === 'sidebar_300x900' || ad.placement === 'sidebar_300x600';
+    const is300 = ad.adFormat === '300x300' || (!is970 && !is728 && !is900);
+
+    let finalFormat: AdFormat = '300x300';
+    let finalRatio = '1 / 1';
+    let finalWidth = 300;
+    let finalHeight = 300;
+    let finalMaxWidth = 300;
+    let defaultDuration = 5;
+
+    if (is970) {
+      finalFormat = '970x90';
+      finalRatio = '970 / 90';
+      finalWidth = 970;
+      finalHeight = 90;
+      finalMaxWidth = 970;
+      defaultDuration = 5;
+    } else if (is728) {
+      finalFormat = '728x90';
+      finalRatio = '728 / 90';
+      finalWidth = 728;
+      finalHeight = 90;
+      finalMaxWidth = 728;
+      defaultDuration = 5;
+    } else if (is900) {
+      finalFormat = '300x900';
+      finalRatio = '1 / 3';
+      finalWidth = 300;
+      finalHeight = 900;
+      finalMaxWidth = 300;
+      defaultDuration = 8;
+    } else {
+      finalFormat = '300x300';
+      finalRatio = '1 / 1';
+      finalWidth = 300;
+      finalHeight = 300;
+      finalMaxWidth = 300;
+      defaultDuration = 5;
+    }
+
     if (ad.id) {
       // Edição de anúncio existente
       const index = ads.findIndex(a => a.id === ad.id);
       if (index !== -1) {
         const oldAd = ads[index];
-        // Se mudou de placement, verifica limite de 3 no novo placement
-        if (oldAd.placement !== ad.placement) {
-          const adsInNewPlacement = ads.filter(a => a.placement === ad.placement && a.id !== ad.id);
-          if (adsInNewPlacement.length >= 3) {
-            throw new Error(`O limite máximo de 3 anúncios para o espaço ${ad.placement} já foi atingido. Edite ou remova um anúncio existente antes de transferir outro.`);
-          }
-        }
         ads[index] = {
           ...oldAd,
           ...ad,
+          adFormat: finalFormat,
+          aspectRatio: finalRatio,
+          width: finalWidth,
+          height: finalHeight,
+          maxWidth: finalMaxWidth,
           displayOrder: ad.displayOrder || oldAd.displayOrder || 1,
-          durationSeconds: Math.max(2, Math.min(60, Number(ad.durationSeconds) || 5)),
+          durationSeconds: Math.max(2, Math.min(60, Number(ad.durationSeconds) || defaultDuration)),
           openInNewTab: ad.openInNewTab ?? true,
           altText: ad.altText || ad.title
         };
         setStored(STORAGE_KEYS.ADS, ads);
         if (typeof window !== 'undefined') {
-          safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: ad.placement } }));
+          safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: ad.placement, format: finalFormat } }));
         }
         return ads[index];
       }
     }
 
-    // Criação de novo anúncio: REGRA OBRIGATÓRIA - LIMITE DE ATÉ 3 ANÚNCIOS POR ESPAÇO
-    const adsInPlacement = ads.filter(a => a.placement === ad.placement);
-    if (adsInPlacement.length >= 3) {
-      throw new Error(`Limite de 3 anúncios atingido para este espaço (${ad.placement}). Para adicionar um novo patrocinador, edite ou exclua um dos anúncios existentes.`);
-    }
+    // Criação de novo anúncio: calcula próxima ordem no carrossel correspondente
+    const matchingAds = ads.filter(a => a.placement === ad.placement || a.adFormat === finalFormat);
+    const nextOrder = matchingAds.length + 1;
 
-    const nextOrder = adsInPlacement.length + 1;
     const newAd: AdItem = {
       id: 'ad-' + Math.random().toString(36).substring(2, 9),
       ...ad,
+      adFormat: finalFormat,
+      aspectRatio: finalRatio,
+      width: finalWidth,
+      height: finalHeight,
+      maxWidth: finalMaxWidth,
       displayOrder: ad.displayOrder || nextOrder,
-      durationSeconds: Math.max(2, Math.min(60, Number(ad.durationSeconds) || 5)),
+      durationSeconds: Math.max(2, Math.min(60, Number(ad.durationSeconds) || defaultDuration)),
       openInNewTab: ad.openInNewTab ?? true,
       altText: ad.altText || ad.title,
       impressionsCount: 0,
@@ -1726,7 +1902,7 @@ export const adsService = {
     ads.push(newAd);
     setStored(STORAGE_KEYS.ADS, ads);
     if (typeof window !== 'undefined') {
-      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: ad.placement } }));
+      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: ad.placement, format: finalFormat } }));
     }
     return newAd;
   },
@@ -1736,11 +1912,11 @@ export const adsService = {
     const targetAd = ads.find(a => a.id === id);
     const filtered = ads.filter(a => a.id !== id);
     
-    // Reajusta ordens (1, 2) dos que sobraram no mesmo espaço
+    // Reajusta ordens (1, 2...) dos que sobraram no mesmo formato/espaço
     if (targetAd) {
       let orderIndex = 1;
       filtered
-        .filter(a => a.placement === targetAd.placement)
+        .filter(a => a.placement === targetAd.placement || a.adFormat === targetAd.adFormat)
         .sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1))
         .forEach(a => {
           a.displayOrder = orderIndex++;
@@ -1749,15 +1925,15 @@ export const adsService = {
 
     setStored(STORAGE_KEYS.ADS, filtered);
     if (typeof window !== 'undefined') {
-      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: targetAd?.placement } }));
+      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: targetAd?.placement, format: targetAd?.adFormat } }));
     }
   },
 
-  // Altera a ordem de exibição dos slides (1, 2 ou 3) de um espaço
+  // Altera a ordem de exibição dos slides (1, 2, 3...) de um espaço ou formato
   async reorderAds(placement: AdPlacement, orderedIds: string[]): Promise<void> {
     const ads = await this.getAds();
     orderedIds.forEach((id, index) => {
-      const found = ads.find(a => a.id === id && a.placement === placement);
+      const found = ads.find(a => a.id === id);
       if (found) {
         found.displayOrder = index + 1;
       }
@@ -1768,9 +1944,23 @@ export const adsService = {
     }
   },
 
+  async reorderAdsByFormat(format: AdFormat, orderedIds: string[]): Promise<void> {
+    const ads = await this.getAds();
+    orderedIds.forEach((id, index) => {
+      const found = ads.find(a => a.id === id);
+      if (found) {
+        found.displayOrder = index + 1;
+      }
+    });
+    setStored(STORAGE_KEYS.ADS, ads);
+    if (typeof window !== 'undefined') {
+      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { format } }));
+    }
+  },
+
   // Registra impressão confiável (quando o slide é ativado na tela)
   recordImpression(adId: string): void {
-    if (!adId || typeof window === 'undefined') return;
+    if (!adId) return;
     try {
       const ads = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
       const ad = ads.find(a => a.id === adId);
@@ -1785,7 +1975,7 @@ export const adsService = {
 
   // Registra clique no banner
   recordClick(adId: string): void {
-    if (!adId || typeof window === 'undefined') return;
+    if (!adId) return;
     try {
       const ads = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
       const ad = ads.find(a => a.id === adId);

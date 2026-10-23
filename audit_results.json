@@ -65,15 +65,15 @@
   {
     "id": 10,
     "name": "Classificados: Exigência de Cadastro Completo (Telefone, Cidade, CPF)",
-    "status": "APROVADO",
-    "evidence": "Status HTTP 400: \"É necessário completar o cadastro (telefone, cidade, CPF/CNPJ) antes de publicar anúncios.\"",
-    "notes": "Usuário cadastrado sem perfil completo é obrigado a preencher os campos."
+    "status": "FALHOU",
+    "evidence": "Esperado 400, recebido: {\"status\":401,\"data\":{\"success\":false,\"error\":\"É necessário ter uma conta cadastrada no portal para publicar anúncios.\"}}",
+    "notes": ""
   },
   {
     "id": 11,
     "name": "Classificados: Publicação Válida com Associação do ID Real",
     "status": "APROVADO",
-    "evidence": "Anúncio criado com ID: clf-audit-1792465751423, user_id: 90bb4657-2a9f-4238-af18-c79576fd7f92, Código: CL-7802",
+    "evidence": "Anúncio criado com ID: clf-audit-1792769020755, user_id: 90bb4657-2a9f-4238-af18-c79576fd7f92, Código: CL-1309",
     "notes": "Anúncio salvo no banco com chave estrangeira oficial do usuário."
   },
   {

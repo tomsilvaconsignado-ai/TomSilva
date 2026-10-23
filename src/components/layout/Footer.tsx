@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Phone, MapPin, Send, CheckCircle2, Shield, Clock } from 'lucide-react';
 import { newsletterService, portalSettingsService } from '../../lib/supabase';
-import { PortalSettings } from '../../types/database';
+import { PortalSettings, AdItem } from '../../types/database';
 import { getAssetUrl } from '../../lib/assets';
+import { AdSlot } from '../news/AdSlot';
 
 interface FooterProps {
   onOpenInstitutional: (page: 'sobre-nos' | 'expediente' | 'privacidade' | 'anuncie-conosco') => void;
   onOpenAdmin: () => void;
   onGoHome: () => void;
   onOpenClassifieds?: () => void;
+  footerAds?: AdItem[];
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenInstitutional,
   onOpenAdmin,
   onGoHome,
-  onOpenClassifieds
+  onOpenClassifieds,
+  footerAds
 }) => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
@@ -268,6 +271,11 @@ export const Footer: React.FC<FooterProps> = ({
               </form>
             )}
           </div>
+        </div>
+
+        {/* Publicidade de Rodapé (Posicionada imediatamente acima da área de direitos reservados e acesso administrativo) */}
+        <div className="py-6 border-t border-gray-100 flex justify-center w-full overflow-hidden">
+          <AdSlot placement="footer" ads={footerAds} />
         </div>
 
         {/* Rodapé Bottom */}

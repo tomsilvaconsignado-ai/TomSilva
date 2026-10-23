@@ -237,8 +237,8 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
-          {/* Banner de Topo 728x90 */}
-          <div className="hidden lg:flex flex-1 justify-center max-w-[728px]">
+          {/* Banner de Topo (728x90 ou 970x90) */}
+          <div className="hidden lg:flex flex-1 justify-center max-w-[970px] min-w-0">
             <AdSlot placement="header" ads={headerAds} ad={headerAd} />
           </div>
 

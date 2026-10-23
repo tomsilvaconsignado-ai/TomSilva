@@ -153,7 +153,8 @@ export interface CategoryItem {
   slug: CategorySlug;
 }
 
-export type AdPlacement = 'header' | 'feed' | 'sidebar' | 'article' | 'footer';
+export type AdPlacement = 'header' | 'feed' | 'sidebar' | 'article' | 'footer' | 'sidebar_300x900' | 'sidebar_300x600';
+export type AdFormat = '300x300' | '300x900' | '300x600' | '728x90' | '970x90';
 export type AdStatus = 'active' | 'paused' | 'ended';
 export type PlacementMode = 'fixed' | 'carousel';
 
@@ -162,6 +163,14 @@ export interface PlacementSetting {
   mode: PlacementMode;
   isPaused?: boolean;
   defaultDurationSeconds?: number;
+  preferredFormat?: '728x90' | '970x90' | '300x300' | '300x900' | '300x600';
+}
+
+export interface FormatCarouselSetting {
+  format: '300x300' | '300x900' | '300x600';
+  durationSeconds: number; // Intervalo independente configurado pelo admin (ex: 5s ou 8s)
+  isPaused: boolean;
+  mode: PlacementMode;
 }
 
 export interface AdItem {
@@ -172,8 +181,11 @@ export interface AdItem {
   mediaUrl: string;
   mediaType: 'image' | 'video' | 'gif';
   placement: AdPlacement;
+  adFormat?: AdFormat;           // Formato do anúncio: '300x300' | '300x600' | '728x90'
   aspectRatio: string; // e.g. "728 / 90", "1 / 1", "1 / 2", "16 / 9"
   maxWidth?: number;
+  width?: number;                // e.g. 300
+  height?: number;               // e.g. 300 ou 600
   active: boolean;
   status?: AdStatus;
   startDate?: string;
@@ -182,8 +194,8 @@ export interface AdItem {
 
   // Configurações individuais do carrossel e métricas
   altText?: string;
-  displayOrder?: number;         // 1, 2 ou 3 na sequência do espaço
-  durationSeconds?: number;      // Duração de exibição do slide (padrão 5 segundos)
+  displayOrder?: number;         // 1, 2, 3... na sequência do carrossel
+  durationSeconds?: number;      // Duração de exibição do slide individual
   openInNewTab?: boolean;        // Se true, abre em nova aba
   campaignId?: string;           // Identificador interno da campanha
   campaignName?: string;         // Nome da campanha publicitária
