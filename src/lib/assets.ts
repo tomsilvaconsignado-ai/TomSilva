@@ -18,8 +18,7 @@ export function getAssetUrl(path?: string): string {
   // Remove barras iniciais redundantes
   const cleanPath = path.replace(/^\/+/, '');
   
-  // Obtém o BASE_URL configurado no Vite (ex: '/TomSilva/' no GitHub Actions ou './' local)
-  const baseUrl = import.meta.env.BASE_URL || './';
+  const baseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || './';
   const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
 
   return `${normalizedBase}${cleanPath}`;

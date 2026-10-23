@@ -550,7 +550,7 @@ async function startServer() {
   app.use((req: Request, res: Response, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-requested-with');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-requested-with, x-user-id');
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
     }

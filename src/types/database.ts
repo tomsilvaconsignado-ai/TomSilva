@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'editor' | 'reader';
 export type AccountType = 'pf' | 'pj';
-export type UserStatus = 'active' | 'suspended' | 'blocked';
+export type UserStatus = 'active' | 'suspended' | 'blocked' | 'inactive';
 export type AccountState = 'active' | 'awaiting_confirmation' | 'suspended' | 'blocked' | 'pending_approval' | 'incomplete';
 
 export interface UserAuditLog {

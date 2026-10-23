@@ -93,7 +93,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
   const fillAdminCredentials = () => {
     setEmail('tomsilvaconsignado@gmail.com');
-    setPassword('admin123');
+    setPassword('Folha@1234');
     setError(null);
   };
 

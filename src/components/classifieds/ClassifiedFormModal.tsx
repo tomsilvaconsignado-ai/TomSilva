@@ -151,12 +151,6 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
     });
   }, [section, isOpen, initialData]);
 
-  useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
 
   const isJob = section === 'vagas_emprego' || section === 'procuro_emprego';
 
