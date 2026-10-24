@@ -4,6 +4,22 @@ Portal completo de notícias regionais e classificados com integração Supabase
 
 ---
 
+## ⚠️ Atualização: Supabase como fonte única dos dados
+
+Até a versão anterior, notícias, banners, configurações, comentários e denúncias editados no painel ficavam **apenas no navegador de quem editou** e não apareciam para os leitores. Agora tudo é lido e gravado no Supabase. Para ativar:
+
+1. **Aplique a migração** `supabase/migrations/20261024000000_supabase_source_of_truth.sql` no Supabase (SQL Editor → colar → Run). Ela cria as colunas que faltavam, a tabela `site_settings`, a auditoria, as funções administrativas, as notificações automáticas e o bucket de mídia `media`.
+2. **Entre no painel como administrador no navegador onde você editava o portal** e clique em **Importar conteúdo** no aviso amarelo. As matérias e os banners iniciais, mais tudo o que foi editado nesse navegador, serão gravados no banco.
+3. **Troque a senha do administrador** no Supabase (Authentication → Users). A senha antiga estava escrita no código público do repositório.
+4. Em **Authentication → URL Configuration**, inclua o endereço do portal com curinga em *Redirect URLs* (ex.: `https://tomsilvaconsignado-ai.github.io/TomSilva/**`), para que os links de confirmação e de recuperação funcionem.
+5. **Confirmação de e-mail:** com *Confirm email* ligado (Authentication → Providers → Email), o usuário só entra depois de clicar no link. Se preferir liberar o acesso imediato, desligue essa opção no Supabase.
+
+O login usa somente o Supabase Auth: não existe mais conta local nem senha embutida no código. As imagens enviadas pelo painel e pelos classificados vão para o Supabase Storage em vez de ficarem embutidas no banco.
+
+**Servidor de API (`server.ts`):** no GitHub Pages ele não roda. Moderação, papéis, confirmação manual de e-mail e listagem de usuários agora funcionam direto pelo Supabase. Só o envio de e-mails personalizados pelo painel e o teste SMTP continuam exigindo o servidor. Para usá-los, hospede o `server.ts` e defina `VITE_API_BASE_URL` no build (veja `.env.example`).
+
+---
+
 ## 🚀 Como Publicar Este Site no GitHub
 
 Você pode publicar este site de forma 100% gratuita usando o **GitHub** e o **GitHub Pages** (ou conectando o repositório à **Vercel** ou **Netlify**).

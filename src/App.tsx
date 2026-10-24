@@ -22,8 +22,8 @@ import { ClassifiedFormModal } from './components/classifieds/ClassifiedFormModa
 import { MyClassifiedsModal } from './components/classifieds/MyClassifiedsModal';
 import { Article, AdItem, CategorySlug, UserProfile, ClassifiedItem } from './types/database';
 import { 
-  newsService, adsService, authService, newsletterService, 
-  notificationsService, supabase, isSupabaseConfigured 
+  newsService, adsService, authService, newsletterService,
+  siteSettingsService, supabase, isSupabaseConfigured
 } from './lib/supabase';
 import { INITIAL_ARTICLES, INITIAL_ADS } from './data/initialData';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
@@ -72,15 +72,12 @@ export default function App() {
     const [arts, currentAds, user] = await Promise.all([
       newsService.getArticles(),
       adsService.getAds(),
-      authService.getCurrentUser()
+      authService.getCurrentUser(),
+      siteSettingsService.hydrate()
     ]);
     setArticles(arts);
     setAds(currentAds);
     setCurrentUser(user);
-
-    if (user) {
-      notificationsService.seedInitialNotificationsIfEmpty(user, arts);
-    }
 
     // Extrai slug de notícia considerando SSR, rotas diretas, subdiretórios no GitHub Pages e fallback 404
     const extractSlug = (): string | null => {
@@ -172,8 +169,9 @@ export default function App() {
         }
       } else if (action === 'reset-password' || queryType === 'recovery') {
         setResetPasswordToken(queryToken || 'supabase_recovery');
-      } else if (action === 'confirm-email' && queryToken) {
-        setEmailConfirmToken(queryToken);
+      } else if (action === 'confirm-email') {
+        // O Supabase valida o link e devolve a sessão no fragmento da URL
+        setEmailConfirmToken(queryToken || 'supabase_verified');
       } else if (queryToken && queryEmail) {
         setEmailConfirmToken(queryToken);
       }
@@ -220,12 +218,7 @@ export default function App() {
     }
 
     const handleAuthChange = () => {
-      authService.getCurrentUser().then(user => {
-        setCurrentUser(user);
-        if (user) {
-          notificationsService.seedInitialNotificationsIfEmpty(user, articles);
-        }
-      });
+      authService.getCurrentUser().then(setCurrentUser);
     };
 
     const handleDirectReset = () => {

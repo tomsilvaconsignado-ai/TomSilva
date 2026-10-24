@@ -8,7 +8,7 @@ import {
   Clock, Database, HelpCircle
 } from 'lucide-react';
 import { UserProfile, UserRole, UserStatus, UserAuditLog, ClassifiedReport } from '../../types/database';
-import { usersService, authService, getApiAuthHeaders } from '../../lib/supabase';
+import { usersService, authService, getApiAuthHeaders, apiFetch } from '../../lib/supabase';
 import { emailService } from '../../lib/emailService';
 
 interface AdminManageUsersProps {
@@ -149,7 +149,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
     }
     setServiceKeyModal(prev => ({ ...prev, submitting: true, error: null }));
     try {
-      const resp = await fetch('/api/admin/save-service-key', {
+      const resp = await apiFetch('/api/admin/save-service-key', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

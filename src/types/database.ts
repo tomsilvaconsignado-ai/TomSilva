@@ -83,7 +83,7 @@ export interface OutboxEmail {
   actionUrl?: string;
   actionLabel?: string;
   sentAt: string;
-  status: 'sent' | 'delivered';
+  status: 'sent' | 'delivered' | 'failed';
 }
 
 export interface EmailConfig {

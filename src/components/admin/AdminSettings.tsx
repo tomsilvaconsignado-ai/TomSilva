@@ -151,9 +151,13 @@ export const AdminSettings: React.FC = () => {
 
   const handleReset = async () => {
     if (window.confirm('Tem certeza de que deseja restaurar os textos e contatos para o padrão original da Folha da Região?')) {
-      const def = await portalSettingsService.resetToDefaults();
-      setSettings(def);
-      showNotification('Configurações redefinidas para os valores padrão com sucesso!');
+      try {
+        const def = await portalSettingsService.resetToDefaults();
+        setSettings(def);
+        showNotification('Configurações redefinidas para os valores padrão com sucesso!');
+      } catch (err: any) {
+        alert(err?.message || 'Não foi possível restaurar as configurações.');
+      }
     }
   };
 

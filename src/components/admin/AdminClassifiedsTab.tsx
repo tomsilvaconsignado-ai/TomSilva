@@ -57,73 +57,86 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
     loadAll();
   }, []);
 
-  const handleApprove = async (id: string) => {
+  // As gravações vão para o Supabase e podem falhar (sessão expirada, sem permissão, rede)
+  const runSafely = async (action: () => Promise<void>) => {
+    try {
+      await action();
+    } catch (err: any) {
+      alert(err?.message || 'Não foi possível concluir a operação.');
+    }
+  };
+
+  const handleApprove = (id: string) => runSafely(async () => {
     await classifiedsService.updateClassifiedStatus(id, 'published', currentUser);
     await loadAll();
-  };
+  });
 
   const handleOpenReject = (item: ClassifiedItem) => {
     setRejectingItem(item);
     setRejectionReason('Conteúdo em desacordo com as regras do portal.');
   };
 
-  const handleConfirmReject = async () => {
+  const handleConfirmReject = () => runSafely(async () => {
     if (!rejectingItem) return;
     await classifiedsService.updateClassifiedStatus(
-      rejectingItem.id, 
-      'rejected', 
-      currentUser, 
+      rejectingItem.id,
+      'rejected',
+      currentUser,
       rejectionReason.trim()
     );
     setRejectingItem(null);
     await loadAll();
-  };
+  });
 
-  const handleToggleStatus = async (item: ClassifiedItem) => {
+  const handleToggleStatus = (item: ClassifiedItem) => runSafely(async () => {
     const nextStatus: ClassifiedStatus = item.status === 'paused' ? 'published' : 'paused';
     await classifiedsService.updateClassifiedStatus(item.id, nextStatus, currentUser);
     await loadAll();
-  };
+  });
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => runSafely(async () => {
     if (window.confirm('Tem certeza que deseja remover este anúncio definitivamente?')) {
       await classifiedsService.deleteClassified(id, currentUser);
       await loadAll();
     }
-  };
+  });
 
-  const handleRenew = async (item: ClassifiedItem) => {
+  const handleRenew = (item: ClassifiedItem) => runSafely(async () => {
     await classifiedsService.renewClassified(item.id, currentUser);
     await loadAll();
-  };
+  });
 
-  const handleAddCategory = async (e: React.FormEvent) => {
+  const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
-    await classifiedsService.saveCategory({
-      name: newCatName.trim(),
-      section: newCatSection
+    return runSafely(async () => {
+      await classifiedsService.saveCategory({
+        name: newCatName.trim(),
+        section: newCatSection
+      });
+      setNewCatName('');
+      await loadAll();
     });
-    setNewCatName('');
-    await loadAll();
   };
 
-  const handleDeleteCategory = async (id: string) => {
+  const handleDeleteCategory = (id: string) => runSafely(async () => {
     if (window.confirm('Excluir esta categoria?')) {
       await classifiedsService.deleteCategory(id);
       await loadAll();
     }
-  };
+  });
 
-  const handleUpdateReportStatus = async (id: string, status: 'resolved' | 'dismissed') => {
+  const handleUpdateReportStatus = (id: string, status: 'resolved' | 'dismissed') => runSafely(async () => {
     await classifiedsService.updateReportStatus(id, status);
     await loadAll();
-  };
+  });
 
-  const handleSaveSettings = async (e: React.FormEvent) => {
+  const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
-    await classifiedsService.updateSettings(settings);
-    alert('Configurações de classificados salvas com sucesso!');
+    return runSafely(async () => {
+      await classifiedsService.updateSettings(settings);
+      alert('Configurações de classificados salvas com sucesso!');
+    });
   };
 
   // Contadores

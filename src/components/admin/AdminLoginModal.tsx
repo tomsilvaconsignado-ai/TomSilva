@@ -91,12 +91,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
     }
   };
 
-  const fillAdminCredentials = () => {
-    setEmail('tomsilvaconsignado@gmail.com');
-    setPassword('Folha@1234');
-    setError(null);
-  };
-
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
       <div 
@@ -238,18 +232,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                   )}
                 </button>
               </form>
-
-              {/* Botão de Preenchimento Rápido com a Conta Oficial do Administrador */}
-              <div className="pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={fillAdminCredentials}
-                  className="w-full py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-red-200"
-                >
-                  <KeyRound className="w-3.5 h-3.5 text-red-600" />
-                  <span>Preencher Credencial de Administrador Autorizado</span>
-                </button>
-              </div>
             </>
           ) : (
             /* Modo Recuperação de Senha Administrativa */

@@ -95,9 +95,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
   const handleSavePreferences = async () => {
     setSavingInterests(true);
-    await authService.updateInterests(currentUser.id, selectedInterests);
-    setSavingInterests(false);
-    setIsPreferencesOpen(false);
+    try {
+      await authService.updateInterests(currentUser.id, selectedInterests);
+      setIsPreferencesOpen(false);
+    } catch (err: any) {
+      alert(err?.message || 'Não foi possível salvar suas preferências.');
+    } finally {
+      setSavingInterests(false);
+    }
   };
 
   // Categorias disponíveis para preferências (exceto 'Início')

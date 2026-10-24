@@ -4,11 +4,48 @@ import { fileURLToPath } from 'url';
 import { INITIAL_ARTICLES } from '../src/data/initialData';
 import { Article } from '../src/types/database';
 import { generateOpenGraphHtml, escapeHtml, DEFAULT_PORTAL_DOMAIN } from '../src/lib/seo';
+import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../src/lib/supabase';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.resolve(rootDir, 'dist');
+
+// Lê as matérias publicadas pela API REST do Supabase com a chave pública (anon)
+async function fetchPublishedArticles(): Promise<Article[]> {
+  const url = (process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).trim().replace(/\/+$/, '');
+  const key = (process.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY).trim();
+  try {
+    const resp = await fetch(
+      `${url}/rest/v1/articles?select=id,title,subtitle,slug,content,category,image_url,video_url,is_video,author,views_count,created_at,updated_at,status&status=eq.published&order=created_at.desc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    if (!resp.ok) {
+      console.warn(`[SSG Pre-render] Supabase respondeu ${resp.status}; usando matérias iniciais.`);
+      return [];
+    }
+    const rows: any[] = await resp.json();
+    return rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      subtitle: r.subtitle || undefined,
+      slug: r.slug,
+      content: r.content,
+      category: r.category,
+      imageUrl: r.image_url,
+      videoUrl: r.video_url || undefined,
+      isVideo: Boolean(r.is_video),
+      viewsCount: r.views_count || 0,
+      author: r.author || 'Folha da Região',
+      createdAt: r.created_at,
+      updatedAt: r.updated_at || undefined,
+      status: r.status || 'published'
+    }));
+  } catch (e) {
+    console.warn('[SSG Pre-render] Não foi possível consultar o Supabase; usando matérias iniciais.', e);
+    return [];
+  }
+}
 
 async function runPrerender() {
   console.log('[SSG Pre-render] Iniciando pré-renderização estática das notícias para GitHub Pages...');
@@ -21,8 +58,13 @@ async function runPrerender() {
 
   const baseHtml = fs.readFileSync(templatePath, 'utf-8');
 
-  // 1. Carrega notícias iniciais e do cache local
-  let articles: Article[] = [...INITIAL_ARTICLES];
+  // 1. Carrega as notícias publicadas no Supabase (fonte oficial); sem elas, usa as iniciais e o cache local
+  let articles: Article[] = await fetchPublishedArticles();
+  if (articles.length > 0) {
+    console.log(`[SSG Pre-render] ${articles.length} matérias carregadas do Supabase.`);
+  } else {
+    articles = [...INITIAL_ARTICLES];
+  }
   const cachePath = path.resolve(rootDir, 'data_articles_cache.json');
   if (fs.existsSync(cachePath)) {
     try {
