@@ -23,15 +23,19 @@ import { MyClassifiedsModal } from './components/classifieds/MyClassifiedsModal'
 import { Article, AdItem, CategorySlug, UserProfile, ClassifiedItem, isExtraSidebarSquare } from './types/database';
 import { 
   newsService, adsService, authService, newsletterService,
-  siteSettingsService, supabase, isSupabaseConfigured, classifiedsService
+  siteSettingsService, supabase, isSupabaseConfigured, classifiedsService, getStored, STORAGE_KEYS
 } from './lib/supabase';
+import { HomeSkeleton } from './components/news/HomeSkeleton';
 import { INITIAL_ARTICLES, INITIAL_ADS } from './data/initialData';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
 import { updateClientHeadForArticle, updateClientHeadForClassified, getAppBasePath } from './lib/seo';
 
 export default function App() {
-  const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
-  const [ads, setAds] = useState<AdItem[]>(INITIAL_ADS);
+  // Começam vazios: a página mostra o esqueleto até as notícias e banners atuais chegarem,
+  // em vez de exibir por um instante a cópia antiga embutida no site
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [ads, setAds] = useState<AdItem[]>([]);
+  const [contentReady, setContentReady] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   
   // Roteamento interno
@@ -121,15 +125,24 @@ export default function App() {
 
   // Carregar dados iniciais e sessão
   const loadData = async () => {
-    const [arts, currentAds, user] = await Promise.all([
-      newsService.getArticles(),
-      adsService.getAds(),
-      authService.getCurrentUser(),
-      siteSettingsService.hydrate()
-    ]);
+    // Sessão e configurações seguem em paralelo, sem atrasar a exibição das notícias
+    authService.getCurrentUser().then(setCurrentUser).catch(() => {});
+    siteSettingsService.hydrate().catch(() => {});
+
+    // Conexão muito lenta: depois de 8 s usa a última cópia salva neste navegador
+    // e troca pelas notícias atuais quando elas chegarem
+    const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T | null> =>
+      Promise.race([promise, new Promise<null>(resolve => setTimeout(() => resolve(null), ms))]);
+    const articlesRequest = newsService.getArticles();
+    const adsRequest = adsService.getAds();
+    const [fetchedArts, fetchedAds] = await Promise.all([withTimeout(articlesRequest, 8000), withTimeout(adsRequest, 8000)]);
+    const arts = fetchedArts ?? getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const currentAds = fetchedAds ?? getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
+    if (!fetchedArts) articlesRequest.then(setArticles).catch(() => {});
+    if (!fetchedAds) adsRequest.then(setAds).catch(() => {});
     setArticles(arts);
     setAds(currentAds);
-    setCurrentUser(user);
+    setContentReady(true);
 
     // Extrai slug de notícia considerando SSR, rotas diretas, subdiretórios no GitHub Pages e fallback 404
     const extractSlug = (): string | null => {
@@ -507,6 +520,7 @@ export default function App() {
         currentUser={currentUser}
         onSignOut={handleSignOut}
         headerAds={headerAds}
+        reserveAdSpace={!contentReady}
         onGoHome={handleGoHome}
         onSelectArticleSlug={(slug) => {
           const found = articles.find(a => a.slug === slug);
@@ -580,7 +594,8 @@ export default function App() {
         )}
 
         {/* VISUALIZAÇÃO: PÁGINA INICIAL / FEED */}
-        {viewMode === 'home' && (
+        {viewMode === 'home' && !contentReady && <HomeSkeleton />}
+        {viewMode === 'home' && contentReady && (
           <div className="container mx-auto px-4 py-6">
             {/* Aviso de busca ou categoria filtrada */}
             {(searchQuery || currentCategory !== 'todos') && (

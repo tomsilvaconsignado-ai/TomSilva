@@ -19,6 +19,8 @@ interface HeaderProps {
   onSignOut: () => void;
   headerAd?: AdItem;
   headerAds?: AdItem[];
+  // Enquanto os banners carregam, reserva a altura do banner do topo para a página não pular
+  reserveAdSpace?: boolean;
   onGoHome: () => void;
   onSelectArticleSlug: (slug: string) => void;
   onOpenMyClassifieds?: () => void;
@@ -34,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSignOut,
   headerAd,
   headerAds,
+  reserveAdSpace,
   onGoHome,
   onSelectArticleSlug,
   onOpenMyClassifieds
@@ -240,7 +243,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Banner de Topo (728x90 ou 970x90) */}
-          <div className="hidden lg:flex flex-1 justify-center max-w-[970px] min-w-0">
+          <div className={`hidden lg:flex flex-1 justify-center items-center max-w-[970px] min-w-0 ${reserveAdSpace ? 'min-h-[112px]' : ''}`}>
             <AdSlot placement="header" ads={headerAds} ad={headerAd} />
           </div>
 
