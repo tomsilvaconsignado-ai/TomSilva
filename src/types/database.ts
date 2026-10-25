@@ -153,7 +153,13 @@ export interface CategoryItem {
   slug: CategorySlug;
 }
 
-export type AdPlacement = 'header' | 'feed' | 'sidebar' | 'article' | 'footer' | 'sidebar_300x900' | 'sidebar_300x600';
+export type AdPlacement = 'header' | 'feed' | 'sidebar' | 'article' | 'footer' | 'sidebar_300x900' | 'sidebar_300x600' | 'sidebar_300x300_2' | 'sidebar_300x300_3';
+
+// Painéis 300x300 adicionais da coluna lateral (abaixo do primeiro): cada um tem anúncios,
+// temporizador e pausa próprios, configurados pelo espaço (placement) e não pelo formato
+export const EXTRA_SIDEBAR_SQUARE_PLACEMENTS = ['sidebar_300x300_2', 'sidebar_300x300_3'] as const;
+export const isExtraSidebarSquare = (placement?: string): boolean =>
+  (EXTRA_SIDEBAR_SQUARE_PLACEMENTS as readonly string[]).includes(placement || '');
 export type AdFormat = '300x300' | '300x900' | '300x600' | '728x90' | '970x90';
 export type AdStatus = 'active' | 'paused' | 'ended';
 export type PlacementMode = 'fixed' | 'carousel';

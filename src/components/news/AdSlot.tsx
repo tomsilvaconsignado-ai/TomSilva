@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Pause, Play, ExternalLink } from 'lucide-react';
-import { AdItem, AdPlacement, AdFormat, PlacementSetting, FormatCarouselSetting } from '../../types/database';
+import { AdItem, AdPlacement, AdFormat, PlacementSetting, FormatCarouselSetting, isExtraSidebarSquare } from '../../types/database';
 import { adsService } from '../../lib/supabase';
 
 interface AdSlotProps {
@@ -54,6 +54,10 @@ export const AdSlot: React.FC<AdSlotProps> = ({
     const fKey = (determinedFormat === '300x900' || determinedFormat === '300x600') ? '300x900' : '300x300';
     return adsService.getFormatSettings()[fKey] || { format: '300x300', durationSeconds: 5, isPaused: false, mode: 'carousel' };
   });
+
+  // Os formatos laterais seguem o temporizador do formato, exceto os painéis 300x300 extras,
+  // que têm temporizador e pausa próprios no espaço
+  const isFormatBased = (determinedFormat === '300x300' || determinedFormat === '300x900' || determinedFormat === '300x600') && !isExtraSidebarSquare(placement);
 
   // Lista de anúncios
   const [slotAds, setSlotAds] = useState<AdItem[]>(() => {
@@ -212,11 +216,11 @@ export const AdSlot: React.FC<AdSlotProps> = ({
   // Temporizador de rotação automática independente
   useEffect(() => {
     // Determina modo e pausa baseado no formato ou placement
-    const isCarouselMode = (determinedFormat === '300x300' || determinedFormat === '300x900' || determinedFormat === '300x600')
+    const isCarouselMode = isFormatBased
       ? formatSettings.mode === 'carousel'
       : placementSettings.mode === 'carousel';
 
-    const isPausedByAdmin = (determinedFormat === '300x300' || determinedFormat === '300x900' || determinedFormat === '300x600')
+    const isPausedByAdmin = isFormatBased
       ? formatSettings.isPaused 
       : placementSettings.isPaused;
 
@@ -230,7 +234,6 @@ export const AdSlot: React.FC<AdSlotProps> = ({
     if (!canRotate || !currentAd) return;
 
     // Intervalo independente: lê o temporizador configurado no formato ou no espaço pelo admin
-    const isFormatBased = determinedFormat === '300x300' || determinedFormat === '300x900' || determinedFormat === '300x600';
     const defaultSec = (determinedFormat === '300x900' || determinedFormat === '300x600') ? 8 : 5;
     const formatDurationSec = isFormatBased
       ? (formatSettings.durationSeconds || defaultSec)
@@ -252,6 +255,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({
     };
   }, [
     determinedFormat,
+    isFormatBased,
     formatSettings.mode,
     formatSettings.isPaused,
     formatSettings.durationSeconds,
@@ -271,7 +275,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({
   }
 
   const isCarouselActive = (
-    (determinedFormat === '300x300' || determinedFormat === '300x900' || determinedFormat === '300x600')
+    isFormatBased
       ? formatSettings.mode === 'carousel'
       : placementSettings.mode === 'carousel'
   ) && totalEligible > 1;

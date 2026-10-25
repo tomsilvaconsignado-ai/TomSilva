@@ -290,6 +290,9 @@ export const INITIAL_ARTICLES: Article[] = [
   ...(backup.articles as Article[])
 ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+// Arte provisória dos painéis 300x300 adicionais, até o administrador cadastrar os anunciantes
+const ANUNCIE_AQUI_300X300 = `data:image/svg+xml;charset=utf-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect width="300" height="300" fill="#0056a4"/><rect x="12" y="12" width="276" height="276" rx="14" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="8 6"/><text x="150" y="92" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700" letter-spacing="3" fill="#bfdbfe">ESPAÇO DISPONÍVEL</text><text x="150" y="146" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="38" font-weight="900" fill="#ffffff">ANUNCIE</text><text x="150" y="188" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="38" font-weight="900" fill="#ffffff">AQUI</text><text x="150" y="226" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="700" fill="#ffffff">(79) 99977-6199</text><text x="150" y="252" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#bfdbfe">Folha da Região Online</text></svg>')}`;
+
 export const INITIAL_ADS: AdItem[] = [
   // 1. BANNER SUPERIOR (HEADER) - ATÉ 3 ANÚNCIOS NO CARROSSEL
   {
@@ -510,6 +513,56 @@ export const INITIAL_ADS: AdItem[] = [
     campaignName: 'Vida Ativa',
     impressionsCount: 1180,
     clicksCount: 65,
+    createdAt: new Date().toISOString()
+  },
+
+  // 3.A. PAINÉIS LATERAIS 300x300 ADICIONAIS (CARROSSÉIS INDEPENDENTES, ABAIXO DO PRIMEIRO)
+  {
+    id: 'ad-side2-1',
+    title: 'Anuncie Conosco — Folha da Região',
+    sponsorName: 'Folha da Região',
+    linkUrl: 'https://wa.me/5579999776199',
+    mediaUrl: ANUNCIE_AQUI_300X300,
+    mediaType: 'image',
+    placement: 'sidebar_300x300_2',
+    adFormat: '300x300',
+    aspectRatio: '1 / 1',
+    width: 300,
+    height: 300,
+    maxWidth: 300,
+    active: true,
+    status: 'active',
+    displayOrder: 1,
+    durationSeconds: 5,
+    openInNewTab: true,
+    altText: 'Anuncie na Folha da Região',
+    campaignName: 'Espaço lateral 300x300 (2)',
+    impressionsCount: 0,
+    clicksCount: 0,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'ad-side3-1',
+    title: 'Anuncie Conosco — Folha da Região',
+    sponsorName: 'Folha da Região',
+    linkUrl: 'https://wa.me/5579999776199',
+    mediaUrl: ANUNCIE_AQUI_300X300,
+    mediaType: 'image',
+    placement: 'sidebar_300x300_3',
+    adFormat: '300x300',
+    aspectRatio: '1 / 1',
+    width: 300,
+    height: 300,
+    maxWidth: 300,
+    active: true,
+    status: 'active',
+    displayOrder: 1,
+    durationSeconds: 5,
+    openInNewTab: true,
+    altText: 'Anuncie na Folha da Região',
+    campaignName: 'Espaço lateral 300x300 (3)',
+    impressionsCount: 0,
+    clicksCount: 0,
     createdAt: new Date().toISOString()
   },
 

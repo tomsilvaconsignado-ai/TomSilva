@@ -20,7 +20,7 @@ import { ClassifiedList } from './components/classifieds/ClassifiedList';
 import { ClassifiedDetail } from './components/classifieds/ClassifiedDetail';
 import { ClassifiedFormModal } from './components/classifieds/ClassifiedFormModal';
 import { MyClassifiedsModal } from './components/classifieds/MyClassifiedsModal';
-import { Article, AdItem, CategorySlug, UserProfile, ClassifiedItem } from './types/database';
+import { Article, AdItem, CategorySlug, UserProfile, ClassifiedItem, isExtraSidebarSquare } from './types/database';
 import { 
   newsService, adsService, authService, newsletterService,
   siteSettingsService, supabase, isSupabaseConfigured
@@ -428,7 +428,9 @@ export default function App() {
   const sidebarAds = ads.filter(a => a.placement === 'sidebar');
   const articleAds = ads.filter(a => a.placement === 'article');
   const footerAds = ads.filter(a => a.placement === 'footer');
-  const ads300x300 = ads.filter(a => (a.adFormat === '300x300' || a.aspectRatio === '1 / 1') && a.placement !== 'sidebar_300x900' && a.placement !== 'sidebar_300x600');
+  const ads300x300 = ads.filter(a => (a.adFormat === '300x300' || a.aspectRatio === '1 / 1') && a.placement !== 'sidebar_300x900' && a.placement !== 'sidebar_300x600' && !isExtraSidebarSquare(a.placement));
+  const ads300x300Second = ads.filter(a => a.placement === 'sidebar_300x300_2');
+  const ads300x300Third = ads.filter(a => a.placement === 'sidebar_300x300_3');
   const ads300x900 = ads.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.adFormat === '300x600' || a.placement === 'sidebar_300x600');
 
   return (
@@ -604,6 +606,14 @@ export default function App() {
                 {/* Espaço Publicitário Formato 300x300 (Quadrado - Carrossel Independente) */}
                 <div className="flex justify-center w-full">
                   <AdSlot format="300x300" placement="sidebar" ads={ads300x300} />
+                </div>
+
+                {/* Espaços Publicitários 300x300 adicionais (carrosséis independentes) */}
+                <div className="flex justify-center w-full">
+                  <AdSlot format="300x300" placement="sidebar_300x300_2" ads={ads300x300Second} />
+                </div>
+                <div className="flex justify-center w-full">
+                  <AdSlot format="300x300" placement="sidebar_300x300_3" ads={ads300x300Third} />
                 </div>
 
                 {/* Widget Mais Lidas */}

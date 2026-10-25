@@ -6,7 +6,7 @@ import {
   ArrowUp, ArrowDown, Clock, ShieldCheck, Monitor, Smartphone, RefreshCw, 
   Square, RectangleVertical, Columns, ArrowRight
 } from 'lucide-react';
-import { AdItem, AdPlacement, AdFormat, AdStatus, PlacementSetting, FormatCarouselSetting, PlacementMode } from '../../types/database';
+import { AdItem, AdPlacement, AdFormat, AdStatus, PlacementSetting, FormatCarouselSetting, PlacementMode, isExtraSidebarSquare } from '../../types/database';
 import { adsService } from '../../lib/supabase';
 import { AdSlot } from '../news/AdSlot';
 
@@ -15,7 +15,7 @@ interface AdminManageAdsProps {
   onRefreshData: () => void;
 }
 
-export type AdminAdsSpace = 'header' | 'feed' | 'footer' | 'sidebar_300x300' | 'sidebar_300x900' | 'article';
+export type AdminAdsSpace = 'header' | 'feed' | 'footer' | 'sidebar_300x300' | 'sidebar_300x300_2' | 'sidebar_300x300_3' | 'sidebar_300x900' | 'article';
 
 interface SpaceDefinition {
   id: AdminAdsSpace;
@@ -69,6 +69,28 @@ const SPACES_DEFINITIONS: SpaceDefinition[] = [
     subtitle: 'Espaço quadrado na coluna lateral acima de Mais Lidas.',
     badge: 'Coluna Lateral',
     placement: 'sidebar',
+    compatibleFormats: ['300x300'],
+    defaultFormat: '300x300',
+    isFormatSelectorAllowed: false,
+    aspectDesc: '300×300 px (Quadrado 1:1)'
+  },
+  {
+    id: 'sidebar_300x300_2',
+    title: 'Lateral — 300×300 (Quadrado 2)',
+    subtitle: 'Segundo espaço quadrado na coluna lateral, logo abaixo do primeiro.',
+    badge: 'Coluna Lateral',
+    placement: 'sidebar_300x300_2',
+    compatibleFormats: ['300x300'],
+    defaultFormat: '300x300',
+    isFormatSelectorAllowed: false,
+    aspectDesc: '300×300 px (Quadrado 1:1)'
+  },
+  {
+    id: 'sidebar_300x300_3',
+    title: 'Lateral — 300×300 (Quadrado 3)',
+    subtitle: 'Terceiro espaço quadrado na coluna lateral, abaixo do segundo.',
+    badge: 'Coluna Lateral',
+    placement: 'sidebar_300x300_3',
     compatibleFormats: ['300x300'],
     defaultFormat: '300x300',
     isFormatSelectorAllowed: false,
@@ -174,6 +196,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
         (a.adFormat === '300x300' || a.aspectRatio === '1 / 1') && 
         a.placement !== 'sidebar_300x900' && 
         a.placement !== 'sidebar_300x600' &&
+        !isExtraSidebarSquare(a.placement) &&
         a.placement !== 'header' && 
         a.placement !== 'feed' && 
         a.placement !== 'footer'
@@ -197,8 +220,8 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
     if (activeSpace === 'footer') {
       return ads.filter(a => a.placement === 'footer').sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1));
     }
-    if (activeSpace === 'article') {
-      return ads.filter(a => a.placement === 'article').sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1));
+    if (activeSpace === 'article' || activeSpace === 'sidebar_300x300_2' || activeSpace === 'sidebar_300x300_3') {
+      return ads.filter(a => a.placement === currentSpaceDef.placement).sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1));
     }
     return [];
   };
@@ -208,7 +231,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
 
   // Formato ativo atual do espaço
   const currentActiveFormat: AdFormat = (() => {
-    if (activeSpace === 'sidebar_300x300' || activeSpace === 'article') return '300x300';
+    if (activeSpace === 'sidebar_300x300' || activeSpace === 'article' || isExtraSidebarSquare(activeSpace)) return '300x300';
     if (activeSpace === 'sidebar_300x900') return '300x900';
     const curPref = placementSettings[currentSpaceDef.placement]?.preferredFormat;
     if (curPref === '970x90' || curPref === '728x90') return curPref;
@@ -399,7 +422,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
       const is900 = formFormat === '300x900';
       const is300 = formFormat === '300x300';
 
-      const finalPlacement: AdPlacement = is900 ? 'sidebar_300x900' : (is300 ? (placement === 'article' ? 'article' : 'sidebar') : placement);
+      const finalPlacement: AdPlacement = is900 ? 'sidebar_300x900' : (is300 ? (placement === 'article' || isExtraSidebarSquare(placement) ? placement : 'sidebar') : placement);
 
       await adsService.saveAd({
         id: editingAd?.id,
@@ -526,12 +549,12 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
       )}
 
       {/* SELETOR DE ESPAÇOS PUBLICITÁRIOS (NAVEGAÇÃO POR ESPAÇO) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {SPACES_DEFINITIONS.filter(s => s.id !== 'article').map((spaceDef) => {
           const isSelected = activeSpace === spaceDef.id;
           const spaceAds = (() => {
             if (spaceDef.id === 'sidebar_300x300') {
-              return ads.filter(a => (a.adFormat === '300x300' || a.aspectRatio === '1 / 1') && a.placement !== 'sidebar_300x900' && a.placement !== 'sidebar_300x600');
+              return ads.filter(a => (a.adFormat === '300x300' || a.aspectRatio === '1 / 1') && a.placement !== 'sidebar_300x900' && a.placement !== 'sidebar_300x600' && !isExtraSidebarSquare(a.placement));
             }
             if (spaceDef.id === 'sidebar_300x900') {
               return ads.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.adFormat === '300x600');
@@ -541,7 +564,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
 
           const spaceActiveCount = spaceAds.filter(a => a.active && a.status !== 'paused').length;
           const activeFmt = (() => {
-            if (spaceDef.id === 'sidebar_300x300') return '300×300';
+            if (spaceDef.id === 'sidebar_300x300' || isExtraSidebarSquare(spaceDef.id)) return '300×300';
             if (spaceDef.id === 'sidebar_300x900') return '300×900';
             const pref = placementSettings[spaceDef.placement]?.preferredFormat;
             return pref === '970x90' ? '970×90' : '728×90';
@@ -912,7 +935,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                 <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0056a4] flex items-center justify-center font-black">
                   {activeSpace === 'sidebar_300x900' ? (
                     <RectangleVertical className="w-5 h-5" />
-                  ) : activeSpace === 'sidebar_300x300' ? (
+                  ) : activeSpace === 'sidebar_300x300' || isExtraSidebarSquare(activeSpace) ? (
                     <Square className="w-5 h-5" />
                   ) : (
                     <Layout className="w-5 h-5" />
