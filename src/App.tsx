@@ -352,7 +352,7 @@ export default function App() {
     // Atualiza a URL canônica na barra de endereços do navegador preservando a base da aplicação
     const basePath = getAppBasePath();
     const cleanBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-    const targetUrl = `${cleanBase}noticia/${encodeURIComponent(art.slug)}`;
+    const targetUrl = `${cleanBase}noticia/${encodeURIComponent(art.slug)}/`;
     if (window.location.pathname !== targetUrl) {
       window.history.pushState({ articleSlug: art.slug }, '', targetUrl);
     }

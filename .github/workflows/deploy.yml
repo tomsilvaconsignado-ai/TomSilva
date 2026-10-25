@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - 'https/folhadaregiaonline'
-  # Recompila a cada 30 minutos para gerar as prévias de compartilhamento (Open Graph)
+  # Recompila a cada 10 minutos para gerar as prévias de compartilhamento (Open Graph)
   # das matérias e dos anúncios dos classificados publicados desde o último deploy
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 permissions:

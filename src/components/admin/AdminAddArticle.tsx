@@ -8,6 +8,7 @@ import { Article, ArticleStatus, UserProfile } from '../../types/database';
 import { newsService } from '../../lib/supabase';
 import { INITIAL_CATEGORIES } from '../../data/initialData';
 import { getAssetUrl, sanitizeHtml } from '../../lib/assets';
+import { compressImageFile } from '../../lib/imageCompress';
 
 interface AdminAddArticleProps {
   currentUser: UserProfile;
@@ -54,8 +55,9 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Manipulação de Upload de Imagem local para Base64
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload de imagem local: a foto é reduzida (1600 px) e comprimida (~400 KB) antes de salvar.
+  // Fotos acima de ~600 KB aparecem sem imagem na prévia do link no WhatsApp.
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -70,37 +72,35 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
       return;
     }
 
-    // Validação de tamanho (máximo 5MB)
-    const maxSize = 5 * 1024 * 1024;
+    // Validação de tamanho (máximo 15MB; a foto é comprimida em seguida)
+    const maxSize = 15 * 1024 * 1024;
     if (file.size > maxSize) {
-      setError('O arquivo selecionado ultrapassa o limite de 5MB. Reduza o tamanho da imagem.');
+      setError('O arquivo selecionado ultrapassa o limite de 15MB. Reduza o tamanho da imagem.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    // Leitura permanente Base64
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setImageUrl(result);
-
-      // Checa proporção aproximada da imagem (16:9 ideal)
-      const img = new Image();
-      img.onload = () => {
-        const ratio = img.width / img.height;
-        // 16:9 é ~1.77
-        if (ratio < 1.3) {
-          setImageRatioNotice('Dica: Esta imagem é vertical ou quadrada. Imagens horizontais (proporção 16:9) têm melhor destaque no portal.');
-        } else {
-          setImageRatioNotice('Excelente! A imagem possui boa proporção horizontal para as manchetes.');
-        }
-      };
-      img.src = result;
-    };
-    reader.onerror = () => {
+    let result: string;
+    try {
+      result = await compressImageFile(file);
+    } catch {
       setError('Falha ao processar o arquivo de imagem.');
+      return;
+    }
+    setImageUrl(result);
+
+    // Checa proporção aproximada da imagem (16:9 ideal)
+    const img = new Image();
+    img.onload = () => {
+      const ratio = img.width / img.height;
+      // 16:9 é ~1.77
+      if (ratio < 1.3) {
+        setImageRatioNotice('Dica: Esta imagem é vertical ou quadrada. Imagens horizontais (proporção 16:9) têm melhor destaque no portal.');
+      } else {
+        setImageRatioNotice('Excelente! A imagem possui boa proporção horizontal para as manchetes.');
+      }
     };
-    reader.readAsDataURL(file);
+    img.src = result;
   };
 
   const handleRemoveImage = () => {

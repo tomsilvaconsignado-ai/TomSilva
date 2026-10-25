@@ -5,6 +5,7 @@ import { INITIAL_ARTICLES } from '../src/data/initialData';
 import { Article, ClassifiedItem } from '../src/types/database';
 import { generateOpenGraphHtml, generateClassifiedOpenGraphHtml, escapeHtml, DEFAULT_PORTAL_DOMAIN } from '../src/lib/seo';
 import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../src/lib/supabaseConfig';
+import sharp from 'sharp';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -128,6 +129,58 @@ function writeStaticPage(folders: string[], slug: string, html: string) {
   }
 }
 
+// ------------------------------------------------------------------
+// Imagem leve para a prévia do link (WhatsApp / Facebook)
+// O WhatsApp não mostra a foto quando o og:image passa de ~600 KB. Fotos pesadas ganham
+// uma cópia em /og/<nome>.jpg (até 1200 px, JPEG); a foto original do site não muda.
+// ------------------------------------------------------------------
+const OG_MAX_BYTES = 450 * 1024;
+const ogDir = path.resolve(distDir, 'og');
+
+async function lightPreviewImage(imageUrl: string | undefined, key: string, origin: string): Promise<string | undefined> {
+  if (!imageUrl || !/^https?:\/\//i.test(imageUrl)) return imageUrl;
+  try {
+    const head = await fetch(imageUrl, { method: 'HEAD' });
+    const size = Number(head.headers.get('content-length') || 0);
+    if (head.ok && size > 0 && size <= OG_MAX_BYTES) return imageUrl;
+
+    const resp = await fetch(imageUrl);
+    if (!resp.ok) return imageUrl;
+    const input = Buffer.from(await resp.arrayBuffer());
+    if (input.length <= OG_MAX_BYTES) return imageUrl;
+
+    let quality = 80;
+    let output = await sharp(input).rotate().resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' }).jpeg({ quality, mozjpeg: true }).toBuffer();
+    while (output.length > OG_MAX_BYTES && quality > 50) {
+      quality -= 10;
+      output = await sharp(input).rotate().resize({ width: 1000, height: 1000, fit: 'inside', withoutEnlargement: true })
+        .flatten({ background: '#ffffff' }).jpeg({ quality, mozjpeg: true }).toBuffer();
+    }
+
+    fs.mkdirSync(ogDir, { recursive: true });
+    const fileName = `${key.replace(/[^a-z0-9-]/gi, '').slice(0, 120) || 'imagem'}.jpg`;
+    fs.writeFileSync(path.resolve(ogDir, fileName), output);
+    return `${origin}/og/${fileName}`;
+  } catch (e) {
+    console.warn(`[SSG Pre-render] Não foi possível gerar a imagem leve de ${key}:`, (e as Error).message);
+    return imageUrl;
+  }
+}
+
+// Executa tarefas com limite de simultaneidade (para não abrir centenas de downloads de uma vez)
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index]);
+    }
+  }));
+  return results;
+}
+
 async function runPrerender() {
   console.log('[SSG Pre-render] Iniciando pré-renderização estática das notícias para GitHub Pages...');
 
@@ -176,6 +229,12 @@ async function runPrerender() {
   console.log(`[SSG Pre-render] Domínio canônico configurado: ${origin}`);
   console.log(`[SSG Pre-render] Total de matérias a processar: ${articles.length}`);
 
+  // Versões leves das fotos pesadas para a prévia do link
+  const previewImages = await mapLimit(articles, 8, a => lightPreviewImage(a.imageUrl, `noticia-${a.slug}`, origin));
+  const previewByArticle = new Map(articles.map((a, i) => [a.id, previewImages[i]]));
+  const lightCount = previewImages.filter(url => url && url.startsWith(`${origin}/og/`)).length;
+  console.log(`[SSG Pre-render] ${lightCount} fotos pesadas ganharam versão leve para a prévia do WhatsApp.`);
+
   let generatedCount = 0;
 
   // 3. Para cada notícia publicada, gera o arquivo estático com Open Graph no head
@@ -188,7 +247,7 @@ async function runPrerender() {
       continue;
     }
 
-    const metaBlock = generateOpenGraphHtml(article, origin);
+    const metaBlock = generateOpenGraphHtml({ ...article, imageUrl: previewByArticle.get(article.id) || article.imageUrl }, origin);
     const html = buildStaticPage(baseHtml, metaBlock, `window.__INITIAL_ARTICLE_SLUG__ = "${escapeHtml(article.slug)}";`);
     writeStaticPage(['noticia', 'noticias'], article.slug, html);
 
@@ -200,7 +259,12 @@ async function runPrerender() {
   let classifiedCount = 0;
   for (const item of classifieds) {
     if (Buffer.byteLength(item.slug, 'utf-8') > 200) continue;
-    const metaBlock = generateClassifiedOpenGraphHtml(item, origin);
+    const firstImage = (item.images || []).find(img => img && !img.startsWith('data:'));
+    const lightFirst = await lightPreviewImage(firstImage, `classificado-${item.slug}`, origin);
+    const previewItem = lightFirst && firstImage && lightFirst !== firstImage
+      ? { ...item, images: [lightFirst, ...item.images.filter(img => img !== firstImage)] }
+      : item;
+    const metaBlock = generateClassifiedOpenGraphHtml(previewItem, origin);
     const html = buildStaticPage(baseHtml, metaBlock, `window.__INITIAL_CLASSIFIED_SLUG__ = "${escapeHtml(item.slug)}";`);
     writeStaticPage(['classificado'], item.slug, html);
     classifiedCount++;

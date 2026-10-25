@@ -78,7 +78,8 @@ export const getArticleCanonicalUrl = (slug: string, customOrigin?: string): str
   const cleanBase = basePath.startsWith('/') ? basePath : `/${basePath}`;
   const formattedBase = cleanBase.endsWith('/') ? cleanBase : `${cleanBase}/`;
 
-  return `${origin}${formattedBase}noticia/${encodeURIComponent(slug)}`;
+  // Barra final: o GitHub Pages serve a página estática em /slug/ (sem ela responderia com redirecionamento)
+  return `${origin}${formattedBase}noticia/${encodeURIComponent(slug)}/`;
 };
 
 /**
