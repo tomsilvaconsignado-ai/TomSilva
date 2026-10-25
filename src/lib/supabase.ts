@@ -2557,6 +2557,8 @@ export const legacyContentService = {
           created_at: article.createdAt || new Date().toISOString()
         };
         const { data, error } = await sb.from('articles').upsert([row], { onConflict: 'id', ignoreDuplicates: true }).select('id');
+        // Mesmo slug com outro id: a matéria já está no banco (ex.: importada do backup)
+        if (error?.code === '23505') continue;
         if (error) throw error;
         if (data && data.length > 0) result.articles++;
       } catch (err: any) {
