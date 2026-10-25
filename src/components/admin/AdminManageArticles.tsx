@@ -56,8 +56,9 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
       await newsService.deleteArticle(articleToDelete.id);
       setArticleToDelete(null);
       onRefreshData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao excluir notícia', err);
+      alert(err?.message || 'Não foi possível excluir a matéria.');
     } finally {
       setIsDeleting(false);
     }

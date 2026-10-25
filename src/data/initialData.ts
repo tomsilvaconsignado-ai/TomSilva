@@ -1,4 +1,5 @@
 import { Article, AdItem, CategoryItem } from '../types/database';
+import backup from './backupArticles.json';
 
 export const INITIAL_CATEGORIES: CategoryItem[] = [
   { id: '1', name: 'Início', slug: 'todos' },
@@ -13,7 +14,7 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
   { id: '10', name: 'Classificados', slug: 'classificados' },
 ];
 
-export const INITIAL_ARTICLES: Article[] = [
+export const PROJECT_ARTICLES: Article[] = [
   {
     id: 'art-1',
     title: 'Sergipana de Aracaju, Sofia Favero é eleita com mais de 407 mil votos em SP e apresenta prioridades',
@@ -278,6 +279,16 @@ export const INITIAL_ARTICLES: Article[] = [
     `
   }
 ];
+
+// Matérias do portal original que faltavam no projeto (gerado por scripts/build_articles_seed.ts).
+// As matérias do projeto usam a data real de publicação quando ela consta no backup.
+export const INITIAL_ARTICLES: Article[] = [
+  ...PROJECT_ARTICLES.map(a => {
+    const publishedAt = (backup.publishedAt as Record<string, string>)[a.slug];
+    return publishedAt ? { ...a, createdAt: publishedAt, updatedAt: publishedAt } : a;
+  }),
+  ...(backup.articles as Article[])
+].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
 export const INITIAL_ADS: AdItem[] = [
   // 1. BANNER SUPERIOR (HEADER) - ATÉ 3 ANÚNCIOS NO CARROSSEL

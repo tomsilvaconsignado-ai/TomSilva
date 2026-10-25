@@ -28,15 +28,21 @@ export const ClassifiedReportModal: React.FC<ClassifiedReportModalProps> = ({
     if (!details.trim()) return;
 
     setLoading(true);
-    await classifiedsService.createReport({
-      classifiedId: classified.id,
-      classifiedTitle: classified.title,
-      reporterName: reporterName.trim() || undefined,
-      reporterEmail: reporterEmail.trim() || undefined,
-      reason,
-      details: details.trim()
-    });
-    setLoading(false);
+    try {
+      await classifiedsService.createReport({
+        classifiedId: classified.id,
+        classifiedTitle: classified.title,
+        reporterName: reporterName.trim() || undefined,
+        reporterEmail: reporterEmail.trim() || undefined,
+        reason,
+        details: details.trim()
+      });
+    } catch (err: any) {
+      alert(err?.message || 'Não foi possível enviar a denúncia.');
+      return;
+    } finally {
+      setLoading(false);
+    }
     setSuccess(true);
     setTimeout(() => {
       setSuccess(false);

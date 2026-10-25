@@ -12,6 +12,7 @@ import { AdminManageAds } from './AdminManageAds';
 import { AdminClassifiedsTab } from './AdminClassifiedsTab';
 import { AdminManageUsers } from './AdminManageUsers';
 import { AdminSettings } from './AdminSettings';
+import { AdminLegacyImportBanner } from './AdminLegacyImportBanner';
 import { isSupabaseConfigured } from '../../lib/supabase';
 
 interface AdminDashboardProps {
@@ -339,6 +340,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
             </div>
+
+            {currentUser.role === 'admin' && <AdminLegacyImportBanner onImported={onRefreshData} />}
 
             {/* OS 4 PILARES PRINCIPAIS EM DESTAQUE (Conforme solicitado) */}
             <div>

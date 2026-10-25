@@ -52,7 +52,8 @@ function createEmailTransporter(smtpConfig?: {
       pass: cleanPass,
     },
     tls: {
-      rejectUnauthorized: false,
+      // Só aceite certificado inválido em servidor SMTP próprio, definindo SMTP_ALLOW_INVALID_CERT=true
+      rejectUnauthorized: process.env.SMTP_ALLOW_INVALID_CERT !== 'true',
     },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
@@ -446,13 +447,7 @@ async function isAuthorizedAdmin(req: Request, adminOnly = false): Promise<boole
   const auth = await getAuthenticatedRole(req);
   if (auth?.role === 'admin') return true;
   if (!adminOnly && auth?.role === 'editor') return true;
-
-  const adminEmail = ((req.headers['x-admin-email'] as string) || '').toLowerCase().trim();
-  const adminRole = ((req.headers['x-admin-role'] as string) || '').toLowerCase().trim();
-  if (adminEmail === 'tomsilvaconsignado@gmail.com') return true;
-  if (adminRole === 'admin') return true;
-  if (!adminOnly && adminRole === 'editor') return true;
-
+  // Cabeçalhos como x-admin-email/x-admin-role NÃO autorizam nada: qualquer cliente pode forjá-los
   return false;
 }
 
@@ -572,8 +567,11 @@ async function startServer() {
   }
 
   // API para sincronizar artigos criados/editados no painel administrativo
-  app.post('/api/sync-article', (req: Request, res: Response) => {
+  app.post('/api/sync-article', async (req: Request, res: Response) => {
     try {
+      if (!(await isAuthorizedAdmin(req))) {
+        return res.status(403).json({ error: 'Acesso negado.' });
+      }
       const article = req.body as Article;
       if (!article || !article.slug) {
         return res.status(400).json({ error: 'Dados da notícia inválidos' });
@@ -598,8 +596,11 @@ async function startServer() {
   });
 
   // API para sincronizar lote de notícias do cliente
-  app.post('/api/sync-all-articles', (req: Request, res: Response) => {
+  app.post('/api/sync-all-articles', async (req: Request, res: Response) => {
     try {
+      if (!(await isAuthorizedAdmin(req))) {
+        return res.status(403).json({ error: 'Acesso negado.' });
+      }
       const incoming = req.body as Article[];
       if (Array.isArray(incoming) && incoming.length > 0) {
         const mergedMap = new Map<string, Article>();
@@ -616,8 +617,11 @@ async function startServer() {
   });
 
   // API para remover notícia excluída do cache do servidor
-  app.delete('/api/sync-article/:id', (req: Request, res: Response) => {
+  app.delete('/api/sync-article/:id', async (req: Request, res: Response) => {
     try {
+      if (!(await isAuthorizedAdmin(req))) {
+        return res.status(403).json({ error: 'Acesso negado.' });
+      }
       const id = req.params.id;
       serverArticles = serverArticles.filter(a => a.id !== id && a.slug.toLowerCase() !== id.toLowerCase());
       saveServerArticlesCache();
@@ -823,8 +827,11 @@ async function startServer() {
   });
 
   // 2. Sincronização de Novo Cadastro de Usuário no Servidor
-  app.post('/api/sync-user-registration', (req: Request, res: Response) => {
+  app.post('/api/sync-user-registration', async (req: Request, res: Response) => {
     try {
+      if (!(await isAuthorizedAdmin(req, true))) {
+        return res.status(403).json({ error: 'Acesso negado.' });
+      }
       const incoming = req.body as UserProfile;
       if (!incoming || !incoming.email) {
         return res.status(400).json({ error: 'Dados do usuário inválidos.' });
@@ -919,7 +926,7 @@ async function startServer() {
         userEmail: email,
         userName: userName,
         adminId: adminUser?.id || 'admin',
-        adminEmail: adminUser?.email || (req.headers['x-admin-email'] as string) || 'admin',
+        adminEmail: adminUser?.email || 'admin',
         adminName: adminUser?.fullName || 'Administrador',
         action: 'resend_confirmation',
         reason: 'Reenvio de link de confirmação solicitado via painel administrativo.',
@@ -1006,7 +1013,7 @@ async function startServer() {
         userEmail: target.email,
         userName: target.fullName,
         adminId: adminUser?.id || 'admin',
-        adminEmail: adminUser?.email || (req.headers['x-admin-email'] as string) || 'admin',
+        adminEmail: adminUser?.email || 'admin',
         adminName: adminUser?.fullName || 'Administrador',
         action: targetStatus === 'active' ? 'reactivate' : targetStatus === 'suspended' ? 'suspend' : 'block',
         previousStatus,

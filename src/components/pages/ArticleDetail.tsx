@@ -83,10 +83,15 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
     if (!newComment.trim() || !currentUser) return;
 
     setSubmittingComment(true);
-    const created = await commentsService.addComment(article.id, newComment.trim(), currentUser);
-    setComments([created, ...comments]);
-    setNewComment('');
-    setSubmittingComment(false);
+    try {
+      const created = await commentsService.addComment(article.id, newComment.trim(), currentUser);
+      setComments([created, ...comments]);
+      setNewComment('');
+    } catch (err: any) {
+      alert(err?.message || 'Não foi possível publicar o comentário.');
+    } finally {
+      setSubmittingComment(false);
+    }
   };
 
   const relatedArticles = allArticles

@@ -220,6 +220,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         if (res.error) {
           setError(res.error);
+        } else if (res.user?.accountState === 'awaiting_confirmation') {
+          // Sem sessão até o usuário abrir o link enviado por e-mail
+          setRegisteredUnconfirmedUser(res.user);
+          setResendCooldown(60);
         } else if (res.user) {
           setSuccessMessage(`Cadastro concluído com sucesso! Bem-vindo(a), ${res.user.fullName}.`);
           setTimeout(() => {

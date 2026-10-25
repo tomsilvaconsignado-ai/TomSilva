@@ -229,18 +229,27 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
     return placementSettings[currentSpaceDef.placement]?.isPaused || false;
   })();
 
+  // As gravações vão para o Supabase e podem falhar (sessão expirada, sem permissão, rede)
+  const runSafely = async (action: () => Promise<void>) => {
+    try {
+      await action();
+    } catch (err: any) {
+      alert(err?.message || 'Não foi possível concluir a operação.');
+    }
+  };
+
   // Selecionar formato ativo do espaço (728x90 vs 970x90 para Topo, Feed e Rodapé)
-  const handleSelectSpaceFormat = async (newFormat: '728x90' | '970x90') => {
+  const handleSelectSpaceFormat = (newFormat: '728x90' | '970x90') => runSafely(async () => {
     const targetPlacement = currentSpaceDef.placement;
     await adsService.savePlacementSetting(targetPlacement, { preferredFormat: newFormat });
     reloadSettings();
     onRefreshData();
     setSuccessNotice(`Formato ativo do espaço "${currentSpaceDef.title}" alterado para ${newFormat.replace('x', ' × ')} pixels com sucesso!`);
     setTimeout(() => setSuccessNotice(null), 3500);
-  };
+  });
 
   // Salvar temporizador independente do espaço ativo
-  const handleSaveCurrentTimer = async (seconds: number) => {
+  const handleSaveCurrentTimer = (seconds: number) => runSafely(async () => {
     const sec = Math.max(2, Math.min(60, Number(seconds) || 5));
     if (activeSpace === 'sidebar_300x300') {
       await adsService.saveFormatSetting('300x300', { durationSeconds: sec });
@@ -254,10 +263,10 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
     onRefreshData();
     setSuccessNotice(`Temporizador do carrossel do espaço "${currentSpaceDef.title}" atualizado para ${sec} segundos!`);
     setTimeout(() => setSuccessNotice(null), 3500);
-  };
+  });
 
   // Pausar / Retomar rotação do espaço ativo
-  const handleToggleCurrentPause = async () => {
+  const handleToggleCurrentPause = () => runSafely(async () => {
     const nextPaused = !isCurrentlyPaused;
     if (activeSpace === 'sidebar_300x300') {
       await adsService.saveFormatSetting('300x300', { isPaused: nextPaused });
@@ -268,7 +277,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
     }
     reloadSettings();
     onRefreshData();
-  };
+  });
 
   // Abertura do formulário de criação respeitando estritamente os formatos compatíveis do espaço
   const openCreateForm = (preferredFormat?: AdFormat) => {
@@ -429,7 +438,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
   };
 
   // Ativar / Desativar anúncio individual
-  const handleToggleStatus = async (ad: AdItem) => {
+  const handleToggleStatus = (ad: AdItem) => runSafely(async () => {
     const nextStatus: AdStatus = ad.status === 'active' ? 'paused' : 'active';
     await adsService.saveAd({
       ...ad,
@@ -437,18 +446,18 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
       active: nextStatus === 'active'
     });
     onRefreshData();
-  };
+  });
 
   // Excluir anúncio
-  const handleDeleteAd = async () => {
+  const handleDeleteAd = () => runSafely(async () => {
     if (!adToDelete) return;
     await adsService.deleteAd(adToDelete.id);
     setAdToDelete(null);
     onRefreshData();
-  };
+  });
 
   // Reordenar anúncios no carrossel do espaço
-  const handleMoveOrder = async (ad: AdItem, direction: 'up' | 'down') => {
+  const handleMoveOrder = (ad: AdItem, direction: 'up' | 'down') => runSafely(async () => {
     const currentIndex = targetAds.findIndex(a => a.id === ad.id);
     if (currentIndex === -1) return;
 
@@ -468,7 +477,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
       await adsService.reorderAds(currentSpaceDef.placement, reordered.map(a => a.id));
     }
     onRefreshData();
-  };
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">

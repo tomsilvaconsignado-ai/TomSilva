@@ -1,15 +1,14 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { 
-  Article, AdItem, AdPlacement, AdFormat, FormatCarouselSetting, AdStatus, PlacementSetting, PlacementMode, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
+import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import {
+  Article, AdItem, AdPlacement, AdFormat, FormatCarouselSetting, PlacementSetting, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
   ClassifiedItem, ClassifiedCategory, ClassifiedReport, ClassifiedsSettings,
   ClassifiedSection, ClassifiedType, ClassifiedStatus, PortalSettings
 } from '../types/database';
 import { INITIAL_ARTICLES, INITIAL_ADS } from '../data/initialData';
-import { 
-  INITIAL_CLASSIFIEDS, INITIAL_CLASSIFIED_CATEGORIES, DEFAULT_CLASSIFIEDS_SETTINGS 
+import {
+  INITIAL_CLASSIFIED_CATEGORIES, DEFAULT_CLASSIFIEDS_SETTINGS
 } from '../data/initialClassifieds';
-import { emailService, checkEmailRateLimit } from './emailService';
-import { authSecurityService } from './authSecurityService';
+import { checkEmailRateLimit } from './emailService';
 
 // Configurações lidas do ambiente ou do localStorage (para configuração em tempo de execução)
 // Configurações padrão do projeto oficial Supabase (garante comunicação 100% no GitHub Pages, Vercel e produção)
@@ -149,33 +148,81 @@ export const getApiAuthHeaders = async (): Promise<Record<string, string>> => {
 };
 
 // ==========================================
-// CAMADA DE PERSISTÊNCIA LOCAL (LOCAL STORAGE)
-// Garante funcionamento completo mesmo antes de conectar as chaves
+// SERVIDOR DE API OPCIONAL (server.ts)
+// O GitHub Pages só serve arquivos estáticos: lá as rotas /api não existem.
+// Em desenvolvimento (npm run dev) o servidor Express atende na mesma origem.
+// Em produção, defina VITE_API_BASE_URL no build se hospedar o server.ts
+// (use "/" quando o servidor servir o próprio site).
+// ==========================================
+const rawApiBaseUrl = String((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || '').trim();
+const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '');
+
+export const isBackendAvailable = (): boolean =>
+  Boolean(rawApiBaseUrl) || Boolean(typeof import.meta !== 'undefined' && import.meta.env?.DEV);
+
+export const apiFetch = async (path: string, init?: RequestInit): Promise<Response> => {
+  if (!isBackendAvailable()) {
+    throw new Error('O servidor de API do portal não está disponível nesta hospedagem.');
+  }
+  return fetch(`${API_BASE_URL}${path}`, init);
+};
+
+// Dispara uma chamada à API sem bloquear a interface (usada para o cache de Open Graph do servidor)
+const fireAndForgetApi = (path: string, init?: RequestInit): void => {
+  if (!isBackendAvailable()) return;
+  apiFetch(path, init).catch(() => {});
+};
+
+// ==========================================
+// CACHE LOCAL
+// A fonte da verdade é o Supabase. O localStorage guarda apenas a última cópia
+// recebida, usada quando a rede falha e para leituras síncronas (configurações).
 // ==========================================
 export const STORAGE_KEYS = {
+  ARTICLES: 'folha_articles_cache_v2',
+  ADS: 'folha_ads_cache_v2',
+  CURRENT_USER: 'folha_current_user_v2',
+  CLASSIFIEDS: 'folha_classifieds_cache_v2',
+  CLASSIFIED_CATEGORIES: 'folha_classified_cats_cache_v2',
+  CLASSIFIED_SETTINGS: 'folha_classified_settings_cache_v2',
+  PORTAL_SETTINGS: 'folha_portal_settings_cache_v2',
+  ADS_SETTINGS: 'folha_ads_settings_cache_v2',
+  ADS_FORMAT_SETTINGS: 'folha_ads_format_settings_cache_v2',
+  // Senha SMTP fica apenas neste navegador (nunca vai para o banco público)
+  SMTP_SECRET: 'folha_smtp_secret_v1'
+};
+
+// Chaves da versão anterior, quando tudo era gravado só no navegador
+export const LEGACY_STORAGE_KEYS = {
   ARTICLES: 'folha_articles_v1',
   ADS: 'folha_ads_v1',
-  USERS: 'folha_users_v1',
-  CURRENT_USER: 'folha_current_user_v1',
-  COMMENTS: 'folha_comments_v1',
-  SUBSCRIBERS: 'folha_subscribers_v1',
-  NOTIFICATIONS: 'folha_notifications_v1',
-  CLASSIFIEDS: 'folha_classifieds_v1',
-  CLASSIFIED_CATEGORIES: 'folha_classified_cats_v1',
-  CLASSIFIED_REPORTS: 'folha_classified_reports_v1',
-  CLASSIFIED_SETTINGS: 'folha_classified_settings_v1',
-  USER_AUDIT_LOGS: 'folha_user_audit_logs_v1',
   PORTAL_SETTINGS: 'folha_portal_settings_v1',
   ADS_SETTINGS: 'folha_ads_settings_v1',
   ADS_FORMAT_SETTINGS: 'folha_ads_format_settings_v1'
 };
 
+// Dados da versão anterior que não devem continuar no navegador:
+// a lista de usuários guardava senhas em texto puro.
+const LEGACY_SENSITIVE_KEYS = [
+  'folha_users_v1',
+  'folha_current_user_v1',
+  'folha_auth_tokens_v1',
+  'folha_comments_v1',
+  'folha_subscribers_v1',
+  'folha_notifications_v1',
+  'folha_classifieds_v1',
+  'folha_classified_cats_v1',
+  'folha_classified_reports_v1',
+  'folha_classified_settings_v1',
+  'folha_user_audit_logs_v1'
+];
+
 const memoryStore = new Map<string, string>();
 
-export const safeDispatchEvent = (event: any): void => {
+export const safeDispatchEvent = (event: Event): void => {
   if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
     try {
-      safeDispatchEvent(event);
+      window.dispatchEvent(event);
     } catch {}
   }
 };
@@ -205,645 +252,325 @@ export const setStored = <T>(key: string, value: T): void => {
   }
 };
 
-// Usuários demo pré-cadastrados para o modo local
-const INITIAL_DEMO_USERS: (UserProfile & { passwordHash: string })[] = [
-  {
-    id: 'user-admin-1',
-    email: 'tomsilvaconsignado@gmail.com',
-    fullName: 'Administrador Tom Silva',
-    role: 'admin',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop',
-    interests: ['Política', 'Cidades', 'Eventos', 'Brasil'],
-    createdAt: new Date('2026-01-01T00:00:00.000Z').toISOString(),
-    passwordHash: 'Folha@1234',
-    emailConfirmed: true,
-    emailConfirmedAt: '2026-01-01T00:00:00.000Z',
-    status: 'active',
-    hasProfile: true,
-    lastSignInAt: '2026-04-01T08:30:00.000Z',
-    lastActiveAt: '2026-04-12T07:15:00.000Z',
-    accountType: 'pf',
-    phone: '(79) 99977-6199',
-    city: 'Estância',
-    state: 'SE',
-    cpf: '123.456.789-00',
-    isLegalAge: true,
-    termsAccepted: true,
-    termsAcceptedAt: '2026-01-01T00:00:00.000Z',
-    termsVersion: 'v2.1'
-  },
-  {
-    id: 'user-reader-1',
-    email: 'leitor@folhadaregiao.com.br',
-    fullName: 'Carlos Santana',
-    role: 'reader',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-    interests: ['Política', 'Cidades', 'Esporte'],
-    createdAt: new Date('2026-01-15T10:30:00.000Z').toISOString(),
-    passwordHash: 'leitor123',
-    emailConfirmed: true,
-    emailConfirmedAt: '2026-01-15T10:35:00.000Z',
-    status: 'active',
-    hasProfile: true,
-    lastSignInAt: '2026-03-29T14:10:00.000Z',
-    lastActiveAt: '2026-03-29T14:45:00.000Z',
-    accountType: 'pf',
-    phone: '(79) 99881-2233',
-    city: 'Aracaju',
-    state: 'SE',
-    cpf: '234.567.890-11',
-    isLegalAge: true,
-    termsAccepted: true,
-    termsAcceptedAt: '2026-01-15T10:30:00.000Z',
-    termsVersion: 'v2.1'
-  },
-  {
-    id: 'user-pj-1',
-    email: 'comercial@imobiliariasergipana.com.br',
-    fullName: 'Imobiliária Sergipana Ltda',
-    role: 'reader',
-    avatarUrl: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=100&h=100&fit=crop',
-    interests: ['Cidades', 'Brasil'],
-    createdAt: new Date('2026-02-01T14:20:00.000Z').toISOString(),
-    passwordHash: 'imob2026',
-    emailConfirmed: true,
-    emailConfirmedAt: '2026-02-01T14:25:00.000Z',
-    status: 'active',
-    hasProfile: true,
-    lastSignInAt: '2026-03-25T11:20:00.000Z',
-    lastActiveAt: '2026-03-25T11:50:00.000Z',
-    accountType: 'pj',
-    phone: '(79) 98765-4321',
-    city: 'Estância',
-    state: 'SE',
-    companyName: 'Imobiliária Sergipana Ltda',
-    tradeName: 'Sergipe Imóveis & Terrenos',
-    cnpj: '12.345.678/0001-90',
-    legalRepresentative: 'Roberto Almeida Santos',
-    representativeCpf: '345.678.901-22',
-    termsAccepted: true,
-    termsAcceptedAt: '2026-02-01T14:20:00.000Z',
-    termsVersion: 'v2.1'
-  },
-  {
-    id: 'user-pending-1',
-    email: 'marina.novaes@gmail.com',
-    fullName: 'Marina Novaes',
-    role: 'reader',
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-    interests: ['Eventos', 'Cidades'],
-    createdAt: new Date('2026-03-10T09:15:00.000Z').toISOString(),
-    passwordHash: 'marina2026',
-    emailConfirmed: false,
-    status: 'active',
-    hasProfile: true,
-    lastSignInAt: null,
-    lastActiveAt: null,
-    accountType: 'pf',
-    phone: '(79) 99112-3344',
-    city: 'Itabaiana',
-    state: 'SE',
-    cpf: '456.789.012-33',
-    isLegalAge: true,
-    termsAccepted: true,
-    termsAcceptedAt: '2026-03-10T09:15:00.000Z',
-    termsVersion: 'v2.1'
-  },
-  {
-    id: 'user-suspended-1',
-    email: 'juliano.araujo@email.com',
-    fullName: 'Juliano Araújo',
-    role: 'reader',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop',
-    interests: ['Cidades', 'Esporte'],
-    createdAt: '2025-11-20T16:40:00.000Z',
-    passwordHash: 'juliano2025',
-    emailConfirmed: true,
-    emailConfirmedAt: '2025-11-20T16:45:00.000Z',
-    status: 'suspended',
-    hasProfile: true,
-    lastSignInAt: '2026-02-14T19:22:00.000Z',
-    lastActiveAt: '2026-02-14T19:40:00.000Z',
-    moderationReason: 'Publicação repetida de anúncios duplicados fora da categoria permitida',
-    moderationAt: '2026-02-15T10:00:00.000Z',
-    moderatedBy: 'Administrador Tom Silva',
-    accountType: 'pf',
-    phone: '(79) 98833-4455',
-    city: 'Lagarto',
-    state: 'SE',
-    cpf: '567.890.123-44',
-    isLegalAge: true,
-    termsAccepted: true,
-    termsAcceptedAt: '2025-11-20T16:40:00.000Z',
-    termsVersion: 'v2.0'
-  },
-  {
-    id: 'user-noprofile-1',
-    email: 'alberto.costa84@gmail.com',
-    fullName: 'Alberto Costa (Auth Direto)',
-    role: 'reader',
-    avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=alberto.costa84@gmail.com',
-    interests: ['Política', 'Cidades'],
-    createdAt: '2025-09-14T11:05:00.000Z',
-    passwordHash: 'alberto2025',
-    lastSignInAt: null,
-    lastActiveAt: null,
-    emailConfirmed: false,
-    emailConfirmedAt: undefined,
-    status: 'active',
-    hasProfile: false,
-    accountType: 'pf',
-    phone: '',
-    city: 'Não sincronizado',
-    state: 'SE',
-    termsAccepted: false
-  },
-  {
-    id: 'user-incomplete-1',
-    email: 'ana.paula.estancia@hotmail.com',
-    fullName: 'Ana Paula de Oliveira',
-    role: 'reader',
-    avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop',
-    interests: ['Cidades', 'Eventos'],
-    createdAt: '2026-02-18T15:00:00.000Z',
-    passwordHash: 'anapaula2026',
-    lastSignInAt: '2026-03-05T17:45:00.000Z',
-    lastActiveAt: '2026-03-05T18:00:00.000Z',
-    emailConfirmed: true,
-    emailConfirmedAt: '2026-02-18T15:04:00.000Z',
-    status: 'active',
-    hasProfile: true,
-    accountType: 'pj',
-    phone: '(79) 99770-1122',
-    city: 'Estância',
-    state: 'SE',
-    companyName: 'Moda Praia & Verão',
-    termsAccepted: true,
-    termsAcceptedAt: '2026-02-18T15:00:00.000Z'
-  }
-];
-
-// Inicialização segura
 if (typeof window !== 'undefined') {
-  if (!localStorage.getItem(STORAGE_KEYS.ARTICLES)) {
-    setStored(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.ADS)) {
-    setStored(STORAGE_KEYS.ADS, INITIAL_ADS);
-  }
-  // Inicializa ou atualiza o usuário admin nas credenciais solicitadas
-  const existingUsers = getStored<(UserProfile & { passwordHash: string })[]>(STORAGE_KEYS.USERS, []);
-  if (!existingUsers || existingUsers.length === 0) {
-    setStored(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-  } else {
-    // Garante que o administrador tomsilvaconsignado@gmail.com com Folha@1234 esteja presente e confirmado
-    const adminIndex = existingUsers.findIndex(u => 
-      u.email.toLowerCase() === 'tomsilvaconsignado@gmail.com' || 
-      u.email.toLowerCase() === 'admin@folhadaregiao.com.br' ||
-      u.id === 'user-admin-1'
-    );
-    if (adminIndex >= 0) {
-      existingUsers[adminIndex] = {
-        ...existingUsers[adminIndex],
-        id: 'user-admin-1',
-        email: 'tomsilvaconsignado@gmail.com',
-        fullName: existingUsers[adminIndex].fullName === 'Editor Chefe' ? 'Administrador Tom Silva' : existingUsers[adminIndex].fullName,
-        role: 'admin',
-        passwordHash: 'Folha@1234',
-        emailConfirmed: true,
-        emailConfirmedAt: existingUsers[adminIndex].emailConfirmedAt || '2026-01-01T00:00:00.000Z'
-      };
-    } else {
-      existingUsers.unshift(INITIAL_DEMO_USERS[0]);
-    }
-    setStored(STORAGE_KEYS.USERS, existingUsers);
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.CLASSIFIEDS)) {
-    setStored(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.CLASSIFIED_CATEGORIES)) {
-    setStored(STORAGE_KEYS.CLASSIFIED_CATEGORIES, INITIAL_CLASSIFIED_CATEGORIES);
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.CLASSIFIED_SETTINGS)) {
-    setStored(STORAGE_KEYS.CLASSIFIED_SETTINGS, DEFAULT_CLASSIFIEDS_SETTINGS);
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.CLASSIFIED_REPORTS)) {
-    setStored(STORAGE_KEYS.CLASSIFIED_REPORTS, []);
-  }
+  try {
+    LEGACY_SENSITIVE_KEYS.forEach(key => localStorage.removeItem(key));
+  } catch {}
 }
 
+const newId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 10);
+};
+
+const requireSupabase = (): SupabaseClient => {
+  if (!supabase) {
+    throw new Error('O banco de dados Supabase não está configurado.');
+  }
+  return supabase;
+};
+
+// Traduz erros do PostgREST/RLS para mensagens compreensíveis no painel
+const describeDbError = (error: { message?: string; code?: string } | null | undefined, action: string): Error => {
+  const code = error?.code || '';
+  const msg = error?.message || '';
+  if (code === '42501' || msg.toLowerCase().includes('row-level security')) {
+    return new Error(`Sem permissão para ${action}. Entre novamente com uma conta autorizada.`);
+  }
+  if (code === '23505') {
+    return new Error(`Não foi possível ${action}: já existe um registro com esses dados (ex.: mesmo endereço/slug).`);
+  }
+  if (code === '42703' || code === 'PGRST204') {
+    return new Error(`Não foi possível ${action}: o banco está desatualizado. Execute as migrações em supabase/migrations no SQL Editor.`);
+  }
+  return new Error(`Não foi possível ${action}${msg ? `: ${msg}` : '.'}`);
+};
+
 // ==========================================
-// SERVIÇO DE AUTENTICAÇÃO
+// UPLOAD DE MÍDIA (Supabase Storage)
+// Os formulários leem os arquivos como data URL; antes de gravar no banco as
+// imagens/vídeos são enviados ao bucket público "media" e substituídos pela URL.
+// ==========================================
+const MEDIA_BUCKET = 'media';
+
+const MIME_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'video/mp4': 'mp4',
+  'video/webm': 'webm'
+};
+
+const dataUrlToBlob = (dataUrl: string): Blob | null => {
+  const match = dataUrl.match(/^data:([^;,]+)(;base64)?,(.*)$/s);
+  if (!match) return null;
+  const mime = match[1].toLowerCase();
+  try {
+    if (match[2]) {
+      const binary = atob(match[3]);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: mime });
+    }
+    return new Blob([decodeURIComponent(match[3])], { type: mime });
+  } catch {
+    return null;
+  }
+};
+
+export const mediaService = {
+  // Envia um data URL ao Storage e devolve a URL pública. URLs comuns são devolvidas sem alteração.
+  async ensureUploaded(url: string | undefined, folder: string): Promise<string | undefined> {
+    if (!url || !url.startsWith('data:') || !supabase) return url;
+    const blob = dataUrlToBlob(url);
+    const ext = blob ? MIME_EXTENSIONS[blob.type] : undefined;
+    if (!blob || !ext) return url;
+
+    const path = `${folder.replace(/\/+$/, '')}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, blob, {
+      contentType: blob.type,
+      cacheControl: '31536000',
+      upsert: false
+    });
+    if (error) {
+      // Mantém o data URL para não perder o arquivo; o registro continua funcionando
+      console.warn('Falha ao enviar mídia ao Supabase Storage (mantendo arquivo embutido):', error.message);
+      return url;
+    }
+    return supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
+  },
+
+  async ensureAllUploaded(urls: string[], folder: string): Promise<string[]> {
+    const results: string[] = [];
+    for (const url of urls) {
+      const uploaded = await this.ensureUploaded(url, folder);
+      if (uploaded) results.push(uploaded);
+    }
+    return results;
+  }
+};
+
+// ==========================================
+// SERVIÇO DE AUTENTICAÇÃO (somente Supabase Auth)
 // ==========================================
 export interface AuthResponse {
   user: UserProfile | null;
   error: string | null;
 }
 
+const DEFAULT_INTERESTS = ['Política', 'Cidades'];
+
+const translateAuthError = (message: string): string => {
+  const m = (message || '').toLowerCase();
+  if (m.includes('invalid login credentials')) {
+    return 'E-mail ou senha incorretos. Por favor, verifique suas credenciais.';
+  }
+  if (m.includes('email not confirmed')) {
+    return 'Seu e-mail ainda não foi confirmado. Abra o link que enviamos para sua caixa de entrada (verifique também o spam) ou use a opção "Reenviar confirmação".';
+  }
+  if (m.includes('already registered') || m.includes('already been registered') || m.includes('already exists')) {
+    return 'Já existe uma conta com este e-mail. Faça login ou recupere sua senha.';
+  }
+  if (m.includes('rate limit') || m.includes('too many') || m.includes('429') || m.includes('security purposes')) {
+    return 'Muitas solicitações em pouco tempo. Por segurança, aguarde cerca de 1 minuto e tente novamente.';
+  }
+  if (m.includes('password should be at least') || m.includes('weak password')) {
+    return 'A senha é muito fraca. Use pelo menos 6 caracteres.';
+  }
+  if (m.includes('same password') || m.includes('different from the old')) {
+    return 'A nova senha precisa ser diferente da senha atual.';
+  }
+  if (m.includes('failed to fetch') || m.includes('network')) {
+    return 'Não foi possível conectar ao servidor de autenticação. Verifique sua internet e tente novamente.';
+  }
+  return message || 'Ocorreu um erro inesperado na autenticação.';
+};
+
+// Converte a linha de public.profiles (+ dados do Auth) para o modelo do app
+const mapProfileRow = (
+  p: any,
+  authUser?: Pick<User, 'id' | 'email' | 'email_confirmed_at' | 'last_sign_in_at' | 'created_at' | 'user_metadata'> | null
+): UserProfile => {
+  const meta = authUser?.user_metadata || {};
+  const email = p?.email || authUser?.email || '';
+  return {
+    id: p?.id || authUser?.id || '',
+    email,
+    fullName: p?.full_name || meta.full_name || meta.name || email.split('@')[0] || 'Usuário',
+    role: (p?.role || 'reader') as UserRole,
+    avatarUrl: p?.avatar_url || meta.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(email)}`,
+    interests: p?.interests || meta.interests || DEFAULT_INTERESTS,
+    createdAt: p?.created_at || authUser?.created_at || new Date().toISOString(),
+    status: (p?.status || 'active') as UserStatus,
+    moderationReason: p?.moderation_reason || undefined,
+    moderationAt: p?.moderation_at || undefined,
+    moderatedBy: p?.moderated_by || undefined,
+    emailConfirmed: authUser ? Boolean(authUser.email_confirmed_at) : true,
+    emailConfirmedAt: authUser?.email_confirmed_at || undefined,
+    hasProfile: Boolean(p),
+    lastSignInAt: authUser?.last_sign_in_at || null,
+    lastActiveAt: authUser?.last_sign_in_at || null,
+    accountType: p?.account_type || meta.account_type || 'pf',
+    phone: p?.phone || meta.phone || '',
+    city: p?.city || meta.city || '',
+    state: p?.state || meta.state || 'SE',
+    cpf: p?.cpf || meta.cpf || undefined,
+    cnpj: p?.cnpj || meta.cnpj || undefined,
+    companyName: p?.company_name || meta.company_name || undefined,
+    tradeName: p?.trade_name || meta.trade_name || undefined,
+    legalRepresentative: p?.legal_representative || meta.legal_representative || undefined,
+    representativeCpf: p?.representative_cpf || meta.representative_cpf || undefined,
+    isLegalAge: meta.is_legal_age ?? undefined,
+    termsAccepted: p?.terms_accepted ?? meta.terms_accepted ?? false,
+    termsAcceptedAt: p?.terms_accepted_at || undefined,
+    termsVersion: p?.terms_version || meta.terms_version || undefined
+  };
+};
+
+// Campos do perfil no formato que o trigger handle_new_user lê de raw_user_meta_data
+const toSignupMetadata = (fullName: string, extra?: Partial<UserProfile>): Record<string, any> => ({
+  full_name: fullName,
+  interests: DEFAULT_INTERESTS,
+  account_type: extra?.accountType || 'pf',
+  phone: extra?.phone,
+  city: extra?.city,
+  state: extra?.state,
+  cpf: extra?.cpf,
+  cnpj: extra?.cnpj,
+  company_name: extra?.companyName,
+  trade_name: extra?.tradeName,
+  legal_representative: extra?.legalRepresentative,
+  representative_cpf: extra?.representativeCpf,
+  is_legal_age: extra?.isLegalAge,
+  terms_accepted: extra?.termsAccepted ?? true,
+  terms_version: extra?.termsVersion
+});
+
+const loadProfileForAuthUser = async (authUser: User): Promise<UserProfile> => {
+  const sb = requireSupabase();
+  const { data: profile, error } = await sb.from('profiles').select('*').eq('id', authUser.id).maybeSingle();
+  if (error) {
+    console.warn('Aviso: não foi possível ler o perfil do usuário:', error.message);
+  }
+  return mapProfileRow(profile, authUser);
+};
+
+const isRestrictedStatus = (status?: UserStatus): string | null => {
+  if (status === 'suspended') return 'Esta conta está temporariamente suspensa por moderação da administração.';
+  if (status === 'blocked') return 'Esta conta foi permanentemente bloqueada pela moderação do portal.';
+  return null;
+};
+
+const publishCurrentUser = (user: UserProfile | null): void => {
+  setStored(STORAGE_KEYS.CURRENT_USER, user);
+  safeDispatchEvent(new Event('folha_auth_changed'));
+};
+
 export const authService = {
   async getCurrentUser(): Promise<UserProfile | null> {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          // Busca perfil estendido
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          const oauthName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Usuário';
-          const oauthAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture;
-
-          const activeUser: UserProfile = {
-            id: session.user.id,
-            email: session.user.email || profile?.email || '',
-            fullName: profile?.full_name || oauthName,
-            role: profile?.role || (session.user.user_metadata?.role as any) || 'reader',
-            avatarUrl: profile?.avatar_url || oauthAvatar,
-            interests: profile?.interests || session.user.user_metadata?.interests || ['Política', 'Cidades'],
-            createdAt: profile?.created_at || session.user.created_at,
-            status: (profile?.status as UserStatus) || 'active',
-            moderationReason: profile?.moderation_reason,
-            emailConfirmed: Boolean(session.user.email_confirmed_at) || true,
-            emailConfirmedAt: session.user.email_confirmed_at || undefined,
-            hasProfile: Boolean(profile),
-            lastSignInAt: session.user.last_sign_in_at || new Date().toISOString(),
-            lastActiveAt: new Date().toISOString(),
-            accountType: profile?.account_type || session.user.user_metadata?.account_type || 'pf',
-            phone: profile?.phone || session.user.user_metadata?.phone || '',
-            city: profile?.city || session.user.user_metadata?.city || 'Estância',
-            state: profile?.state || session.user.user_metadata?.state || 'SE',
-            cpf: profile?.cpf || session.user.user_metadata?.cpf,
-            cnpj: profile?.cnpj || session.user.user_metadata?.cnpj,
-            companyName: profile?.company_name || session.user.user_metadata?.company_name,
-            tradeName: profile?.trade_name || session.user.user_metadata?.trade_name,
-            legalRepresentative: profile?.legal_representative || session.user.user_metadata?.legal_representative,
-            representativeCpf: profile?.representative_cpf || session.user.user_metadata?.representative_cpf,
-            termsAccepted: true
-          };
-
-          setStored(STORAGE_KEYS.CURRENT_USER, activeUser);
-          return activeUser;
-        }
-      } catch (err) {
-        console.warn('Erro ao checar sessão Supabase, utilizando fallback local', err);
+    if (!supabase) return null;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setStored(STORAGE_KEYS.CURRENT_USER, null);
+        return null;
       }
-    }
 
-    return getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
+      const user = await loadProfileForAuthUser(session.user);
+      if (isRestrictedStatus(user.status)) {
+        await supabase.auth.signOut();
+        setStored(STORAGE_KEYS.CURRENT_USER, null);
+        return null;
+      }
+
+      setStored(STORAGE_KEYS.CURRENT_USER, user);
+      return user;
+    } catch (err) {
+      console.warn('Erro ao checar sessão Supabase:', err);
+      return null;
+    }
   },
 
   async signUp(
-    email: string, 
-    password: string, 
-    fullName: string, 
-    role: 'admin' | 'editor' | 'reader' = 'reader',
+    email: string,
+    password: string,
+    fullName: string,
+    _role: 'admin' | 'editor' | 'reader' = 'reader', // o papel é sempre definido pelo banco (reader)
     additionalData?: Partial<UserProfile>
   ): Promise<AuthResponse> {
-    const defaultInterests = ['Política', 'Cidades'];
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const confirmRedirectUrl = getAuthRedirectUrl('#confirm-email');
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: confirmRedirectUrl,
-            data: {
-              full_name: fullName,
-              interests: defaultInterests,
-              ...additionalData
-            }
-          }
-        });
-
-        if (error) {
-          return { user: null, error: error.message };
-        }
-
-        if (data.user) {
-          const isEmailConfirmed = Boolean(data.user.email_confirmed_at);
-          const profile: UserProfile = {
-            id: data.user.id,
-            email: data.user.email || email,
-            fullName,
-            role,
-            interests: defaultInterests,
-            createdAt: data.user.created_at || new Date().toISOString(),
-            status: 'active',
-            emailConfirmed: isEmailConfirmed,
-            emailConfirmedAt: data.user.email_confirmed_at || undefined,
-            lastSignInAt: null,
-            hasProfile: true,
-            accountState: isEmailConfirmed ? 'active' : 'awaiting_confirmation',
-            ...additionalData
-          };
-
-          // Tenta salvar profile
-          try {
-            await supabase.from('profiles').upsert([
-              {
-                id: profile.id,
-                email: profile.email,
-                full_name: profile.fullName,
-                role: profile.role,
-                interests: profile.interests,
-                created_at: profile.createdAt,
-                account_type: profile.accountType,
-                phone: profile.phone,
-                city: profile.city,
-                state: profile.state,
-                cpf: profile.cpf,
-                cnpj: profile.cnpj
-              }
-            ]);
-          } catch (profileErr) {
-            console.warn('Aviso: Perfil não pôde ser gravado na tabela profiles remota:', profileErr);
-          }
-
-          // Sincroniza com servidor para listagem administrativa imediata
-          try {
-            fetch('/api/sync-user-registration', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(profile)
-            }).catch(() => {});
-          } catch {}
-
-          // Atualiza localStorage e sessão
-          const localUsers = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-          const existingIdx = localUsers.findIndex(u => u.email.toLowerCase() === profile.email.toLowerCase());
-          const userWithAuth = { ...profile, passwordHash: password };
-          if (existingIdx !== -1) {
-            localUsers[existingIdx] = { ...localUsers[existingIdx], ...userWithAuth };
-          } else {
-            localUsers.push(userWithAuth);
-          }
-          setStored(STORAGE_KEYS.USERS, localUsers);
-          setStored(STORAGE_KEYS.CURRENT_USER, profile);
-          safeDispatchEvent(new Event('folha_auth_changed'));
-
-          return { user: profile, error: null };
-        }
-      } catch (err: any) {
-        return { user: null, error: err.message || 'Falha no cadastro' };
-      }
-    }
-
-    // Modo local / Fallback
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-
-    if (existing) {
-      return { user: null, error: 'Já existe uma conta com este e-mail.' };
-    }
-
-    const isConfirmed = role === 'admin';
-    const newUser: UserProfile & { passwordHash: string } = {
-      id: 'usr-' + Math.random().toString(36).substring(2, 9),
-      email: email.trim().toLowerCase(),
-      fullName: fullName.trim(),
-      role,
-      avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
-      interests: defaultInterests,
-      createdAt: new Date().toISOString(),
-      passwordHash: password,
-      status: 'active',
-      emailConfirmed: isConfirmed,
-      emailConfirmedAt: isConfirmed ? new Date().toISOString() : undefined,
-      ...additionalData
-    };
-
-    users.push(newUser);
-    setStored(STORAGE_KEYS.USERS, users);
-
-    const safeProfile: UserProfile = {
-      id: newUser.id,
-      email: newUser.email,
-      fullName: newUser.fullName,
-      role: newUser.role,
-      avatarUrl: newUser.avatarUrl,
-      interests: newUser.interests,
-      createdAt: newUser.createdAt,
-      accountType: newUser.accountType,
-      phone: newUser.phone,
-      city: newUser.city,
-      state: newUser.state,
-      cpf: newUser.cpf,
-      isLegalAge: newUser.isLegalAge,
-      companyName: newUser.companyName,
-      tradeName: newUser.tradeName,
-      cnpj: newUser.cnpj,
-      legalRepresentative: newUser.legalRepresentative,
-      representativeCpf: newUser.representativeCpf,
-      termsAccepted: newUser.termsAccepted,
-      termsAcceptedAt: newUser.termsAcceptedAt,
-      termsVersion: newUser.termsVersion,
-      status: newUser.status || 'active',
-      emailConfirmed: newUser.emailConfirmed,
-      emailConfirmedAt: newUser.emailConfirmedAt,
-      lastSignInAt: null,
-      lastActiveAt: null,
-      hasProfile: true,
-      accountState: isConfirmed ? 'active' : 'awaiting_confirmation'
-    };
-
-    // Sincroniza novo usuário imediatamente com o servidor
     try {
-      fetch('/api/sync-user-registration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(safeProfile)
-      }).catch(() => {});
-    } catch {}
+      const sb = requireSupabase();
+      const { data, error } = await sb.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          emailRedirectTo: getAuthRedirectUrl('confirm-email'),
+          data: toSignupMetadata(fullName, additionalData)
+        }
+      });
 
-    // Gera token e envia e-mail de confirmação automaticamente caso não seja admin
-    if (!isConfirmed) {
-      try {
-        const securityToken = authSecurityService.createToken(newUser.id, newUser.email, 'email_confirmation');
-        await emailService.sendEmailConfirmation(safeProfile, securityToken.token);
-      } catch (e) {
-        console.error('Erro ao gerar token/enviar e-mail de confirmação:', e);
+      if (error) {
+        return { user: null, error: translateAuthError(error.message) };
       }
+      if (!data.user) {
+        return { user: null, error: 'Não foi possível concluir o cadastro. Tente novamente.' };
+      }
+      // Com proteção contra enumeração, o Supabase devolve um usuário sem identidades quando o e-mail já existe
+      if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        return { user: null, error: 'Já existe uma conta com este e-mail. Faça login ou recupere sua senha.' };
+      }
+
+      if (data.session) {
+        // Confirmação de e-mail desativada no projeto: o usuário já está conectado
+        const user = await loadProfileForAuthUser(data.user);
+        publishCurrentUser(user);
+        return { user: { ...user, accountState: 'active' }, error: null };
+      }
+
+      // Confirmação pendente: não há sessão até o usuário abrir o link enviado por e-mail
+      return {
+        user: {
+          ...mapProfileRow(null, data.user),
+          fullName,
+          ...additionalData,
+          emailConfirmed: false,
+          accountState: 'awaiting_confirmation'
+        },
+        error: null
+      };
+    } catch (err: any) {
+      return { user: null, error: translateAuthError(err?.message || 'Falha no cadastro') };
     }
-
-    setStored(STORAGE_KEYS.CURRENT_USER, safeProfile);
-    safeDispatchEvent(new Event('folha_auth_changed'));
-
-    return { user: safeProfile, error: null };
   },
 
   async signIn(email: string, password: string): Promise<AuthResponse> {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
+    try {
+      const sb = requireSupabase();
+      const { data, error } = await sb.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password
+      });
 
-        if (error) {
-          const msg = (error.message || '').toLowerCase();
-          // REGRA OFICIAL: O Supabase valida a senha ANTES de checar a confirmação de e-mail.
-          // Logo, se retornou "email not confirmed", as credenciais informadas estão 100% CORRETAS!
-          // Como o portal não exige confirmação de e-mail para acesso nem para publicação de classificados,
-          // liberamos o acesso imediatamente para o usuário com a conta ativa.
-          if (msg.includes('email not confirmed')) {
-            const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-            const localUser = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
-
-            const userStatus: UserStatus = (localUser?.status as UserStatus) || 'active';
-            if (userStatus === 'suspended') {
-              return {
-                user: null,
-                error: 'Esta conta está temporariamente suspensa por moderação da administração.'
-              };
-            }
-            if (userStatus === 'blocked') {
-              return {
-                user: null,
-                error: 'Esta conta foi permanentemente bloqueada pela moderação do portal.'
-              };
-            }
-
-            const unconfirmedActiveProfile: UserProfile = {
-              id: localUser?.id || `usr-${Date.now()}`,
-              email: email.trim().toLowerCase(),
-              fullName: localUser?.fullName || email.split('@')[0],
-              role: localUser?.role || 'reader',
-              avatarUrl: localUser?.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(email)}`,
-              interests: localUser?.interests || ['Política', 'Cidades'],
-              createdAt: localUser?.createdAt || new Date().toISOString(),
-              status: 'active',
-              emailConfirmed: true,
-              emailConfirmedAt: new Date().toISOString(),
-              hasProfile: true,
-              accountType: localUser?.accountType || 'pf',
-              phone: localUser?.phone || '',
-              city: localUser?.city || 'Estância',
-              state: localUser?.state || 'SE',
-              cpf: localUser?.cpf,
-              cnpj: localUser?.cnpj,
-              companyName: localUser?.companyName,
-              tradeName: localUser?.tradeName,
-              termsAccepted: true
-            };
-
-            setStored(STORAGE_KEYS.CURRENT_USER, unconfirmedActiveProfile);
-            safeDispatchEvent(new Event('folha_auth_changed'));
-            return { user: unconfirmedActiveProfile, error: null };
-          }
-
-          // Se for outro erro no Supabase, não bloqueia: prossegue para verificar base local/demo
-          console.warn('Aviso: Supabase auth rejeitou credencial, tentando base local/demo:', error.message);
-        }
-
-        if (data.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-
-          const userStatus: UserStatus = (profile?.status as UserStatus) || 'active';
-          if (userStatus === 'suspended') {
-            await supabase.auth.signOut();
-            return {
-              user: null,
-              error: 'Esta conta está temporariamente suspensa por moderação da administração.'
-            };
-          }
-          if (userStatus === 'blocked') {
-            await supabase.auth.signOut();
-            return {
-              user: null,
-              error: 'Esta conta foi permanentemente bloqueada pela moderação do portal.'
-            };
-          }
-
-          const isEmailConfirmed = Boolean(data.user.email_confirmed_at);
-
-          const userProfile: UserProfile = {
-            id: data.user.id,
-            email: data.user.email || email,
-            fullName: profile?.full_name || data.user.user_metadata?.full_name || 'Usuário',
-            role: profile?.role || 'reader',
-            avatarUrl: profile?.avatar_url || data.user.user_metadata?.avatar_url,
-            interests: profile?.interests || data.user.user_metadata?.interests || ['Política', 'Cidades'],
-            createdAt: data.user.created_at,
-            status: userStatus,
-            moderationReason: profile?.moderation_reason,
-            emailConfirmed: isEmailConfirmed,
-            emailConfirmedAt: data.user.email_confirmed_at || undefined,
-            hasProfile: Boolean(profile),
-            lastSignInAt: data.user.last_sign_in_at || new Date().toISOString(),
-            lastActiveAt: new Date().toISOString(),
-            accountType: profile?.account_type || data.user.user_metadata?.account_type || 'pf',
-            phone: profile?.phone || data.user.user_metadata?.phone || '',
-            city: profile?.city || data.user.user_metadata?.city || '',
-            state: profile?.state || data.user.user_metadata?.state || 'SE'
-          };
-
-          setStored(STORAGE_KEYS.CURRENT_USER, userProfile);
-          safeDispatchEvent(new Event('folha_auth_changed'));
-
-          return { user: userProfile, error: null };
-        }
-      } catch (err: any) {
-        console.warn('Erro ao conectar com o Supabase Auth:', err);
+      if (error || !data.user) {
+        return { user: null, error: translateAuthError(error?.message || '') };
       }
+
+      const user = await loadProfileForAuthUser(data.user);
+      const restriction = isRestrictedStatus(user.status);
+      if (restriction) {
+        await sb.auth.signOut();
+        return { user: null, error: restriction };
+      }
+
+      publishCurrentUser(user);
+      return { user, error: null };
+    } catch (err: any) {
+      return { user: null, error: translateAuthError(err?.message || '') };
     }
-
-    // Modo local / Fallback
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const found = users.find(
-      u => u.email.toLowerCase() === email.trim().toLowerCase() && 
-        (u.passwordHash === password || (u.role === 'admin' && (password === 'Folha@1234' || password === 'admin123')))
-    );
-
-    if (!found) {
-      return { user: null, error: 'E-mail ou senha incorretos. Por favor, verifique suas credenciais.' };
-    }
-
-    if (found.status === 'suspended') {
-      return { user: null, error: 'Esta conta está temporariamente suspensa por moderação da administração.' };
-    }
-    if (found.status === 'blocked') {
-      return { user: null, error: 'Esta conta foi permanentemente bloqueada pela moderação do portal.' };
-    }
-
-    const safeProfile: UserProfile = {
-      id: found.id,
-      email: found.email,
-      fullName: found.fullName,
-      role: found.role,
-      avatarUrl: found.avatarUrl,
-      interests: found.interests || ['Política', 'Cidades'],
-      createdAt: found.createdAt,
-      accountType: found.accountType || 'pf',
-      phone: found.phone,
-      city: found.city,
-      state: found.state,
-      cpf: found.cpf,
-      isLegalAge: found.isLegalAge,
-      companyName: found.companyName,
-      tradeName: found.tradeName,
-      cnpj: found.cnpj,
-      legalRepresentative: found.legalRepresentative,
-      representativeCpf: found.representativeCpf,
-      termsAccepted: found.termsAccepted,
-      termsAcceptedAt: found.termsAcceptedAt,
-      termsVersion: found.termsVersion,
-      status: found.status || 'active',
-      emailConfirmed: found.emailConfirmed ?? (found.role === 'admin'),
-      emailConfirmedAt: found.emailConfirmedAt
-    };
-
-    setStored(STORAGE_KEYS.CURRENT_USER, safeProfile);
-    safeDispatchEvent(new Event('folha_auth_changed'));
-
-    return { user: safeProfile, error: null };
   },
 
   async signInAdmin(email: string, password: string): Promise<AuthResponse> {
@@ -854,218 +581,93 @@ export const authService = {
     if (!res.user) {
       return { user: null, error: 'Credenciais inválidas.' };
     }
-    // Verificação estrita de permissão administrativa
+    // O papel vem da tabela profiles (protegida por RLS e trigger), nunca do navegador
     if (res.user.role !== 'admin' && res.user.role !== 'editor') {
-      // Faz logout preventivo pois o usuário tentou acessar um painel não autorizado
       await this.signOut();
-      return { 
-        user: null, 
-        error: 'Acesso negado. Esta credencial não possui privilégios de administração ou edição no portal.' 
+      return {
+        user: null,
+        error: 'Acesso negado. Esta credencial não possui privilégios de administração ou edição no portal.'
       };
     }
     return res;
   },
 
   async updateInterests(userId: string, newInterests: string[]): Promise<UserProfile | null> {
-    const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-    if (!currentUser) return null;
-
-    const updatedUser: UserProfile = {
-      ...currentUser,
-      interests: newInterests
-    };
-
-    setStored(STORAGE_KEYS.CURRENT_USER, updatedUser);
-
-    // Atualiza também na lista de usuários
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const uIndex = users.findIndex(u => u.id === userId);
-    if (uIndex !== -1) {
-      users[uIndex] = { ...users[uIndex], interests: newInterests };
-      setStored(STORAGE_KEYS.USERS, users);
+    const sb = requireSupabase();
+    const { error } = await sb.from('profiles').update({ interests: newInterests }).eq('id', userId);
+    if (error) {
+      throw describeDbError(error, 'salvar suas preferências');
     }
-
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('profiles').update({ interests: newInterests }).eq('id', userId);
-      } catch (e) {
-        console.warn('Erro ao atualizar interesses no Supabase', e);
-      }
-    }
-
+    const updated = await this.getCurrentUser();
     safeDispatchEvent(new Event('folha_auth_changed'));
     safeDispatchEvent(new Event('folha_interests_changed'));
-    return updatedUser;
+    return updated;
   },
 
   async updateProfile(userId: string, data: Partial<UserProfile>): Promise<UserProfile | null> {
-    const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-    const updatedUser: UserProfile = {
-      ...(currentUser || ({} as any)),
-      ...data,
-      hasProfile: true
-    };
-
-    setStored(STORAGE_KEYS.CURRENT_USER, updatedUser);
-
-    // Atualiza na lista geral de usuários
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const uIndex = users.findIndex(u => u.id === userId || (u.email && updatedUser.email && u.email.toLowerCase() === updatedUser.email.toLowerCase()));
-    if (uIndex !== -1) {
-      users[uIndex] = { ...users[uIndex], ...data, hasProfile: true };
-      setStored(STORAGE_KEYS.USERS, users);
+    const sb = requireSupabase();
+    const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+    if (data.fullName !== undefined) payload.full_name = data.fullName;
+    if (data.phone !== undefined) payload.phone = data.phone;
+    if (data.city !== undefined) payload.city = data.city;
+    if (data.state !== undefined) payload.state = data.state;
+    if (data.accountType !== undefined) payload.account_type = data.accountType;
+    if (data.cpf !== undefined) payload.cpf = data.cpf;
+    if (data.cnpj !== undefined) payload.cnpj = data.cnpj;
+    if (data.companyName !== undefined) payload.company_name = data.companyName;
+    if (data.tradeName !== undefined) payload.trade_name = data.tradeName;
+    if (data.legalRepresentative !== undefined) payload.legal_representative = data.legalRepresentative;
+    if (data.representativeCpf !== undefined) payload.representative_cpf = data.representativeCpf;
+    if (data.termsAccepted !== undefined) {
+      payload.terms_accepted = data.termsAccepted;
+      payload.terms_accepted_at = new Date().toISOString();
+      payload.terms_version = data.termsVersion || 'v2.1';
     }
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const payload: Record<string, any> = {};
-        if (data.fullName !== undefined) payload.full_name = data.fullName;
-        if (data.phone !== undefined) payload.phone = data.phone;
-        if (data.city !== undefined) payload.city = data.city;
-        if (data.state !== undefined) payload.state = data.state;
-        if (data.accountType !== undefined) payload.account_type = data.accountType;
-        if (data.cpf !== undefined) payload.cpf = data.cpf;
-        if (data.cnpj !== undefined) payload.cnpj = data.cnpj;
-        if (data.companyName !== undefined) payload.company_name = data.companyName;
-        if (data.tradeName !== undefined) payload.trade_name = data.tradeName;
-        if (data.legalRepresentative !== undefined) payload.legal_representative = data.legalRepresentative;
-        if (data.representativeCpf !== undefined) payload.representative_cpf = data.representativeCpf;
-        if (data.termsAccepted !== undefined) {
-          payload.terms_accepted = data.termsAccepted;
-          payload.terms_accepted_at = new Date().toISOString();
-          payload.terms_version = data.termsVersion || 'v2.1';
-        }
-        await supabase.from('profiles').update(payload).eq('id', userId);
-      } catch (e) {
-        console.warn('Erro ao atualizar perfil no Supabase:', e);
-      }
+    const { error } = await sb.from('profiles').update(payload).eq('id', userId);
+    if (error) {
+      throw describeDbError(error, 'atualizar seu cadastro');
     }
 
-    // Sincroniza também com o servidor
-    try {
-      fetch('/api/sync-user-registration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedUser)
-      }).catch(() => {});
-    } catch {}
-
+    const updated = await this.getCurrentUser();
     safeDispatchEvent(new Event('folha_auth_changed'));
-    return updatedUser;
+    return updated;
   },
 
   async signOut(): Promise<void> {
-    if (isSupabaseConfigured() && supabase) {
+    if (supabase) {
       try {
         await supabase.auth.signOut();
       } catch (e) {
         console.warn('Erro ao deslogar do Supabase', e);
       }
     }
-
-    setStored(STORAGE_KEYS.CURRENT_USER, null);
-    safeDispatchEvent(new Event('folha_auth_changed'));
+    publishCurrentUser(null);
   },
 
-  // 1. CONFIRMAÇÃO DE E-MAIL VIA TOKEN SEGURO
-  async confirmEmail(tokenString: string, emailParam?: string): Promise<{ success: boolean; message: string; user?: UserProfile }> {
-    const nowIso = new Date().toISOString();
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-
-    // 1. Tenta validar via authSecurityService (token local de 48 caracteres)
-    const verification = authSecurityService.verifyToken(tokenString, 'email_confirmation');
-    if (verification.valid && verification.token) {
-      const token = verification.token;
-      const userIndex = users.findIndex(u => u.id === token.userId || u.email.toLowerCase() === token.email.toLowerCase());
-
-      if (userIndex !== -1) {
-        users[userIndex].emailConfirmed = true;
-        users[userIndex].emailConfirmedAt = nowIso;
-        setStored(STORAGE_KEYS.USERS, users);
-        authSecurityService.consumeToken(tokenString);
-
-        const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-        if (currentUser && (currentUser.id === token.userId || currentUser.email.toLowerCase() === token.email.toLowerCase())) {
-          setStored(STORAGE_KEYS.CURRENT_USER, {
-            ...currentUser,
-            emailConfirmed: true,
-            emailConfirmedAt: nowIso
-          });
-        }
-
-        safeDispatchEvent(new Event('folha_auth_changed'));
-        return { 
-          success: true, 
-          message: 'Seu endereço de e-mail foi confirmado com sucesso! Sua conta está 100% ativada.',
-          user: users[userIndex]
+  // 1. CONFIRMAÇÃO DE E-MAIL
+  // O link oficial do Supabase valida o token antes de voltar ao portal e entrega a
+  // sessão na URL; aqui apenas conferimos se a sessão resultante está confirmada.
+  async confirmEmail(_tokenString: string, _emailParam?: string): Promise<{ success: boolean; message: string; user?: UserProfile }> {
+    try {
+      const sb = requireSupabase();
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.user?.email_confirmed_at) {
+        const user = await loadProfileForAuthUser(session.user);
+        publishCurrentUser(user);
+        return {
+          success: true,
+          message: 'Seu endereço de e-mail foi confirmado com sucesso! Sua conta está ativa.',
+          user
         };
       }
+    } catch (err) {
+      console.warn('Erro ao verificar confirmação de e-mail:', err);
     }
 
-    // 2. Token gerado pelo backend ou link com e-mail informado / confirmação Supabase
-    if (emailParam || tokenString.startsWith('conf_') || tokenString === 'supabase_verified') {
-      let targetEmail = (emailParam || '').trim().toLowerCase();
-      if (!targetEmail && typeof window !== 'undefined') {
-        const searchParams = new URLSearchParams(window.location.search);
-        const hash = window.location.hash || '';
-        targetEmail = (searchParams.get('email') || '').toLowerCase();
-        if (!targetEmail && hash.includes('email=')) {
-          const hashParams = new URLSearchParams(hash.replace('#confirm-email', '').replace(/^[?&]/, ''));
-          targetEmail = (hashParams.get('email') || '').toLowerCase();
-        }
-      }
-      if (!targetEmail) {
-        const cur = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-        if (cur?.email) targetEmail = cur.email.toLowerCase();
-      }
-
-      let userIndex = targetEmail ? users.findIndex(u => u.email.toLowerCase() === targetEmail) : -1;
-      if (userIndex === -1 && tokenString === 'supabase_verified') {
-        const cur = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-        if (cur) userIndex = users.findIndex(u => u.id === cur.id || u.email.toLowerCase() === cur.email.toLowerCase());
-      }
-      if (userIndex === -1 && targetEmail) {
-        const newUser: any = {
-          id: `usr-${Date.now()}`,
-          email: targetEmail,
-          fullName: targetEmail.split('@')[0],
-          role: 'reader',
-          status: 'active',
-          emailConfirmed: true,
-          emailConfirmedAt: nowIso,
-          createdAt: nowIso,
-          hasProfile: true
-        };
-        users.push(newUser);
-        userIndex = users.length - 1;
-      }
-
-      if (userIndex !== -1) {
-        users[userIndex].emailConfirmed = true;
-        users[userIndex].emailConfirmedAt = nowIso;
-        setStored(STORAGE_KEYS.USERS, users);
-
-        const currentUser = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-        if (currentUser && currentUser.email.toLowerCase() === users[userIndex].email.toLowerCase()) {
-          setStored(STORAGE_KEYS.CURRENT_USER, {
-            ...currentUser,
-            emailConfirmed: true,
-            emailConfirmedAt: nowIso
-          });
-        }
-
-        safeDispatchEvent(new Event('folha_auth_changed'));
-        return { 
-          success: true, 
-          message: 'Seu endereço de e-mail foi confirmado com sucesso! Sua conta está 100% ativada.',
-          user: users[userIndex]
-        };
-      }
-    }
-
-    return { 
-      success: false, 
-      message: verification.message || 'Link de confirmação inválido ou expirado.' 
+    return {
+      success: false,
+      message: 'Não foi possível confirmar o e-mail: o link é inválido, expirou ou já foi utilizado. Solicite um novo link abaixo.'
     };
   },
 
@@ -1078,82 +680,30 @@ export const authService = {
 
     const rateCheck = checkEmailRateLimit(trimmedEmail, 'email_confirmation', 60);
     if (!rateCheck.allowed) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: `Por segurança, aguarde mais ${rateCheck.remainingSeconds} segundos antes de solicitar um novo link.`,
         remainingSeconds: rateCheck.remainingSeconds
       };
     }
 
-    const origin = typeof window !== 'undefined'
-      ? (!window.location.hostname.includes('folhadaregiaonline.com.br') && !window.location.hostname.includes('folhadaregiaoonline.com.br')
-          ? `${window.location.origin}${window.location.pathname}`.replace(/\/+$/, '')
-          : getProductionSiteUrl())
-      : getProductionSiteUrl();
-
-    // 1. Tenta envio prioritário e verificado pelo backend (Gera link oficial no Supabase Admin e envia via SMTP do Gmail)
     try {
-      const resp = await fetch('/api/auth/resend-confirmation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmedEmail, origin })
+      const sb = requireSupabase();
+      const { error } = await sb.auth.resend({
+        type: 'signup',
+        email: trimmedEmail,
+        options: { emailRedirectTo: getAuthRedirectUrl('confirm-email') }
       });
-      const data = await resp.json();
-      if (data.notFound) {
-        return {
-          success: false,
-          message: data.message || 'Nenhum cadastro pendente foi localizado com este e-mail.'
-        };
+      if (error) {
+        return { success: false, message: translateAuthError(error.message) };
       }
-      if (data.success && data.delivered) {
-        return {
-          success: true,
-          message: 'Link oficial de confirmação enviado para seu e-mail! Por favor, verifique sua caixa de entrada e a pasta de spam.'
-        };
-      }
-    } catch (e) {
-      console.warn('Aviso: endpoint /api/auth/resend-confirmation indisponível, usando fallback:', e);
-    }
-
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const found = users.find(u => u.email.toLowerCase() === trimmedEmail);
-
-    const confirmRedirectUrl = getAuthRedirectUrl('#confirm-email');
-    let supabaseResent = false;
-
-    // Se o Supabase estiver configurado, despacha prioritariamente pelo Supabase Auth direto (funciona 100% no GitHub Pages)
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { error: resendErr } = await supabase.auth.resend({
-          type: 'signup',
-          email: trimmedEmail,
-          options: {
-            emailRedirectTo: confirmRedirectUrl
-          }
-        });
-        if (resendErr) {
-          console.warn('Aviso: supabase.auth.resend:', resendErr.message);
-        } else {
-          supabaseResent = true;
-        }
-      } catch (sbErr) {
-        console.warn('Falha ao acionar supabase.auth.resend:', sbErr);
-      }
-    }
-
-    // O link local não confirma contas do Supabase: só envia se o Supabase não despachou o e-mail oficial
-    if (!supabaseResent && found && !found.emailConfirmed) {
-      try {
-        const securityToken = authSecurityService.createToken(found.id, found.email, 'email_confirmation');
-        await emailService.sendResendConfirmation(found, securityToken.token);
-      } catch (err) {
-        console.error('Erro ao reenviar e-mail de confirmação:', err);
-      }
+    } catch (err: any) {
+      return { success: false, message: translateAuthError(err?.message || '') };
     }
 
     return {
       success: true,
-      message: 'Se existir uma conta cadastrada com este endereço com confirmação pendente, enviamos um novo link de confirmação para sua caixa de entrada.'
+      message: 'Se existir uma conta com confirmação pendente para este e-mail, enviamos um novo link. Verifique sua caixa de entrada e a pasta de spam.'
     };
   },
 
@@ -1166,101 +716,33 @@ export const authService = {
 
     const rateCheck = checkEmailRateLimit(trimmedEmail, 'password_reset', 60);
     if (!rateCheck.allowed) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         message: `Por motivos de segurança, aguarde mais ${rateCheck.remainingSeconds} segundos antes de solicitar um novo link de recuperação de senha.`,
         remainingSeconds: rateCheck.remainingSeconds
       };
     }
 
-    const redirectUrl = getAuthRedirectUrl('reset-password');
-    let supabaseSent = false;
-    let supabaseRateLimit = false;
-
-    // 1. Despacha DIRETAMENTE pelo Supabase Auth (opera 100% no cliente no GitHub Pages, Vercel e produção)
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-          redirectTo: redirectUrl
-        });
-        if (error) {
-          const errLower = error.message.toLowerCase();
-          if (errLower.includes('rate limit') || errLower.includes('frequency') || errLower.includes('too many') || errLower.includes('429')) {
-            supabaseRateLimit = true;
-          }
-          console.warn('Aviso do Supabase Auth ao solicitar recuperação:', error.message);
-        } else {
-          supabaseSent = true;
-        }
-      } catch (err: any) {
-        console.warn('Erro ao chamar resetPasswordForEmail no Supabase:', err);
+    try {
+      const sb = requireSupabase();
+      const { error } = await sb.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: getAuthRedirectUrl('reset-password')
+      });
+      if (error) {
+        return { success: false, message: translateAuthError(error.message) };
       }
+    } catch (err: any) {
+      return { success: false, message: translateAuthError(err?.message || '') };
     }
 
-    // Se o Supabase acusou limite de taxa/frequência de envio
-    if (supabaseRateLimit) {
-      return {
-        success: false,
-        message: 'Limite de envio do Supabase atingido para este e-mail. Por segurança, aguarde cerca de 1 minuto antes de solicitar novamente.'
-      };
-    }
-
-    // 2. Só recorre ao backend Node (SMTP próprio) se o Supabase não despachou o e-mail.
-    // Gerar um segundo link de recuperação no servidor invalida o link que o Supabase acabou de enviar.
-    if (!supabaseSent) {
-      try {
-        const resp = await fetch('/api/auth/request-password-reset', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: trimmedEmail,
-            origin: getProductionSiteUrl()
-          })
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data && data.message) {
-            return {
-              success: true,
-              message: data.message
-            };
-          }
-        }
-      } catch {
-        // Backend inacessível (ex: página estática no GitHub Pages).
-      }
-    }
-
-    if (supabaseSent) {
-      return {
-        success: true,
-        message: 'Solicitação de recuperação processada com sucesso! As instruções e o link seguro foram enviados para o seu e-mail. Por favor, verifique sua caixa de entrada e a pasta de spam.'
-      };
-    }
-
-    // Se a conta existir na base local/servidor, prepara também envio pelo serviço do portal
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const found = users.find(u => u.email.toLowerCase() === trimmedEmail);
-
-    if (found) {
-      try {
-        const securityToken = authSecurityService.createToken(found.id, found.email, 'password_reset');
-        await emailService.sendPasswordReset(found, securityToken.token);
-      } catch (err) {
-        console.error('Erro ao gerar token/enviar e-mail de recuperação pelo portal:', err);
-      }
-    }
-
-
-
-    // Mensagem amigável e transparente
     return {
       success: true,
-      message: 'Solicitação de recuperação processada com sucesso! Se existir uma conta associada a este e-mail, você receberá um link em instantes. Por favor, verifique sua caixa de entrada e a pasta de spam (lixo eletrônico).'
+      message: 'Solicitação processada! Se existir uma conta associada a este e-mail, você receberá um link de recuperação em instantes. Verifique sua caixa de entrada e a pasta de spam.'
     };
   },
 
   // 4. VERIFICAÇÃO DO TOKEN DE REDEFINIÇÃO DE SENHA
+  // Só existe o fluxo oficial do Supabase: o link abre o portal com uma sessão de recuperação.
   verifyResetToken(tokenString: string): { valid: boolean; message: string; email?: string } {
     if (tokenString === 'supabase_recovery') {
       const cur = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
@@ -1270,84 +752,34 @@ export const authService = {
         email: cur?.email
       };
     }
-    const verification = authSecurityService.verifyToken(tokenString, 'password_reset');
     return {
-      valid: verification.valid,
-      message: verification.message,
-      email: verification.token?.email
+      valid: false,
+      message: 'Link de recuperação inválido ou expirado. Solicite um novo link em "Esqueci minha senha".'
     };
   },
 
   // 5. CONCLUSÃO DA REDEFINIÇÃO COM ATUALIZAÇÃO SEGURA DA SENHA
-  async completePasswordReset(tokenString: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+  async completePasswordReset(_tokenString: string, newPassword: string): Promise<{ success: boolean; message: string }> {
     if (!newPassword || newPassword.length < 6) {
       return { success: false, message: 'A nova senha deve possuir no mínimo 6 caracteres.' };
     }
 
-    // Se for fluxo de recuperação do Supabase ou Supabase estiver configurado
-    if (tokenString === 'supabase_recovery' || (isSupabaseConfigured() && supabase)) {
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const { error } = await supabase.auth.updateUser({ password: newPassword });
-          if (error) {
-            console.error('Erro ao atualizar senha no Supabase Auth:', error);
-            return {
-              success: false,
-              message: error.message || 'Não foi possível redefinir a senha no Supabase. O link pode ter expirado.'
-            };
-          }
-          if (tokenString === 'supabase_recovery') {
-            return {
-              success: true,
-              message: 'Sua senha foi redefinida com sucesso! Você já pode entrar com a nova senha.'
-            };
-          }
-        } catch (sbErr: any) {
-          if (tokenString === 'supabase_recovery') {
-            return {
-              success: false,
-              message: sbErr?.message || 'Erro de conexão ao atualizar senha no Supabase.'
-            };
-          }
-        }
-      }
-    }
-
-    const verification = authSecurityService.verifyToken(tokenString, 'password_reset');
-    if (!verification.valid || !verification.token) {
-      return { success: false, message: verification.message };
-    }
-
-    const token = verification.token;
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const userIndex = users.findIndex(u => u.id === token.userId || u.email.toLowerCase() === token.email.toLowerCase());
-
-    if (userIndex === -1) {
-      return { success: false, message: 'Usuário não encontrado para atualizar a senha.' };
-    }
-
-    // Atualiza a senha no registro do usuário
-    users[userIndex].passwordHash = newPassword;
-    // Opcionalmente confirma o e-mail também caso estivesse pendente
-    users[userIndex].emailConfirmed = true;
-    if (!users[userIndex].emailConfirmedAt) {
-      users[userIndex].emailConfirmedAt = new Date().toISOString();
-    }
-    setStored(STORAGE_KEYS.USERS, users);
-
-    // Consome e invalida o token para uso único
-    authSecurityService.consumeToken(tokenString);
-
-    // Envia e-mail de notificação de segurança de senha alterada
     try {
-      await emailService.sendPasswordChangedNotification(users[userIndex]);
-    } catch (e) {
-      console.warn('Erro ao disparar aviso de senha alterada:', e);
+      const sb = requireSupabase();
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) {
+        return {
+          success: false,
+          message: 'Sua sessão de recuperação expirou. Solicite um novo link em "Esqueci minha senha".'
+        };
+      }
+      const { error } = await sb.auth.updateUser({ password: newPassword });
+      if (error) {
+        return { success: false, message: translateAuthError(error.message) };
+      }
+    } catch (err: any) {
+      return { success: false, message: translateAuthError(err?.message || '') };
     }
-
-    // Invalida sessão ativa por segurança para exigir novo login
-    setStored(STORAGE_KEYS.CURRENT_USER, null);
-    safeDispatchEvent(new Event('folha_auth_changed'));
 
     return {
       success: true,
@@ -1359,56 +791,95 @@ export const authService = {
 // ==========================================
 // SERVIÇO DE NOTÍCIAS & ARTIGOS
 // ==========================================
+export const slugify = (text: string): string =>
+  (text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .substring(0, 120) || 'materia';
+
+const DEFAULT_ARTICLE_IMAGE = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&h=600&fit=crop';
+
+const mapArticleRow = (item: any): Article => ({
+  id: item.id,
+  title: item.title,
+  subtitle: item.subtitle || undefined,
+  slug: item.slug,
+  content: item.content,
+  category: item.category,
+  imageUrl: item.image_url,
+  videoUrl: item.video_url || undefined,
+  isVideo: Boolean(item.is_video),
+  isHero: Boolean(item.is_hero),
+  isSecondary: Boolean(item.is_secondary),
+  viewsCount: item.views_count || 0,
+  author: item.author || 'Folha da Região',
+  createdAt: item.created_at,
+  updatedAt: item.updated_at || undefined,
+  status: item.status || 'published'
+});
+
+const articleToRow = (a: Article): Record<string, any> => ({
+  title: a.title,
+  subtitle: a.subtitle || null,
+  slug: a.slug,
+  content: a.content,
+  category: a.category,
+  image_url: a.imageUrl,
+  video_url: a.videoUrl || null,
+  is_video: Boolean(a.isVideo || a.videoUrl),
+  is_hero: Boolean(a.isHero),
+  is_secondary: Boolean(a.isSecondary),
+  author: a.author || 'Redação Folha da Região',
+  status: a.status || 'published',
+  updated_at: a.updatedAt || new Date().toISOString()
+});
+
+const withDefaultStatus = (articles: Article[]): Article[] =>
+  articles.map(a => ({ ...a, status: a.status || 'published' }));
+
+const cacheArticle = (article: Article): void => {
+  const cached = getStored<Article[]>(STORAGE_KEYS.ARTICLES, []);
+  const others = cached.filter(a => a.id !== article.id);
+  const next = article.isHero ? others.map(a => ({ ...a, isHero: false })) : others;
+  setStored(STORAGE_KEYS.ARTICLES, [article, ...next]);
+};
+
+const syncArticleWithServer = async (method: 'POST' | 'DELETE', payload: Article | string): Promise<void> => {
+  if (!isBackendAvailable()) return;
+  const headers = { 'Content-Type': 'application/json', ...(await getApiAuthHeaders()) };
+  if (method === 'DELETE') {
+    fireAndForgetApi(`/api/sync-article/${encodeURIComponent(payload as string)}`, { method, headers });
+  } else {
+    fireAndForgetApi('/api/sync-article', { method, headers, body: JSON.stringify(payload) });
+  }
+};
+
 export const newsService = {
+  // Enquanto o banco não tem nenhuma matéria, o portal exibe as matérias iniciais embutidas.
+  // Use "Importar conteúdo local" no painel para gravá-las no Supabase.
   async getArticles(): Promise<Article[]> {
-    if (isSupabaseConfigured() && supabase) {
+    if (supabase) {
       try {
         const { data, error } = await supabase
           .from('articles')
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!error && data && data.length > 0) {
-          return data.map((item: any) => ({
-            id: item.id,
-            title: item.title,
-            subtitle: item.subtitle,
-            slug: item.slug,
-            content: item.content,
-            category: item.category,
-            imageUrl: item.image_url,
-            videoUrl: item.video_url,
-            isVideo: item.is_video,
-            isHero: item.is_hero,
-            isSecondary: item.is_secondary,
-            viewsCount: item.views_count || 0,
-            author: item.author || 'Folha da Região',
-            createdAt: item.created_at,
-            updatedAt: item.updated_at,
-            status: item.status || 'published'
-          }));
+        if (!error && data) {
+          const articles = data.length > 0 ? data.map(mapArticleRow) : withDefaultStatus(INITIAL_ARTICLES);
+          setStored(STORAGE_KEYS.ARTICLES, articles);
+          return articles;
         }
+        console.warn('Erro buscando notícias no Supabase, usando cópia local:', error?.message);
       } catch (err) {
-        console.warn('Erro buscando no Supabase, usando dados locais', err);
+        console.warn('Erro buscando notícias no Supabase, usando cópia local:', err);
       }
     }
 
-    const localArticles = getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
-    const resolved = localArticles.map(a => ({
-      ...a,
-      status: a.status || 'published'
-    }));
-
-    // Sincroniza em segundo plano com o servidor SSR para metadados Open Graph
-    if (typeof fetch !== 'undefined') {
-      fetch('/api/sync-all-articles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(resolved)
-      }).catch(() => {});
-    }
-
-    return resolved;
+    return withDefaultStatus(getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES));
   },
 
   async getArticleBySlug(slug: string): Promise<Article | null> {
@@ -1417,156 +888,158 @@ export const newsService = {
   },
 
   async saveArticle(article: Omit<Article, 'id' | 'createdAt' | 'viewsCount'> & { id?: string }): Promise<Article> {
-    const articles = getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
+    const sb = requireSupabase();
+    const now = new Date().toISOString();
+    const imageUrl = (await mediaService.ensureUploaded(article.imageUrl, 'articles')) || DEFAULT_ARTICLE_IMAGE;
+    const videoUrl = await mediaService.ensureUploaded(article.videoUrl, 'articles');
+
+    let saved: Article | null = null;
 
     if (article.id) {
-      // Atualizar existente
-      const index = articles.findIndex(a => a.id === article.id);
-      if (index !== -1) {
-        const updated: Article = {
-          ...articles[index],
-          ...article,
-          status: article.status || articles[index].status || 'published',
-          updatedAt: new Date().toISOString()
-        };
-        articles[index] = updated;
-        setStored(STORAGE_KEYS.ARTICLES, articles);
+      const cached = getStored<Article[]>(STORAGE_KEYS.ARTICLES, []).find(a => a.id === article.id);
+      const merged: Article = {
+        ...(cached || { viewsCount: 0, createdAt: now, author: 'Redação Folha da Região' }),
+        ...article,
+        id: article.id,
+        imageUrl,
+        videoUrl,
+        slug: article.slug || slugify(article.title),
+        status: article.status || cached?.status || 'published',
+        updatedAt: now
+      } as Article;
 
-        // Se Supabase conectado, sincroniza
-        if (isSupabaseConfigured() && supabase) {
-          await supabase.from('articles').update({
-            title: updated.title,
-            subtitle: updated.subtitle,
-            slug: updated.slug,
-            content: updated.content,
-            category: updated.category,
-            image_url: updated.imageUrl,
-            video_url: updated.videoUrl,
-            is_video: updated.isVideo,
-            is_hero: updated.isHero,
-            is_secondary: updated.isSecondary,
-            author: updated.author,
-            updated_at: updated.updatedAt
-          }).eq('id', updated.id);
-        }
+      const { data, error } = await sb.from('articles').update(articleToRow(merged)).eq('id', merged.id).select();
+      if (error) throw describeDbError(error, 'salvar a matéria');
 
-        // Sincroniza com o servidor para OpenGraph instantâneo
-        if (typeof fetch !== 'undefined') {
-          fetch('/api/sync-article', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updated)
-          }).catch(() => {});
-        }
-
-        return updated;
+      if (data && data.length > 0) {
+        saved = mapArticleRow(data[0]);
+      } else {
+        // Matéria inicial que ainda não existia no banco: cria com o mesmo id
+        const { data: inserted, error: insertError } = await sb
+          .from('articles')
+          .insert([{ ...articleToRow(merged), id: merged.id, views_count: merged.viewsCount || 0, created_at: merged.createdAt || now }])
+          .select()
+          .single();
+        if (insertError) throw describeDbError(insertError, 'salvar a matéria');
+        saved = mapArticleRow(inserted);
       }
+    } else {
+      const draft: Article = {
+        id: newId(),
+        title: article.title,
+        subtitle: article.subtitle,
+        slug: article.slug || slugify(article.title),
+        content: article.content,
+        category: article.category,
+        imageUrl,
+        videoUrl,
+        isVideo: Boolean(article.isVideo || videoUrl),
+        isHero: Boolean(article.isHero),
+        isSecondary: Boolean(article.isSecondary),
+        viewsCount: 0,
+        author: article.author || 'Redação Folha da Região',
+        createdAt: now,
+        updatedAt: now,
+        status: article.status || 'published'
+      };
+
+      const insertRow = (slug: string) =>
+        sb.from('articles')
+          .insert([{ ...articleToRow({ ...draft, slug }), id: draft.id, views_count: 0, created_at: now }])
+          .select()
+          .single();
+
+      let { data, error } = await insertRow(draft.slug);
+      if (error?.code === '23505') {
+        // Já existe uma matéria com este endereço: gera um slug único
+        ({ data, error } = await insertRow(`${draft.slug}-${Math.random().toString(36).substring(2, 6)}`));
+      }
+      if (error) throw describeDbError(error, 'publicar a matéria');
+      saved = mapArticleRow(data);
     }
 
-    // Criar novo
-    const newArticle: Article = {
-      id: 'art-' + Math.random().toString(36).substring(2, 9),
-      title: article.title,
-      subtitle: article.subtitle,
-      slug: article.slug || article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-      content: article.content,
-      category: article.category,
-      imageUrl: article.imageUrl || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1200&h=600&fit=crop',
-      videoUrl: article.videoUrl,
-      isVideo: Boolean(article.isVideo || article.videoUrl),
-      isHero: Boolean(article.isHero),
-      isSecondary: Boolean(article.isSecondary),
-      viewsCount: 1,
-      author: article.author || 'Redação Folha da Região',
-      createdAt: new Date().toISOString(),
-      status: article.status || 'published'
-    };
-
-    // Se marcado como hero, desmarca os anteriores
-    if (newArticle.isHero) {
-      articles.forEach(a => { a.isHero = false; });
+    // Só pode existir uma manchete principal
+    if (saved.isHero) {
+      const { error: heroError } = await sb.from('articles').update({ is_hero: false }).eq('is_hero', true).neq('id', saved.id);
+      if (heroError) console.warn('Aviso: não foi possível desmarcar a manchete anterior:', heroError.message);
     }
 
-    articles.unshift(newArticle);
-    setStored(STORAGE_KEYS.ARTICLES, articles);
-
-    // Dispara notificações automáticas para usuários com interesse na categoria
-    notificationsService.notifyUsersForArticle(newArticle).catch(console.error);
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('articles').insert([{
-        id: newArticle.id,
-        title: newArticle.title,
-        subtitle: newArticle.subtitle,
-        slug: newArticle.slug,
-        content: newArticle.content,
-        category: newArticle.category,
-        image_url: newArticle.imageUrl,
-        video_url: newArticle.videoUrl,
-        is_video: newArticle.isVideo,
-        is_hero: newArticle.isHero,
-        is_secondary: newArticle.isSecondary,
-        views_count: 1,
-        author: newArticle.author,
-        created_at: newArticle.createdAt
-      }]);
-    }
-
-    // Sincroniza com o servidor para OpenGraph instantâneo
-    if (typeof fetch !== 'undefined') {
-      fetch('/api/sync-article', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newArticle)
-      }).catch(() => {});
-    }
-
-    return newArticle;
+    cacheArticle(saved);
+    syncArticleWithServer('POST', saved);
+    return saved;
   },
 
   async deleteArticle(id: string): Promise<void> {
-    const articles = getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
-    const filtered = articles.filter(a => a.id !== id);
-    setStored(STORAGE_KEYS.ARTICLES, filtered);
+    const sb = requireSupabase();
+    const { error } = await sb.from('articles').delete().eq('id', id);
+    if (error) throw describeDbError(error, 'excluir a matéria');
 
-    if (typeof fetch !== 'undefined') {
-      fetch(`/api/sync-article/${encodeURIComponent(id)}`, {
-        method: 'DELETE'
-      }).catch(() => {});
-    }
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('articles').delete().eq('id', id);
-    }
+    setStored(STORAGE_KEYS.ARTICLES, getStored<Article[]>(STORAGE_KEYS.ARTICLES, []).filter(a => a.id !== id));
+    syncArticleWithServer('DELETE', id);
   },
 
   async incrementViews(id: string): Promise<number> {
-    const articles = getStored<Article[]>(STORAGE_KEYS.ARTICLES, INITIAL_ARTICLES);
-    const target = articles.find(a => a.id === id);
+    const cached = getStored<Article[]>(STORAGE_KEYS.ARTICLES, []);
+    const target = cached.find(a => a.id === id);
+    const nextCount = (target?.viewsCount || 0) + 1;
     if (target) {
-      target.viewsCount = (target.viewsCount || 0) + 1;
-      setStored(STORAGE_KEYS.ARTICLES, articles);
-
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          const { error } = await supabase.rpc('increment_article_views', { article_id: id });
-          if (error) {
-            await supabase.from('articles').update({ views_count: target.viewsCount }).eq('id', id);
-          }
-        } catch {
-          // fallback silencioso
-        }
-      }
-      return target.viewsCount;
+      target.viewsCount = nextCount;
+      setStored(STORAGE_KEYS.ARTICLES, cached);
     }
-    return 1;
+
+    if (supabase) {
+      supabase.rpc('increment_article_views', { article_id: id }).then(({ error }) => {
+        if (error) console.warn('Aviso: não foi possível registrar a visualização:', error.message);
+      });
+    }
+    return nextCount;
   }
 };
 
 // ==========================================
-// SERVIÇO DE PUBLICIDADE E CARROSSEL POR ESPAÇO
+// CONFIGURAÇÕES COMPARTILHADAS (tabela site_settings)
+// Leitura síncrona pelo cache local; hydrate() atualiza o cache a partir do banco.
 // ==========================================
-// ==========================================
+type SiteSettingKey = 'portal' | 'ads_placement' | 'ads_format';
+
+const SITE_SETTING_CACHE_KEYS: Record<SiteSettingKey, string> = {
+  portal: STORAGE_KEYS.PORTAL_SETTINGS,
+  ads_placement: STORAGE_KEYS.ADS_SETTINGS,
+  ads_format: STORAGE_KEYS.ADS_FORMAT_SETTINGS
+};
+
+const saveSiteSetting = async (key: SiteSettingKey, value: unknown): Promise<void> => {
+  const sb = requireSupabase();
+  const { data: { session } } = await sb.auth.getSession();
+  const { error } = await sb.from('site_settings').upsert(
+    [{ key, value, updated_at: new Date().toISOString(), updated_by: session?.user?.id ?? null }],
+    { onConflict: 'key' }
+  );
+  if (error) throw describeDbError(error, 'salvar as configurações');
+  setStored(SITE_SETTING_CACHE_KEYS[key], value);
+};
+
+export const siteSettingsService = {
+  async hydrate(): Promise<void> {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase.from('site_settings').select('key, value');
+      if (error || !data) {
+        if (error) console.warn('Aviso: não foi possível carregar as configurações do portal:', error.message);
+        return;
+      }
+      for (const row of data as { key: SiteSettingKey; value: unknown }[]) {
+        const cacheKey = SITE_SETTING_CACHE_KEYS[row.key];
+        if (cacheKey) setStored(cacheKey, row.value);
+      }
+      safeDispatchEvent(new CustomEvent('folha_portal_settings_updated', { detail: portalSettingsService.getSettingsSync() }));
+      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: {} }));
+    } catch (err) {
+      console.warn('Aviso: falha ao carregar configurações do portal:', err);
+    }
+  }
+};
+
 // ==========================================
 // SERVIÇO DE PUBLICIDADE E CARROSSEL POR FORMATO E ESPAÇO
 // ==========================================
@@ -1586,6 +1059,117 @@ export const DEFAULT_FORMAT_SETTINGS: Record<'300x300' | '300x900' | '300x600', 
   '300x600': { format: '300x600', durationSeconds: 8, isPaused: false, mode: 'carousel' }
 };
 
+const AD_FORMAT_DIMENSIONS: Record<'300x300' | '300x900' | '728x90' | '970x90', { ratio: string; width: number; height: number; duration: number }> = {
+  '300x300': { ratio: '1 / 1', width: 300, height: 300, duration: 5 },
+  '300x900': { ratio: '1 / 3', width: 300, height: 900, duration: 8 },
+  '728x90': { ratio: '728 / 90', width: 728, height: 90, duration: 5 },
+  '970x90': { ratio: '970 / 90', width: 970, height: 90, duration: 5 }
+};
+
+// Deduz o formato a partir dos campos (inclui dados antigos sem ad_format)
+const detectAdFormat = (ad: Partial<AdItem>): '300x300' | '300x900' | '728x90' | '970x90' => {
+  if (ad.adFormat === '970x90' || ad.adFormat === '728x90' || ad.adFormat === '300x300' || ad.adFormat === '300x900') {
+    return ad.adFormat;
+  }
+  if (ad.adFormat === '300x600' || ad.placement === 'sidebar_300x900' || ad.placement === 'sidebar_300x600') {
+    return '300x900';
+  }
+  const is970 = ad.adFormat === '970x90' || ad.aspectRatio === '970 / 90' || ad.aspectRatio === '970/90' || ad.width === 970;
+  if (is970) return '970x90';
+  const is900 = ad.adFormat === '300x900' || ad.adFormat === '300x600' || ad.aspectRatio === '1 / 3' || ad.aspectRatio === '1 / 2' || ad.height === 900 || ad.height === 600;
+  const is300 = ad.adFormat === '300x300' || ad.aspectRatio === '1 / 1' || ad.aspectRatio === '1/1' || ad.placement === 'sidebar' || ad.placement === 'article';
+  const is728 = ad.adFormat === '728x90' || ad.aspectRatio === '728 / 90' || ad.aspectRatio === '728/90' || ad.placement === 'header' || ad.placement === 'feed' || ad.placement === 'footer';
+  if (is728 && !is900 && !is300) return '728x90';
+  if (is900) return '300x900';
+  return '300x300';
+};
+
+const normalizeAd = (ad: AdItem): AdItem => {
+  const format = detectAdFormat(ad);
+  const dims = AD_FORMAT_DIMENSIONS[format];
+  return {
+    ...ad,
+    adFormat: format,
+    aspectRatio: dims.ratio,
+    width: dims.width,
+    height: dims.height,
+    maxWidth: dims.width,
+    status: ad.status || (ad.active ? 'active' : 'paused'),
+    durationSeconds: ad.durationSeconds || dims.duration,
+    displayOrder: ad.displayOrder || 1,
+    openInNewTab: ad.openInNewTab ?? true,
+    altText: ad.altText || ad.title,
+    impressionsCount: ad.impressionsCount || 0,
+    clicksCount: ad.clicksCount || 0
+  };
+};
+
+const mapAdRow = (item: any): AdItem => ({
+  id: item.id,
+  title: item.title,
+  sponsorName: item.sponsor_name,
+  linkUrl: item.link_url,
+  mediaUrl: item.media_url,
+  mediaType: item.media_type,
+  placement: item.placement,
+  adFormat: item.ad_format || undefined,
+  aspectRatio: item.aspect_ratio || '1 / 1',
+  maxWidth: item.max_width || undefined,
+  width: item.width || undefined,
+  height: item.height || undefined,
+  active: item.active,
+  status: item.status || undefined,
+  startDate: item.start_date || undefined,
+  endDate: item.end_date || undefined,
+  createdAt: item.created_at,
+  altText: item.alt_text || item.title,
+  displayOrder: item.display_order || 1,
+  durationSeconds: item.duration_seconds || undefined,
+  openInNewTab: item.open_in_new_tab ?? true,
+  campaignId: item.campaign_id || undefined,
+  campaignName: item.campaign_name || undefined,
+  impressionsCount: item.impressions_count || 0,
+  clicksCount: item.clicks_count || 0
+});
+
+const adToRow = (ad: AdItem): Record<string, any> => ({
+  title: ad.title,
+  sponsor_name: ad.sponsorName,
+  link_url: ad.linkUrl,
+  media_url: ad.mediaUrl,
+  media_type: ad.mediaType,
+  placement: ad.placement,
+  ad_format: ad.adFormat,
+  aspect_ratio: ad.aspectRatio,
+  max_width: ad.maxWidth ?? null,
+  width: ad.width ?? null,
+  height: ad.height ?? null,
+  active: ad.active,
+  status: ad.status || (ad.active ? 'active' : 'paused'),
+  start_date: ad.startDate || null,
+  end_date: ad.endDate || null,
+  alt_text: ad.altText || ad.title,
+  display_order: ad.displayOrder || 1,
+  duration_seconds: ad.durationSeconds || 5,
+  open_in_new_tab: ad.openInNewTab ?? true,
+  campaign_id: ad.campaignId || null,
+  campaign_name: ad.campaignName || null,
+  updated_at: new Date().toISOString()
+});
+
+const notifyAdsUpdated = (detail: Record<string, unknown>): void => {
+  safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail }));
+};
+
+const updateAdOrders = async (orderedIds: string[]): Promise<void> => {
+  const sb = requireSupabase();
+  const results = await Promise.all(
+    orderedIds.map((id, index) => sb.from('ads').update({ display_order: index + 1 }).eq('id', id))
+  );
+  const failed = results.find(r => r.error);
+  if (failed?.error) throw describeDbError(failed.error, 'reordenar os anúncios');
+};
+
 export const adsService = {
   // Retorna configurações dos temporizadores e modos independentes por formato (300x300 e 300x900)
   getFormatSettings(): Record<'300x300' | '300x900' | '300x600', FormatCarouselSetting> {
@@ -1601,32 +1185,19 @@ export const adsService = {
   },
 
   async saveFormatSetting(
-    format: '300x300' | '300x900' | '300x600', 
+    format: '300x300' | '300x900' | '300x600',
     update: Partial<FormatCarouselSetting>
   ): Promise<FormatCarouselSetting> {
     const current = this.getFormatSettings();
-    const updated: FormatCarouselSetting = {
-      ...current[format],
-      ...update,
-      format
-    };
-    const newSettings = {
-      ...current,
-      [format]: updated
-    };
-    setStored(STORAGE_KEYS.ADS_FORMAT_SETTINGS, newSettings);
-    if (typeof window !== 'undefined') {
-      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { format } }));
-    }
+    const updated: FormatCarouselSetting = { ...current[format], ...update, format };
+    await saveSiteSetting('ads_format', { ...current, [format]: updated });
+    notifyAdsUpdated({ format });
     return updated;
   },
 
   // Retorna configurações de modo (fixo vs carrossel), status e formato preferido para os espaços
   getPlacementSettings(): Record<AdPlacement, PlacementSetting> {
-    const stored = getStored<Partial<Record<AdPlacement, PlacementSetting>>>(
-      STORAGE_KEYS.ADS_SETTINGS, 
-      {}
-    );
+    const stored = getStored<Partial<Record<AdPlacement, PlacementSetting>>>(STORAGE_KEYS.ADS_SETTINGS, {});
     return {
       header: { ...DEFAULT_PLACEMENT_SETTINGS.header, ...(stored.header || {}) },
       feed: { ...DEFAULT_PLACEMENT_SETTINGS.feed, ...(stored.feed || {}) },
@@ -1640,132 +1211,33 @@ export const adsService = {
 
   async savePlacementSetting(placement: AdPlacement, update: Partial<PlacementSetting>): Promise<PlacementSetting> {
     const current = this.getPlacementSettings();
-    const updated: PlacementSetting = {
-      ...current[placement],
-      ...update,
-      placement
-    };
-    const newSettings = {
-      ...current,
-      [placement]: updated
-    };
-    setStored(STORAGE_KEYS.ADS_SETTINGS, newSettings);
-    if (typeof window !== 'undefined') {
-      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement } }));
-    }
+    const updated: PlacementSetting = { ...current[placement], ...update, placement };
+    await saveSiteSetting('ads_placement', { ...current, [placement]: updated });
+    notifyAdsUpdated({ placement });
     return updated;
   },
 
+  // Enquanto o banco não tem anúncios, exibe os banners iniciais embutidos
   async getAds(): Promise<AdItem[]> {
-    if (isSupabaseConfigured() && supabase) {
+    if (supabase) {
       try {
         const { data, error } = await supabase
           .from('ads')
           .select('*')
-          .eq('active', true)
           .order('display_order', { ascending: true });
 
-        if (!error && data && data.length > 0) {
-          return data.map((item: any) => ({
-            id: item.id,
-            title: item.title,
-            sponsorName: item.sponsor_name,
-            linkUrl: item.link_url,
-            mediaUrl: item.media_url,
-            mediaType: item.media_type,
-            placement: item.placement,
-            adFormat: item.ad_format || (item.aspect_ratio === '1 / 3' ? '300x900' : item.aspect_ratio === '970 / 90' ? '970x90' : item.aspect_ratio === '728 / 90' ? '728x90' : '300x300'),
-            aspectRatio: item.aspect_ratio || '1 / 1',
-            maxWidth: item.max_width,
-            width: item.width || 300,
-            height: item.height || 300,
-            active: item.active,
-            status: item.status || 'active',
-            startDate: item.start_date,
-            endDate: item.end_date,
-            createdAt: item.created_at,
-            altText: item.alt_text || item.title,
-            displayOrder: item.display_order || 1,
-            durationSeconds: item.duration_seconds || 5,
-            openInNewTab: item.open_in_new_tab ?? true,
-            campaignId: item.campaign_id,
-            campaignName: item.campaign_name,
-            impressionsCount: item.impressions_count || 0,
-            clicksCount: item.clicks_count || 0
-          }));
+        if (!error && data) {
+          const ads = (data.length > 0 ? data.map(mapAdRow) : INITIAL_ADS).map(normalizeAd);
+          setStored(STORAGE_KEYS.ADS, ads);
+          return ads;
         }
+        console.warn('Erro ao carregar anúncios do Supabase, usando cópia local:', error?.message);
       } catch (err) {
-        console.warn('Erro ao carregar anúncios do Supabase, utilizando armazenamento local', err);
+        console.warn('Erro ao carregar anúncios do Supabase, usando cópia local:', err);
       }
     }
 
-    let rawAds = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
-
-    // Garante presença dos anúncios 300x900 caso storage possua apenas dados antigos
-    const has300x900 = rawAds.some(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.height === 900);
-    if (!has300x900) {
-      const initial300x900 = INITIAL_ADS.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900');
-      if (initial300x900.length > 0) {
-        rawAds = [...rawAds, ...initial300x900];
-        setStored(STORAGE_KEYS.ADS, rawAds);
-      }
-    }
-
-    // Normaliza dados para garantir campos de carrossel e dimensões estritas
-    return rawAds.map(ad => {
-      const is970 = ad.adFormat === '970x90' || ad.aspectRatio === '970 / 90' || ad.aspectRatio === '970/90' || ad.width === 970;
-      const is728 = ad.adFormat === '728x90' || ad.aspectRatio === '728 / 90' || ad.aspectRatio === '728/90' || (ad.placement === 'header' || ad.placement === 'feed' || ad.placement === 'footer');
-      const is900 = ad.adFormat === '300x900' || ad.adFormat === '300x600' || ad.placement === 'sidebar_300x900' || ad.placement === 'sidebar_300x600' || ad.aspectRatio === '1 / 3' || ad.aspectRatio === '1 / 2' || ad.height === 900 || ad.height === 600;
-      const is300 = ad.adFormat === '300x300' || ad.aspectRatio === '1 / 1' || ad.aspectRatio === '1/1' || ad.placement === 'sidebar' || ad.placement === 'article';
-
-      let computedFormat: AdFormat = '300x300';
-      let computedRatio = '1 / 1';
-      let computedWidth = 300;
-      let computedHeight = 300;
-      let computedMaxWidth = 300;
-
-      if (is970) {
-        computedFormat = '970x90';
-        computedRatio = '970 / 90';
-        computedWidth = 970;
-        computedHeight = 90;
-        computedMaxWidth = 970;
-      } else if (is728 && !is900 && !is300) {
-        computedFormat = '728x90';
-        computedRatio = '728 / 90';
-        computedWidth = 728;
-        computedHeight = 90;
-        computedMaxWidth = 728;
-      } else if (is900) {
-        computedFormat = '300x900';
-        computedRatio = '1 / 3';
-        computedWidth = 300;
-        computedHeight = 900;
-        computedMaxWidth = 300;
-      } else {
-        computedFormat = '300x300';
-        computedRatio = '1 / 1';
-        computedWidth = 300;
-        computedHeight = 300;
-        computedMaxWidth = 300;
-      }
-
-      return {
-        ...ad,
-        adFormat: computedFormat,
-        aspectRatio: computedRatio,
-        width: computedWidth,
-        height: computedHeight,
-        maxWidth: computedMaxWidth,
-        status: ad.status || (ad.active ? 'active' : 'paused'),
-        durationSeconds: ad.durationSeconds || (is900 ? 8 : 5),
-        displayOrder: ad.displayOrder || 1,
-        openInNewTab: ad.openInNewTab ?? true,
-        altText: ad.altText || ad.title,
-        impressionsCount: ad.impressionsCount || 0,
-        clicksCount: ad.clicksCount || 0
-      };
-    });
+    return getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS).map(normalizeAd);
   },
 
   async getAllAds(): Promise<AdItem[]> {
@@ -1808,190 +1280,153 @@ export const adsService = {
   },
 
   async saveAd(ad: Omit<AdItem, 'id' | 'createdAt'> & { id?: string }): Promise<AdItem> {
+    const sb = requireSupabase();
     const ads = await this.getAds();
+    const format = detectAdFormat({ adFormat: ad.adFormat, placement: ad.placement });
+    const dims = AD_FORMAT_DIMENSIONS[format];
+    const mediaUrl = (await mediaService.ensureUploaded(ad.mediaUrl, 'ads')) || ad.mediaUrl;
 
-    const is970 = ad.adFormat === '970x90';
-    const is728 = ad.adFormat === '728x90';
-    const is900 = ad.adFormat === '300x900' || ad.adFormat === '300x600' || ad.placement === 'sidebar_300x900' || ad.placement === 'sidebar_300x600';
-    const is300 = ad.adFormat === '300x300' || (!is970 && !is728 && !is900);
-
-    let finalFormat: AdFormat = '300x300';
-    let finalRatio = '1 / 1';
-    let finalWidth = 300;
-    let finalHeight = 300;
-    let finalMaxWidth = 300;
-    let defaultDuration = 5;
-
-    if (is970) {
-      finalFormat = '970x90';
-      finalRatio = '970 / 90';
-      finalWidth = 970;
-      finalHeight = 90;
-      finalMaxWidth = 970;
-      defaultDuration = 5;
-    } else if (is728) {
-      finalFormat = '728x90';
-      finalRatio = '728 / 90';
-      finalWidth = 728;
-      finalHeight = 90;
-      finalMaxWidth = 728;
-      defaultDuration = 5;
-    } else if (is900) {
-      finalFormat = '300x900';
-      finalRatio = '1 / 3';
-      finalWidth = 300;
-      finalHeight = 900;
-      finalMaxWidth = 300;
-      defaultDuration = 8;
-    } else {
-      finalFormat = '300x300';
-      finalRatio = '1 / 1';
-      finalWidth = 300;
-      finalHeight = 300;
-      finalMaxWidth = 300;
-      defaultDuration = 5;
-    }
-
-    if (ad.id) {
-      // Edição de anúncio existente
-      const index = ads.findIndex(a => a.id === ad.id);
-      if (index !== -1) {
-        const oldAd = ads[index];
-        ads[index] = {
-          ...oldAd,
-          ...ad,
-          adFormat: finalFormat,
-          aspectRatio: finalRatio,
-          width: finalWidth,
-          height: finalHeight,
-          maxWidth: finalMaxWidth,
-          displayOrder: ad.displayOrder || oldAd.displayOrder || 1,
-          durationSeconds: Math.max(2, Math.min(60, Number(ad.durationSeconds) || defaultDuration)),
-          openInNewTab: ad.openInNewTab ?? true,
-          altText: ad.altText || ad.title
-        };
-        setStored(STORAGE_KEYS.ADS, ads);
-        if (typeof window !== 'undefined') {
-          safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: ad.placement, format: finalFormat } }));
-        }
-        return ads[index];
-      }
-    }
-
-    // Criação de novo anúncio: calcula próxima ordem no carrossel correspondente
-    const matchingAds = ads.filter(a => a.placement === ad.placement || a.adFormat === finalFormat);
-    const nextOrder = matchingAds.length + 1;
-
-    const newAd: AdItem = {
-      id: 'ad-' + Math.random().toString(36).substring(2, 9),
+    const base = {
       ...ad,
-      adFormat: finalFormat,
-      aspectRatio: finalRatio,
-      width: finalWidth,
-      height: finalHeight,
-      maxWidth: finalMaxWidth,
-      displayOrder: ad.displayOrder || nextOrder,
-      durationSeconds: Math.max(2, Math.min(60, Number(ad.durationSeconds) || defaultDuration)),
+      mediaUrl,
+      adFormat: format,
+      aspectRatio: dims.ratio,
+      width: dims.width,
+      height: dims.height,
+      maxWidth: dims.width,
+      durationSeconds: Math.max(2, Math.min(60, Number(ad.durationSeconds) || dims.duration)),
       openInNewTab: ad.openInNewTab ?? true,
-      altText: ad.altText || ad.title,
-      impressionsCount: 0,
-      clicksCount: 0,
-      createdAt: new Date().toISOString()
+      altText: ad.altText || ad.title
     };
 
-    ads.push(newAd);
-    setStored(STORAGE_KEYS.ADS, ads);
-    if (typeof window !== 'undefined') {
-      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: ad.placement, format: finalFormat } }));
+    let row: any;
+    const existing = ad.id ? ads.find(a => a.id === ad.id) : undefined;
+
+    if (ad.id) {
+      const merged: AdItem = {
+        ...(existing || ({} as AdItem)),
+        ...base,
+        id: ad.id,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        displayOrder: ad.displayOrder || existing?.displayOrder || 1
+      };
+      const { data, error } = await sb.from('ads').update(adToRow(merged)).eq('id', ad.id).select();
+      if (error) throw describeDbError(error, 'salvar o anúncio');
+      if (data && data.length > 0) {
+        row = data[0];
+      } else {
+        // Banner inicial que ainda não existia no banco: cria com o mesmo id
+        const { data: inserted, error: insertError } = await sb
+          .from('ads')
+          .insert([{ ...adToRow(merged), id: merged.id, created_at: merged.createdAt }])
+          .select()
+          .single();
+        if (insertError) throw describeDbError(insertError, 'salvar o anúncio');
+        row = inserted;
+      }
+    } else {
+      // Criação: posiciona no fim do carrossel correspondente
+      const nextOrder = ads.filter(a => a.placement === ad.placement || a.adFormat === format).length + 1;
+      const created: AdItem = {
+        ...base,
+        id: newId(),
+        displayOrder: ad.displayOrder || nextOrder,
+        impressionsCount: 0,
+        clicksCount: 0,
+        createdAt: new Date().toISOString()
+      };
+      const { data, error } = await sb
+        .from('ads')
+        .insert([{ ...adToRow(created), id: created.id, created_at: created.createdAt }])
+        .select()
+        .single();
+      if (error) throw describeDbError(error, 'criar o anúncio');
+      row = data;
     }
-    return newAd;
+
+    const saved = normalizeAd(mapAdRow(row));
+    setStored(STORAGE_KEYS.ADS, [...ads.filter(a => a.id !== saved.id), saved]);
+    notifyAdsUpdated({ placement: saved.placement, format: saved.adFormat });
+    return saved;
   },
 
   async deleteAd(id: string): Promise<void> {
+    const sb = requireSupabase();
     const ads = await this.getAds();
     const targetAd = ads.find(a => a.id === id);
-    const filtered = ads.filter(a => a.id !== id);
-    
-    // Reajusta ordens (1, 2...) dos que sobraram no mesmo formato/espaço
+
+    const { error } = await sb.from('ads').delete().eq('id', id);
+    if (error) throw describeDbError(error, 'excluir o anúncio');
+
+    const remaining = ads.filter(a => a.id !== id);
+    setStored(STORAGE_KEYS.ADS, remaining);
+
+    // Reajusta as ordens (1, 2...) dos que sobraram no mesmo formato/espaço
     if (targetAd) {
-      let orderIndex = 1;
-      filtered
+      const sameGroup = remaining
         .filter(a => a.placement === targetAd.placement || a.adFormat === targetAd.adFormat)
         .sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1))
-        .forEach(a => {
-          a.displayOrder = orderIndex++;
-        });
+        .map(a => a.id);
+      await updateAdOrders(sameGroup).catch(err => console.warn('Aviso:', err.message));
     }
 
-    setStored(STORAGE_KEYS.ADS, filtered);
-    if (typeof window !== 'undefined') {
-      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement: targetAd?.placement, format: targetAd?.adFormat } }));
-    }
+    notifyAdsUpdated({ placement: targetAd?.placement, format: targetAd?.adFormat });
   },
 
   // Altera a ordem de exibição dos slides (1, 2, 3...) de um espaço ou formato
   async reorderAds(placement: AdPlacement, orderedIds: string[]): Promise<void> {
-    const ads = await this.getAds();
-    orderedIds.forEach((id, index) => {
-      const found = ads.find(a => a.id === id);
-      if (found) {
-        found.displayOrder = index + 1;
-      }
-    });
-    setStored(STORAGE_KEYS.ADS, ads);
-    if (typeof window !== 'undefined') {
-      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { placement } }));
-    }
+    await updateAdOrders(orderedIds);
+    notifyAdsUpdated({ placement });
   },
 
   async reorderAdsByFormat(format: AdFormat, orderedIds: string[]): Promise<void> {
-    const ads = await this.getAds();
-    orderedIds.forEach((id, index) => {
-      const found = ads.find(a => a.id === id);
-      if (found) {
-        found.displayOrder = index + 1;
-      }
-    });
-    setStored(STORAGE_KEYS.ADS, ads);
-    if (typeof window !== 'undefined') {
-      safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: { format } }));
-    }
+    await updateAdOrders(orderedIds);
+    notifyAdsUpdated({ format });
   },
 
-  // Registra impressão confiável (quando o slide é ativado na tela)
+  // Registra impressão (quando o slide é ativado na tela)
   recordImpression(adId: string): void {
-    if (!adId) return;
-    try {
-      const ads = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
-      const ad = ads.find(a => a.id === adId);
-      if (ad) {
-        ad.impressionsCount = (ad.impressionsCount || 0) + 1;
-        setStored(STORAGE_KEYS.ADS, ads);
-      }
-    } catch {
-      // Não interrompe a navegação
-    }
+    if (!adId || !supabase) return;
+    supabase.rpc('increment_ad_metric', { p_ad_id: adId, p_metric: 'impression' }).then(() => {});
   },
 
   // Registra clique no banner
   recordClick(adId: string): void {
-    if (!adId) return;
-    try {
-      const ads = getStored<AdItem[]>(STORAGE_KEYS.ADS, INITIAL_ADS);
-      const ad = ads.find(a => a.id === adId);
-      if (ad) {
-        ad.clicksCount = (ad.clicksCount || 0) + 1;
-        setStored(STORAGE_KEYS.ADS, ads);
-      }
-    } catch {
-      // Não interrompe a navegação
-    }
+    if (!adId || !supabase) return;
+    supabase.rpc('increment_ad_metric', { p_ad_id: adId, p_metric: 'click' }).then(() => {});
   }
 };
 
 // ==========================================
 // SERVIÇO DE GERENCIAMENTO E MODERAÇÃO DE USUÁRIOS
+// As permissões são garantidas no banco (RLS + funções is_admin), não no navegador.
 // ==========================================
+const PROTECTED_ADMIN_EMAIL = 'tomsilvaconsignado@gmail.com';
+
+const mapAuditRow = (row: any): UserAuditLog => ({
+  id: row.id,
+  userId: row.user_id,
+  userEmail: row.user_email || '',
+  userName: row.user_name || '',
+  adminId: row.admin_id,
+  adminEmail: row.admin_email || '',
+  adminName: row.admin_name || '',
+  action: row.action,
+  previousStatus: row.previous_status || undefined,
+  newStatus: row.new_status || undefined,
+  reason: row.reason || '',
+  result: row.result || 'success',
+  createdAt: row.created_at
+});
+
+const fetchProfileById = async (userId: string): Promise<UserProfile> => {
+  const sb = requireSupabase();
+  const { data, error } = await sb.from('profiles').select('*').eq('id', userId).maybeSingle();
+  if (error) throw describeDbError(error, 'consultar o usuário');
+  if (!data) throw new Error('Usuário não encontrado.');
+  return mapProfileRow(data);
+};
+
 export const usersService = {
   // Alias de compatibilidade
   async getUsers(adminUser?: UserProfile): Promise<UserProfile[]> {
@@ -1999,195 +1434,97 @@ export const usersService = {
   },
 
   async getAllUsers(adminUser?: UserProfile): Promise<UserProfile[]> {
-    // Verificação de permissão: somente administradores autorizados
     if (adminUser && adminUser.role !== 'admin' && adminUser.role !== 'editor') {
       throw new Error('Acesso restrito. Apenas administradores autorizados podem consultar os usuários do portal.');
     }
+    const sb = requireSupabase();
 
-    // 1. Tenta carregar do backend (integra Supabase Auth Admin API + Perfis + Persistência Servidor)
-    let fetchedUsers: UserProfile[] = [];
-    try {
-      const response = await fetch('/api/admin/users', {
-        headers: {
-          ...(await getApiAuthHeaders())
-        }
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && Array.isArray(result.users)) {
-          fetchedUsers = result.users;
-        }
-      }
-    } catch (e) {
-      console.warn('Aviso: Backend /api/admin/users não respondeu, utilizando cache local:', e);
+    // RPC protegida por is_admin(): inclui confirmação de e-mail e último acesso do Supabase Auth
+    const { data, error } = await sb.rpc('admin_list_users');
+    if (!error && Array.isArray(data)) {
+      return data.map((r: any) => ({
+        ...mapProfileRow(r.profile, {
+          id: r.id,
+          email: r.email,
+          email_confirmed_at: r.email_confirmed_at,
+          last_sign_in_at: r.last_sign_in_at,
+          created_at: r.auth_created_at,
+          user_metadata: {}
+        }),
+        hasProfile: Boolean(r.profile)
+      }));
     }
+    if (error) console.warn('Aviso: admin_list_users indisponível, lendo a tabela profiles:', error.message);
 
-    // 2. Mescla com tabela profiles remota do Supabase para garantir que nenhum cadastro seja omitido
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data: remoteProfiles, error: profErr } = await supabase.from('profiles').select('*');
-        if (!profErr && Array.isArray(remoteProfiles) && remoteProfiles.length > 0) {
-          const userMap = new Map<string, UserProfile>();
-          fetchedUsers.forEach(u => userMap.set(u.email.toLowerCase(), u));
-
-          remoteProfiles.forEach((p: any) => {
-            const mapped: UserProfile = {
-              id: p.id,
-              email: p.email,
-              fullName: p.full_name || p.email?.split('@')[0] || 'Usuário',
-              role: (p.role || 'reader') as UserRole,
-              avatarUrl: p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(p.email || '')}`,
-              interests: p.interests || ['Política', 'Cidades'],
-              createdAt: p.created_at || new Date().toISOString(),
-              accountType: p.account_type || 'pf',
-              phone: p.phone || '',
-              city: p.city || '',
-              state: p.state || 'SE',
-              cpf: p.cpf,
-              cnpj: p.cnpj,
-              companyName: p.company_name,
-              tradeName: p.trade_name,
-              legalRepresentative: p.legal_representative,
-              representativeCpf: p.representative_cpf,
-              termsAccepted: p.terms_accepted ?? true,
-              termsAcceptedAt: p.terms_accepted_at,
-              termsVersion: p.terms_version || 'v2.1',
-              status: (p.status || 'active') as UserStatus,
-              moderationReason: p.moderation_reason,
-              moderationAt: p.moderation_at,
-              moderatedBy: p.moderated_by,
-              emailConfirmed: true, // Se o perfil foi gravado na base
-              hasProfile: true
-            };
-
-            const existing = userMap.get(mapped.email.toLowerCase());
-            if (existing) {
-              userMap.set(mapped.email.toLowerCase(), {
-                ...existing,
-                ...mapped,
-                status: existing.status === 'suspended' || existing.status === 'blocked' ? existing.status : mapped.status
-              });
-            } else {
-              userMap.set(mapped.email.toLowerCase(), mapped);
-            }
-          });
-
-          fetchedUsers = Array.from(userMap.values());
-        }
-      } catch (err) {
-        console.warn('Aviso: Falha ao consultar tabela profiles do Supabase no cliente:', err);
-      }
-    }
-
-    if (fetchedUsers.length > 0) {
-      setStored(STORAGE_KEYS.USERS, fetchedUsers);
-      return fetchedUsers;
-    }
-
-    // 3. Fallback para armazenamento local
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    return users.map(u => ({
-      id: u.id,
-      email: u.email,
-      fullName: u.fullName,
-      role: u.role || 'reader',
-      avatarUrl: u.avatarUrl,
-      interests: u.interests || ['Política', 'Cidades'],
-      createdAt: u.createdAt || new Date().toISOString(),
-      accountType: u.accountType || 'pf',
-      phone: u.phone || '',
-      city: u.city || '',
-      state: u.state || '',
-      cpf: u.cpf,
-      isLegalAge: u.isLegalAge,
-      companyName: u.companyName,
-      tradeName: u.tradeName,
-      cnpj: u.cnpj,
-      legalRepresentative: u.legalRepresentative,
-      representativeCpf: u.representativeCpf,
-      termsAccepted: u.termsAccepted,
-      termsAcceptedAt: u.termsAcceptedAt,
-      termsVersion: u.termsVersion,
-      status: (u.status || 'active') as UserStatus,
-      moderationReason: u.moderationReason,
-      moderationAt: u.moderationAt,
-      moderatedBy: u.moderatedBy,
-      emailConfirmed: u.emailConfirmed ?? (u.role === 'admin'),
-      emailConfirmedAt: u.emailConfirmedAt,
-      lastSignInAt: u.lastSignInAt ?? null,
-      lastActiveAt: u.lastActiveAt ?? null,
-      hasProfile: u.hasProfile ?? true
-    }));
+    const { data: profiles, error: profilesError } = await sb
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (profilesError) throw describeDbError(profilesError, 'listar os usuários');
+    return (profiles || []).map((p: any) => mapProfileRow(p));
   },
 
   async getUserClassifiedsCount(userId: string): Promise<{ total: number; published: number; pending: number; rejected: number }> {
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    const userItems = items.filter(i => i.userId === userId);
+    const empty = { total: 0, published: 0, pending: 0, rejected: 0 };
+    if (!supabase || !isUuid(userId)) return empty;
+    const { data, error } = await supabase.from('classifieds').select('status').eq('user_id', userId);
+    if (error || !data) return empty;
     return {
-      total: userItems.length,
-      published: userItems.filter(i => i.status === 'published').length,
-      pending: userItems.filter(i => i.status === 'pending').length,
-      rejected: userItems.filter(i => i.status === 'rejected').length
+      total: data.length,
+      published: data.filter(i => i.status === 'published').length,
+      pending: data.filter(i => i.status === 'pending').length,
+      rejected: data.filter(i => i.status === 'rejected').length
     };
   },
 
   async getUserReports(userId: string): Promise<ClassifiedReport[]> {
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    const userClassifiedIds = new Set(items.filter(i => i.userId === userId).map(i => i.id));
-    const allReports = getStored<ClassifiedReport[]>(STORAGE_KEYS.CLASSIFIED_REPORTS, []);
-    return allReports.filter(r => userClassifiedIds.has(r.classifiedId));
+    if (!supabase || !isUuid(userId)) return [];
+    const { data: items } = await supabase.from('classifieds').select('id').eq('user_id', userId);
+    const ids = (items || []).map(i => i.id);
+    if (ids.length === 0) return [];
+    const { data, error } = await supabase.from('classified_reports').select('*').in('classified_id', ids);
+    if (error || !data) return [];
+    return data.map(mapReportRow);
   },
 
   async getAuditLogs(userId?: string): Promise<UserAuditLog[]> {
-    try {
-      const url = userId ? `/api/admin/audit-logs?userId=${encodeURIComponent(userId)}` : '/api/admin/audit-logs';
-      const resp = await fetch(url, {
-        headers: {
-          ...(await getApiAuthHeaders())
-        }
-      });
-      if (resp.ok) {
-        const serverLogs = await resp.json();
-        if (Array.isArray(serverLogs)) {
-          setStored(STORAGE_KEYS.USER_AUDIT_LOGS, serverLogs);
-          return serverLogs;
-        }
-      }
-    } catch (e) {
-      console.warn('Falha ao consultar logs de auditoria do servidor:', e);
+    if (!supabase) return [];
+    let query = supabase.from('user_audit_logs').select('*').order('created_at', { ascending: false }).limit(500);
+    if (userId) query = query.eq('user_id', userId);
+    const { data, error } = await query;
+    if (error) {
+      console.warn('Aviso: não foi possível carregar a auditoria:', error.message);
+      return [];
     }
-
-    const logs = getStored<UserAuditLog[]>(STORAGE_KEYS.USER_AUDIT_LOGS, []);
-    if (userId) {
-      return logs.filter(l => l.userId === userId);
-    }
-    return logs;
+    return (data || []).map(mapAuditRow);
   },
 
   async recordAudit(logData: Omit<UserAuditLog, 'id' | 'createdAt'>): Promise<UserAuditLog> {
-    const newLog: UserAuditLog = {
-      id: 'log-' + Math.random().toString(36).substring(2, 9),
+    const log: UserAuditLog = {
+      id: newId(),
       ...logData,
       result: logData.result || 'success',
       createdAt: new Date().toISOString()
     };
-
-    // Sincroniza com servidor
-    try {
-      fetch('/api/admin/audit-logs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getApiAuthHeaders())
-        },
-        body: JSON.stringify(newLog)
-      }).catch(() => {});
-    } catch {}
-
-    const logs = getStored<UserAuditLog[]>(STORAGE_KEYS.USER_AUDIT_LOGS, []);
-    logs.unshift(newLog);
-    setStored(STORAGE_KEYS.USER_AUDIT_LOGS, logs);
-    return newLog;
+    if (supabase) {
+      const { error } = await supabase.from('user_audit_logs').insert([{
+        id: log.id,
+        user_id: isUuid(log.userId) ? log.userId : null,
+        user_email: log.userEmail,
+        user_name: log.userName,
+        admin_id: isUuid(log.adminId) ? log.adminId : null,
+        admin_email: log.adminEmail,
+        admin_name: log.adminName,
+        action: log.action,
+        previous_status: log.previousStatus || null,
+        new_status: log.newStatus || null,
+        reason: log.reason,
+        result: log.result,
+        created_at: log.createdAt
+      }]);
+      if (error) console.warn('Aviso: não foi possível registrar a auditoria:', error.message);
+    }
+    return log;
   },
 
   async moderateUserStatus(
@@ -2199,66 +1536,33 @@ export const usersService = {
     if (!adminUser || adminUser.role !== 'admin') {
       throw new Error('Apenas administradores gerais possuem permissão para moderar contas.');
     }
-
     if (!reason || reason.trim().length < 5) {
       throw new Error('É obrigatório registrar uma justificativa clara (mínimo de 5 caracteres) para moderar a conta.');
     }
 
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const target = users.find(u => u.id === targetUserId);
-
-    if (!target) {
-      throw new Error('Usuário não encontrado.');
-    }
-
-    // Proteção rigorosa: Não permitir bloquear ou suspender a própria conta
+    const target = await fetchProfileById(targetUserId);
     if (target.id === adminUser.id) {
       throw new Error('Você não pode alterar o status ou aplicar restrições à sua própria conta de administrador.');
     }
-
-    // Proteção rigorosa: O administrador principal não pode ser bloqueado
-    if (target.email.toLowerCase() === 'tomsilvaconsignado@gmail.com') {
+    if (target.email.toLowerCase() === PROTECTED_ADMIN_EMAIL) {
       throw new Error('A conta do administrador principal é protegida pelo sistema e não pode ser suspensa ou bloqueada.');
     }
 
-    // Sincroniza com backend seguro
-    try {
-      const resp = await fetch('/api/admin/moderate-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getApiAuthHeaders())
-        },
-        body: JSON.stringify({
-          userId: targetUserId,
-          targetStatus: newStatus,
-          reason: reason.trim(),
-          adminUser: { id: adminUser.id, email: adminUser.email, fullName: adminUser.fullName }
-        })
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.success && data.user) {
-          const idx = users.findIndex(u => u.id === targetUserId);
-          if (idx !== -1) {
-            users[idx] = { ...users[idx], ...data.user };
-            setStored(STORAGE_KEYS.USERS, users);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Aviso: Falha ao chamar /api/admin/moderate-user no backend:', e);
-    }
+    const sb = requireSupabase();
+    const { data, error } = await sb
+      .from('profiles')
+      .update({
+        status: newStatus,
+        moderation_reason: reason.trim(),
+        moderation_at: new Date().toISOString(),
+        moderated_by: adminUser.fullName,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', targetUserId)
+      .select()
+      .single();
+    if (error) throw describeDbError(error, 'alterar o status da conta');
 
-    const previousStatus = (target.status || 'active') as UserStatus;
-    target.status = newStatus;
-    target.moderationReason = reason.trim();
-    target.moderationAt = new Date().toISOString();
-    target.moderatedBy = adminUser.fullName;
-
-    setStored(STORAGE_KEYS.USERS, users);
-
-    // Registra auditoria
     await this.recordAudit({
       userId: target.id,
       userEmail: target.email,
@@ -2267,22 +1571,13 @@ export const usersService = {
       adminEmail: adminUser.email,
       adminName: adminUser.fullName,
       action: newStatus === 'active' ? 'reactivate' : newStatus === 'suspended' ? 'suspend' : 'block',
-      previousStatus,
+      previousStatus: target.status || 'active',
       newStatus,
       reason: reason.trim(),
       result: 'success'
     });
 
-    // Se o usuário afetado estiver na sessão local atual, sincroniza
-    const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-    if (current && current.id === targetUserId) {
-      current.status = newStatus;
-      current.moderationReason = reason.trim();
-      setStored(STORAGE_KEYS.CURRENT_USER, current);
-      safeDispatchEvent(new Event('folha_auth_changed'));
-    }
-
-    return target;
+    return mapProfileRow(data);
   },
 
   async updateUserRoleProtected(
@@ -2294,44 +1589,21 @@ export const usersService = {
     if (!adminUser || adminUser.role !== 'admin') {
       throw new Error('Apenas o Administrador Geral pode alterar privilégios de acesso.');
     }
-
     if (!reason || reason.trim().length < 5) {
       throw new Error('É obrigatório registrar uma justificativa para alteração de privilégio administrativo.');
     }
 
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const target = users.find(u => u.id === targetUserId);
-
-    if (!target) {
-      throw new Error('Usuário não encontrado.');
-    }
-
-    if (target.email.toLowerCase() === 'tomsilvaconsignado@gmail.com' && newRole !== 'admin') {
+    const target = await fetchProfileById(targetUserId);
+    if (target.email.toLowerCase() === PROTECTED_ADMIN_EMAIL && newRole !== 'admin') {
       throw new Error('Os privilégios da conta do Administrador Geral não podem ser revogados.');
     }
 
-    // Sincroniza com o backend
-    try {
-      await fetch('/api/admin/update-role', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getApiAuthHeaders())
-        },
-        body: JSON.stringify({
-          userId: targetUserId,
-          newRole,
-          reason: reason.trim(),
-          adminUser: { id: adminUser.id, email: adminUser.email, fullName: adminUser.fullName }
-        })
-      });
-    } catch (e) {
-      console.warn('Aviso: Falha ao chamar /api/admin/update-role:', e);
-    }
-
-    const oldRole = target.role;
-    target.role = newRole;
-    setStored(STORAGE_KEYS.USERS, users);
+    const sb = requireSupabase();
+    const { error } = await sb
+      .from('profiles')
+      .update({ role: newRole, updated_at: new Date().toISOString() })
+      .eq('id', targetUserId);
+    if (error) throw describeDbError(error, 'alterar o papel do usuário');
 
     await this.recordAudit({
       userId: target.id,
@@ -2341,14 +1613,11 @@ export const usersService = {
       adminEmail: adminUser.email,
       adminName: adminUser.fullName,
       action: 'change_role',
-      reason: `Alteração de papel de "${oldRole}" para "${newRole}". Motivo: ${reason.trim()}`,
+      reason: `Alteração de papel de "${target.role}" para "${newRole}". Motivo: ${reason.trim()}`,
       result: 'success'
     });
 
-    const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-    if (current && current.id === targetUserId) {
-      current.role = newRole;
-      setStored(STORAGE_KEYS.CURRENT_USER, current);
+    if (targetUserId === adminUser.id) {
       safeDispatchEvent(new Event('folha_auth_changed'));
     }
   },
@@ -2358,52 +1627,20 @@ export const usersService = {
       throw new Error('Acesso não autorizado.');
     }
 
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const target = users.find(u => u.id === targetUserId);
-
-    if (!target) {
-      throw new Error('Usuário não encontrado.');
-    }
-
-    // Tenta disparar via backend administrativo (disparo SMTP real e link com validação)
-    try {
-      const resp = await fetch('/api/admin/resend-confirmation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getApiAuthHeaders())
-        },
-        body: JSON.stringify({
-          userId: target.id,
-          email: target.email,
-          adminUser: { id: adminUser.id, email: adminUser.email, fullName: adminUser.fullName }
-        })
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.success) {
-          return { success: true, message: data.message };
-        }
-      }
-    } catch (err) {
-      console.warn('Aviso: Falha ao chamar /api/admin/resend-confirmation, utilizando fallback:', err);
-    }
-
-    // Fallback local
+    const target = await fetchProfileById(targetUserId);
     const res = await authService.resendConfirmationEmail(target.email);
-    if (res.success) {
-      await this.recordAudit({
-        userId: target.id,
-        userEmail: target.email,
-        userName: target.fullName,
-        adminId: adminUser.id,
-        adminEmail: adminUser.email,
-        adminName: adminUser.fullName,
-        action: 'resend_confirmation',
-        reason: 'Reenvio de link de confirmação solicitado via painel administrativo.',
-        result: 'success'
-      });
-    }
+
+    await this.recordAudit({
+      userId: target.id,
+      userEmail: target.email,
+      userName: target.fullName,
+      adminId: adminUser.id,
+      adminEmail: adminUser.email,
+      adminName: adminUser.fullName,
+      action: 'resend_confirmation',
+      reason: 'Reenvio de link de confirmação solicitado via painel administrativo.',
+      result: res.success ? 'success' : 'failure'
+    });
     return res;
   },
 
@@ -2412,32 +1649,10 @@ export const usersService = {
       throw new Error('Apenas o Administrador Geral pode validar manualmente o e-mail de um usuário.');
     }
 
-    try {
-      await fetch('/api/admin/confirm-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getApiAuthHeaders())
-        },
-        body: JSON.stringify({
-          userId: targetUserId,
-          adminUser: { id: adminUser.id, email: adminUser.email, fullName: adminUser.fullName }
-        })
-      });
-    } catch (e) {
-      console.warn('Aviso: Falha ao chamar /api/admin/confirm-email:', e);
-    }
-
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const target = users.find(u => u.id === targetUserId);
-
-    if (!target) {
-      throw new Error('Usuário não encontrado.');
-    }
-
-    target.emailConfirmed = true;
-    target.emailConfirmedAt = new Date().toISOString();
-    setStored(STORAGE_KEYS.USERS, users);
+    const target = await fetchProfileById(targetUserId);
+    const sb = requireSupabase();
+    const { error } = await sb.rpc('admin_confirm_user_email', { target_user: targetUserId });
+    if (error) throw describeDbError(error, 'confirmar o e-mail do usuário');
 
     await this.recordAudit({
       userId: target.id,
@@ -2450,14 +1665,6 @@ export const usersService = {
       reason: 'Confirmação manual de e-mail realizada pelo administrador após validação direta.',
       result: 'success'
     });
-
-    const current = getStored<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null);
-    if (current && current.id === targetUserId) {
-      current.emailConfirmed = true;
-      current.emailConfirmedAt = target.emailConfirmedAt;
-      setStored(STORAGE_KEYS.CURRENT_USER, current);
-      safeDispatchEvent(new Event('folha_auth_changed'));
-    }
   }
 };
 
@@ -2466,14 +1673,28 @@ export const usersService = {
 // ==========================================
 export const commentsService = {
   async getComments(articleId: string): Promise<Comment[]> {
-    const all = getStored<Comment[]>(STORAGE_KEYS.COMMENTS, []);
-    return all.filter(c => c.articleId === articleId);
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('comments')
+      .select('*')
+      .eq('article_id', articleId)
+      .order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map((c: any) => ({
+      id: c.id,
+      articleId: c.article_id,
+      userId: c.user_id,
+      userName: c.user_name,
+      userAvatar: c.user_avatar || undefined,
+      content: c.content,
+      createdAt: c.created_at
+    }));
   },
 
   async addComment(articleId: string, content: string, user: UserProfile): Promise<Comment> {
-    const comments = getStored<Comment[]>(STORAGE_KEYS.COMMENTS, []);
-    const newComment: Comment = {
-      id: 'cmt-' + Math.random().toString(36).substring(2, 9),
+    const sb = requireSupabase();
+    const comment: Comment = {
+      id: newId(),
       articleId,
       userId: user.id,
       userName: user.fullName,
@@ -2481,208 +1702,88 @@ export const commentsService = {
       content,
       createdAt: new Date().toISOString()
     };
-
-    comments.unshift(newComment);
-    setStored(STORAGE_KEYS.COMMENTS, comments);
-    return newComment;
+    const { error } = await sb.from('comments').insert([{
+      id: comment.id,
+      article_id: articleId,
+      user_id: user.id,
+      user_name: comment.userName,
+      user_avatar: comment.userAvatar || null,
+      content
+    }]);
+    if (error?.code === '23503') {
+      throw new Error('Esta matéria ainda não foi gravada no banco de dados, por isso não aceita comentários.');
+    }
+    if (error) throw describeDbError(error, 'publicar o comentário');
+    return comment;
   }
 };
 
 export const newsletterService = {
   async subscribe(email: string): Promise<{ success: boolean; message: string }> {
-    const subscribers = getStored<NewsletterSubscriber[]>(STORAGE_KEYS.SUBSCRIBERS, []);
-    const existing = subscribers.find(s => s.email.toLowerCase() === email.trim().toLowerCase());
-    
-    if (existing) {
+    const sb = requireSupabase();
+    const { error } = await sb.from('newsletter_subscribers').insert([{ email: email.trim().toLowerCase() }]);
+    if (error?.code === '23505') {
       return { success: true, message: 'Você já está cadastrado em nossa lista VIP!' };
     }
-
-    subscribers.push({
-      id: 'sub-' + Math.random().toString(36).substring(2, 9),
-      email: email.trim().toLowerCase(),
-      createdAt: new Date().toISOString()
-    });
-
-    setStored(STORAGE_KEYS.SUBSCRIBERS, subscribers);
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('newsletter_subscribers').insert([{ email: email.trim().toLowerCase() }]);
+    if (error) {
+      return { success: false, message: describeDbError(error, 'concluir a inscrição').message };
     }
-
     return { success: true, message: 'Inscrição confirmada com sucesso! Fique atento ao seu e-mail.' };
   },
 
   async getSubscribers(): Promise<NewsletterSubscriber[]> {
-    return getStored<NewsletterSubscriber[]>(STORAGE_KEYS.SUBSCRIBERS, []);
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('newsletter_subscribers').select('*').order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map((s: any) => ({ id: s.id, email: s.email, createdAt: s.created_at }));
   }
 };
 
 // ==========================================
 // SERVIÇO DE NOTIFICAÇÕES PARA USUÁRIOS
+// As notificações de novas matérias são criadas no banco (trigger notify_readers_of_article)
 // ==========================================
 export const notificationsService = {
   async getNotifications(userId: string): Promise<NotificationItem[]> {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-
-        if (!error && data) {
-          return data.map((n: any) => ({
-            id: n.id,
-            userId: n.user_id,
-            articleId: n.article_id,
-            articleSlug: n.article_slug,
-            articleTitle: n.article_title,
-            category: n.category,
-            imageUrl: n.image_url,
-            message: n.message,
-            createdAt: n.created_at,
-            read: n.read
-          }));
-        }
-      } catch (e) {
-        console.warn('Erro ao carregar notificações do Supabase', e);
-      }
+    if (!supabase || !isUuid(userId)) return [];
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error || !data) {
+      if (error) console.warn('Erro ao carregar notificações do Supabase', error.message);
+      return [];
     }
-
-    const all = getStored<NotificationItem[]>(STORAGE_KEYS.NOTIFICATIONS, []);
-    return all.filter(n => n.userId === userId);
+    return data.map((n: any) => ({
+      id: n.id,
+      userId: n.user_id,
+      articleId: n.article_id,
+      articleSlug: n.article_slug,
+      articleTitle: n.article_title,
+      category: n.category,
+      imageUrl: n.image_url,
+      message: n.message,
+      createdAt: n.created_at,
+      read: n.read
+    }));
   },
 
   async markAsRead(notificationId: string): Promise<void> {
-    const all = getStored<NotificationItem[]>(STORAGE_KEYS.NOTIFICATIONS, []);
-    const target = all.find(n => n.id === notificationId);
-    if (target) {
-      target.read = true;
-      setStored(STORAGE_KEYS.NOTIFICATIONS, all);
+    if (supabase) {
+      const { error } = await supabase.from('notifications').update({ read: true }).eq('id', notificationId);
+      if (error) console.warn('Erro ao marcar notificação no Supabase', error.message);
     }
-
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('notifications').update({ read: true }).eq('id', notificationId);
-      } catch (e) {
-        console.warn('Erro ao marcar notificação no Supabase', e);
-      }
-    }
-
     safeDispatchEvent(new Event('folha_notifications_updated'));
   },
 
   async markAllAsRead(userId: string): Promise<void> {
-    const all = getStored<NotificationItem[]>(STORAGE_KEYS.NOTIFICATIONS, []);
-    all.forEach(n => {
-      if (n.userId === userId) {
-        n.read = true;
-      }
-    });
-    setStored(STORAGE_KEYS.NOTIFICATIONS, all);
-
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('notifications').update({ read: true }).eq('user_id', userId);
-      } catch (e) {
-        console.warn('Erro ao marcar todas notificações no Supabase', e);
-      }
+    if (supabase) {
+      const { error } = await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false);
+      if (error) console.warn('Erro ao marcar todas notificações no Supabase', error.message);
     }
-
     safeDispatchEvent(new Event('folha_notifications_updated'));
-  },
-
-  async notifyUsersForArticle(article: Article): Promise<void> {
-    const users = getStored<any[]>(STORAGE_KEYS.USERS, INITIAL_DEMO_USERS);
-    const notifications = getStored<NotificationItem[]>(STORAGE_KEYS.NOTIFICATIONS, []);
-    const newNotificationsCreated: NotificationItem[] = [];
-
-    for (const user of users) {
-      const userInterests = user.interests || ['Política', 'Cidades'];
-      // Verifica se o usuário tem interesse nesta categoria (ou 'todos')
-      const matchesInterest = userInterests.some((int: string) => 
-        int.toLowerCase() === article.category.toLowerCase() ||
-        (int.toLowerCase() === 'vídeos' && article.isVideo)
-      );
-
-      if (matchesInterest) {
-        const notif: NotificationItem = {
-          id: 'notif-' + Math.random().toString(36).substring(2, 9),
-          userId: user.id,
-          articleId: article.id,
-          articleSlug: article.slug,
-          articleTitle: article.title,
-          category: article.category,
-          imageUrl: article.imageUrl,
-          message: `Nova matéria em ${article.category}: "${article.title}"`,
-          createdAt: new Date().toISOString(),
-          read: false
-        };
-
-        notifications.unshift(notif);
-        newNotificationsCreated.push(notif);
-
-        // Se Supabase conectado, salva também lá
-        if (isSupabaseConfigured() && supabase) {
-          try {
-            await supabase.from('notifications').insert([{
-              id: notif.id,
-              user_id: notif.userId,
-              article_id: notif.articleId,
-              article_slug: notif.articleSlug,
-              article_title: notif.articleTitle,
-              category: notif.category,
-              image_url: notif.imageUrl,
-              message: notif.message,
-              created_at: notif.createdAt,
-              read: notif.read
-            }]);
-          } catch {
-            // fallback
-          }
-        }
-      }
-    }
-
-    if (newNotificationsCreated.length > 0) {
-      setStored(STORAGE_KEYS.NOTIFICATIONS, notifications);
-      safeDispatchEvent(new CustomEvent('folha_new_notification', { 
-        detail: newNotificationsCreated 
-      }));
-      safeDispatchEvent(new Event('folha_notifications_updated'));
-    }
-  },
-
-  async seedInitialNotificationsIfEmpty(user: UserProfile, articles: Article[]): Promise<void> {
-    const all = getStored<NotificationItem[]>(STORAGE_KEYS.NOTIFICATIONS, []);
-    const userNotifs = all.filter(n => n.userId === user.id);
-
-    // Se ainda não tiver nenhuma notificação para este usuário, gera notificações a partir de notícias recentes das categorias dele
-    if (userNotifs.length === 0) {
-      const userInterests = user.interests || ['Política', 'Cidades'];
-      const matchingArticles = articles.filter(a => 
-        userInterests.some(cat => cat.toLowerCase() === a.category.toLowerCase())
-      ).slice(0, 3);
-
-      matchingArticles.forEach((art, index) => {
-        const notif: NotificationItem = {
-          id: 'notif-init-' + user.id + '-' + index,
-          userId: user.id,
-          articleId: art.id,
-          articleSlug: art.slug,
-          articleTitle: art.title,
-          category: art.category,
-          imageUrl: art.imageUrl,
-          message: `Destaque em ${art.category}: "${art.title}"`,
-          createdAt: new Date(Date.now() - (index + 1) * 3600 * 1000).toISOString(),
-          read: index > 1 // a última já lida, as outras não lidas para o usuário ver o badge
-        };
-        all.unshift(notif);
-      });
-
-      setStored(STORAGE_KEYS.NOTIFICATIONS, all);
-      safeDispatchEvent(new Event('folha_notifications_updated'));
-    }
   }
 };
 
@@ -2813,54 +1914,90 @@ function mapClassifiedItemToRow(item: ClassifiedItem): any {
   };
 }
 
+function mapReportRow(row: any): ClassifiedReport {
+  return {
+    id: row.id,
+    classifiedId: row.classified_id,
+    classifiedTitle: row.classified_title,
+    reporterName: row.reporter_name || undefined,
+    reporterEmail: row.reporter_email || undefined,
+    reason: row.reason,
+    details: row.details,
+    status: row.status,
+    createdAt: row.created_at
+  };
+}
+
+const markExpired = (item: ClassifiedItem, now: Date): ClassifiedItem =>
+  item.status === 'published' && new Date(item.expiresAt) < now
+    ? { ...item, status: 'expired' as ClassifiedStatus }
+    : item;
+
+const generateClassifiedIdentity = (title: string): { code: string; slug: string } => {
+  const code = `CL-${Math.floor(1000 + Math.random() * 9000)}${Math.random().toString(36).substring(2, 4).toUpperCase()}`;
+  return { code, slug: `${slugify(title || 'anuncio')}-${code.toLowerCase()}` };
+};
+
 export const classifiedsService = {
   // Configurações
   async getSettings(): Promise<ClassifiedsSettings> {
+    if (supabase) {
+      const { data, error } = await supabase.from('classified_settings').select('*').eq('id', 'default').maybeSingle();
+      if (!error && data) {
+        const settings: ClassifiedsSettings = {
+          requireApproval: data.require_approval ?? true,
+          defaultValidityDays: data.default_validity_days || 30
+        };
+        setStored(STORAGE_KEYS.CLASSIFIED_SETTINGS, settings);
+        return settings;
+      }
+    }
     return getStored<ClassifiedsSettings>(STORAGE_KEYS.CLASSIFIED_SETTINGS, DEFAULT_CLASSIFIEDS_SETTINGS);
   },
 
   async updateSettings(newSettings: Partial<ClassifiedsSettings>): Promise<ClassifiedsSettings> {
-    const current = await this.getSettings();
-    const updated = { ...current, ...newSettings };
+    const sb = requireSupabase();
+    const updated = { ...(await this.getSettings()), ...newSettings };
+    const { error } = await sb.from('classified_settings').upsert([{
+      id: 'default',
+      require_approval: updated.requireApproval,
+      default_validity_days: updated.defaultValidityDays,
+      updated_at: new Date().toISOString()
+    }], { onConflict: 'id' });
+    if (error) throw describeDbError(error, 'salvar as regras dos classificados');
     setStored(STORAGE_KEYS.CLASSIFIED_SETTINGS, updated);
     return updated;
   },
 
   // Categorias
   async getCategories(section?: ClassifiedSection): Promise<ClassifiedCategory[]> {
-    const all = getStored<ClassifiedCategory[]>(STORAGE_KEYS.CLASSIFIED_CATEGORIES, INITIAL_CLASSIFIED_CATEGORIES);
-    if (section) {
-      return all.filter(c => c.section === section);
+    let all: ClassifiedCategory[] = getStored<ClassifiedCategory[]>(STORAGE_KEYS.CLASSIFIED_CATEGORIES, INITIAL_CLASSIFIED_CATEGORIES);
+    if (supabase) {
+      const { data, error } = await supabase.from('classified_categories').select('id, name, section').order('created_at', { ascending: true });
+      if (!error && data) {
+        all = data.length > 0 ? (data as ClassifiedCategory[]) : INITIAL_CLASSIFIED_CATEGORIES;
+        setStored(STORAGE_KEYS.CLASSIFIED_CATEGORIES, all);
+      }
     }
-    return all;
+    return section ? all.filter(c => c.section === section) : all;
   },
 
   async saveCategory(category: Omit<ClassifiedCategory, 'id'> & { id?: string }): Promise<ClassifiedCategory> {
-    const categories = getStored<ClassifiedCategory[]>(STORAGE_KEYS.CLASSIFIED_CATEGORIES, INITIAL_CLASSIFIED_CATEGORIES);
-    if (category.id) {
-      const idx = categories.findIndex(c => c.id === category.id);
-      if (idx !== -1) {
-        categories[idx] = { ...categories[idx], ...category };
-        setStored(STORAGE_KEYS.CLASSIFIED_CATEGORIES, categories);
-        return categories[idx];
-      }
-    }
-    const newCat: ClassifiedCategory = {
-      id: 'cat-clf-' + Math.random().toString(36).substring(2, 9),
-      name: category.name,
-      section: category.section
-    };
-    categories.push(newCat);
-    setStored(STORAGE_KEYS.CLASSIFIED_CATEGORIES, categories);
-    return newCat;
+    const sb = requireSupabase();
+    const saved: ClassifiedCategory = { id: category.id || newId(), name: category.name, section: category.section };
+    const { error } = await sb.from('classified_categories').upsert([saved], { onConflict: 'id' });
+    if (error) throw describeDbError(error, 'salvar a categoria');
+    return saved;
   },
 
   async deleteCategory(id: string): Promise<void> {
-    const categories = getStored<ClassifiedCategory[]>(STORAGE_KEYS.CLASSIFIED_CATEGORIES, INITIAL_CLASSIFIED_CATEGORIES);
-    setStored(STORAGE_KEYS.CLASSIFIED_CATEGORIES, categories.filter(c => c.id !== id));
+    const sb = requireSupabase();
+    const { error } = await sb.from('classified_categories').delete().eq('id', id);
+    if (error) throw describeDbError(error, 'excluir a categoria');
   },
 
-  // Consulta de Anúncios com Checagem de Expiração e Sincronização Supabase
+  // Consulta de anúncios. O RLS do banco decide o que cada pessoa enxerga:
+  // visitantes veem só os publicados e válidos; donos e equipe veem também os demais.
   async getClassifieds(options?: {
     section?: ClassifiedSection;
     category?: string;
@@ -2871,41 +2008,21 @@ export const classifiedsService = {
     sortBy?: 'recent' | 'price_asc' | 'price_desc';
     includeExpired?: boolean;
   }): Promise<ClassifiedItem[]> {
-    let remoteItems: ClassifiedItem[] = [];
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data, error } = await supabase.from('classifieds').select('*');
-        if (!error && data && data.length > 0) {
-          remoteItems = data.map(mapClassifiedRowToItem);
-        }
-      } catch (err) {
-        console.warn('Aviso: Falha ao consultar tabela classifieds no Supabase:', err);
+    let items: ClassifiedItem[] = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, []);
+    if (supabase) {
+      const { data, error } = await supabase.from('classifieds').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        items = data.map(mapClassifiedRowToItem);
+        setStored(STORAGE_KEYS.CLASSIFIEDS, items);
+      } else if (error) {
+        console.warn('Aviso: Falha ao consultar classificados no Supabase, usando cópia local:', error.message);
       }
     }
 
-    const localItems = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    const map = new Map<string, ClassifiedItem>();
-    localItems.forEach(i => map.set(i.id, i));
-    remoteItems.forEach(i => map.set(i.id, i));
-
-    let items = Array.from(map.values());
     const now = new Date();
-    let hasUpdates = false;
+    items = items.map(item => markExpired(item, now));
 
-    // Verificar e atualizar automaticamente expirados
-    items = items.map(item => {
-      if (item.status === 'published' && new Date(item.expiresAt) < now) {
-        hasUpdates = true;
-        return { ...item, status: 'expired' as ClassifiedStatus };
-      }
-      return item;
-    });
-
-    if (hasUpdates) {
-      setStored(STORAGE_KEYS.CLASSIFIEDS, items);
-    }
-
-    // Filtrar por status (por padrão, apenas publicados para o público)
+    // Por padrão, apenas publicados para o público
     const targetStatus = options?.status ?? 'published';
     if (!options?.includeExpired) {
       items = items.filter(item => item.status === targetStatus);
@@ -2939,13 +2056,11 @@ export const classifiedsService = {
       );
     }
 
-    // Ordenação
     if (options?.sortBy === 'price_asc') {
       items.sort((a, b) => (a.price || 0) - (b.price || 0));
     } else if (options?.sortBy === 'price_desc') {
       items.sort((a, b) => (b.price || 0) - (a.price || 0));
     } else {
-      // recent
       items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
 
@@ -2953,64 +2068,44 @@ export const classifiedsService = {
   },
 
   async getClassifiedById(id: string): Promise<ClassifiedItem | null> {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data, error } = await supabase.from('classifieds').select('*').eq('id', id).maybeSingle();
-        if (!error && data) {
-          return mapClassifiedRowToItem(data);
-        }
-      } catch {}
+    if (supabase) {
+      const { data, error } = await supabase.from('classifieds').select('*').eq('id', id).maybeSingle();
+      if (!error) return data ? mapClassifiedRowToItem(data) : null;
     }
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    return items.find(item => item.id === id) || null;
+    return getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, []).find(item => item.id === id) || null;
   },
 
   async getClassifiedBySlug(slug: string): Promise<ClassifiedItem | null> {
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        const { data, error } = await supabase.from('classifieds').select('*').or(`slug.eq.${slug},id.eq.${slug}`).maybeSingle();
-        if (!error && data) {
-          return mapClassifiedRowToItem(data);
-        }
-      } catch {}
+    if (supabase) {
+      const { data, error } = await supabase.from('classifieds').select('*').eq('slug', slug).maybeSingle();
+      if (!error && data) return mapClassifiedRowToItem(data);
+      if (!error) return this.getClassifiedById(slug);
     }
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    return items.find(item => item.slug === slug || item.id === slug) || null;
+    return getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, []).find(item => item.slug === slug || item.id === slug) || null;
   },
 
   async getUserClassifieds(userId: string): Promise<ClassifiedItem[]> {
-    let remoteItems: ClassifiedItem[] = [];
-    if (isSupabaseConfigured() && supabase && isUuid(userId)) {
-      try {
-        const { data, error } = await supabase.from('classifieds').select('*').eq('user_id', userId);
-        if (!error && data) {
-          remoteItems = data.map(mapClassifiedRowToItem);
-        }
-      } catch (err) {
-        console.warn('Falha ao consultar classificados remotos do usuário:', err);
-      }
-    }
-
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    const localUserItems = items.filter(item => item.userId === userId);
-    const map = new Map<string, ClassifiedItem>();
-    localUserItems.forEach(i => map.set(i.id, i));
-    remoteItems.forEach(i => map.set(i.id, i));
-
-    return Array.from(map.values())
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (!supabase || !isUuid(userId)) return [];
+    const { data, error } = await supabase
+      .from('classifieds')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw describeDbError(error, 'carregar seus anúncios');
+    const now = new Date();
+    return (data || []).map(mapClassifiedRowToItem).map(item => markExpired(item, now));
   },
 
-  // Cadastro e Edição com Validações de Segurança
+  // Cadastro e edição. Status e aprovação também são garantidos pelo trigger
+  // protect_classified_moderation_fields no banco.
   async saveClassified(itemData: Partial<ClassifiedItem>, user: UserProfile): Promise<ClassifiedItem> {
     if (!user) throw new Error('Usuário não autenticado. Faça login para publicar anúncios.');
+    if (!isUuid(user.id)) throw new Error('Sua sessão expirou. Faça login novamente para publicar anúncios.');
 
-    // Bloqueio de segurança: contas inativas, suspensas ou bloqueadas não podem publicar
     if (user.status === 'suspended' || user.status === 'blocked' || user.status === 'inactive') {
       throw new Error('Sua conta está inativa ou com restrição administrativa e não pode publicar ou editar anúncios. Entre em contato com a moderação para revisão.');
     }
 
-    // Validações básicas de preenchimento do anúncio
     if (!itemData.title?.trim()) {
       throw new Error('Informe o título do anúncio.');
     }
@@ -3021,161 +2116,124 @@ export const classifiedsService = {
       throw new Error('Informe a cidade do anúncio.');
     }
 
-    // Limitar rigorosamente upload a 3 imagens
-    const sanitizedImages = (itemData.images || []).slice(0, 3);
-
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
+    const sb = requireSupabase();
+    // No máximo 3 imagens, enviadas ao Storage em vez de gravadas em base64
+    const images = await mediaService.ensureAllUploaded((itemData.images || []).slice(0, 3), `classifieds/${user.id}`);
     const settings = await this.getSettings();
+    const isAdmin = user.role === 'admin';
 
     if (itemData.id) {
-      // Edição
-      const index = items.findIndex(i => i.id === itemData.id);
-      if (index === -1) throw new Error('Anúncio não encontrado.');
-
-      const existing = items[index];
-
-      // Verificação de permissão: apenas o próprio dono ou administrador
-      if (existing.userId !== user.id && user.role !== 'admin') {
+      const existing = await this.getClassifiedById(itemData.id);
+      if (!existing) throw new Error('Anúncio não encontrado.');
+      if (existing.userId !== user.id && !isAdmin) {
         throw new Error('Você não tem permissão para editar este anúncio.');
       }
 
       const updated: ClassifiedItem = {
         ...existing,
         ...itemData,
-        images: sanitizedImages,
+        id: existing.id,
+        userId: existing.userId,
+        code: existing.code,
+        images,
         updatedAt: new Date().toISOString()
       };
-
-      // Se editou e requer aprovação (e não é admin), volta para pendente
-      if (user.role !== 'admin' && settings.requireApproval && updated.status === 'published') {
+      // Edição feita pelo anunciante volta para análise quando a aprovação está ativa
+      if (!isAdmin && settings.requireApproval && updated.status === 'published') {
         updated.status = 'pending';
       }
 
-      // Persiste no Supabase caso configurado
-      if (isSupabaseConfigured() && supabase && isUuid(updated.userId)) {
-        try {
-          const row = mapClassifiedItemToRow(updated);
-          await supabase.from('classifieds').upsert([row]);
-        } catch (sbErr) {
-          console.warn('Erro ao atualizar anúncio na tabela classifieds do Supabase:', sbErr);
-        }
-      }
+      const { data, error } = await sb
+        .from('classifieds')
+        .update(mapClassifiedItemToRow(updated))
+        .eq('id', updated.id)
+        .select()
+        .single();
+      if (error) throw describeDbError(error, 'salvar o anúncio');
 
-      items[index] = updated;
-      setStored(STORAGE_KEYS.CLASSIFIEDS, items);
       safeDispatchEvent(new Event('folha_classifieds_updated'));
-      return updated;
-    }
-
-    // Criação de Novo Anúncio
-    const codeNum = Math.floor(1000 + Math.random() * 9000);
-    const code = `CL-${codeNum}`;
-    const baseSlug = (itemData.title || 'anuncio')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-    const slug = `${baseSlug}-${code.toLowerCase()}`;
-
-    // Status inicial: se requireApproval ativado e não é admin -> pending
-    let initialStatus: ClassifiedStatus = 'published';
-    if (settings.requireApproval && user.role !== 'admin') {
-      initialStatus = 'pending';
+      return mapClassifiedRowToItem(data);
     }
 
     const validityDays = settings.defaultValidityDays || 30;
-    const expiresAt = new Date(Date.now() + validityDays * 24 * 3600 * 1000).toISOString();
-
-    const newItem: ClassifiedItem = {
-      id: 'clf-' + Math.random().toString(36).substring(2, 9),
-      code,
-      userId: user.id,
-      section: itemData.section || 'produtos_servicos',
-      type: itemData.type || 'vendo',
-      category: itemData.category || 'Outros produtos e serviços',
-      title: itemData.title?.trim() || 'Sem título',
-      slug,
-      description: itemData.description?.trim() || '',
-      priceType: itemData.priceType || 'fixed',
-      price: itemData.priceType === 'fixed' ? Number(itemData.price || 0) : undefined,
-      city: itemData.city?.trim() || user.city || 'Estância',
-      state: itemData.state?.trim() || user.state || 'SE',
-      advertiserName: itemData.advertiserName?.trim() || user.fullName,
-      phone: itemData.phone?.trim() || user.phone || '',
-      images: sanitizedImages,
-      // Campos de emprego
-      jobRole: itemData.jobRole?.trim(),
-      jobArea: itemData.jobArea?.trim(),
-      contractType: itemData.contractType,
-      workload: itemData.workload,
-      experience: itemData.experience?.trim(),
-      requirements: itemData.requirements?.trim(),
-      status: initialStatus,
-      viewsCount: 0,
-      createdAt: new Date().toISOString(),
-      expiresAt
+    const createItem = (): ClassifiedItem => {
+      const { code, slug } = generateClassifiedIdentity(itemData.title || '');
+      return {
+        id: newId(),
+        code,
+        userId: user.id,
+        section: itemData.section || 'produtos_servicos',
+        type: itemData.type || 'vendo',
+        category: itemData.category || 'Outros produtos e serviços',
+        title: itemData.title?.trim() || 'Sem título',
+        slug,
+        description: itemData.description?.trim() || '',
+        priceType: itemData.priceType || 'fixed',
+        price: itemData.priceType === 'fixed' ? Number(itemData.price || 0) : undefined,
+        city: itemData.city?.trim() || user.city || 'Estância',
+        state: itemData.state?.trim() || user.state || 'SE',
+        advertiserName: itemData.advertiserName?.trim() || user.fullName,
+        phone: itemData.phone?.trim() || user.phone || '',
+        images,
+        jobRole: itemData.jobRole?.trim(),
+        jobArea: itemData.jobArea?.trim(),
+        contractType: itemData.contractType,
+        workload: itemData.workload,
+        experience: itemData.experience?.trim(),
+        requirements: itemData.requirements?.trim(),
+        status: settings.requireApproval && !isAdmin ? 'pending' : 'published',
+        viewsCount: 0,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + validityDays * 24 * 3600 * 1000).toISOString()
+      };
     };
 
-    // Persiste no Supabase caso configurado
-    if (isSupabaseConfigured() && supabase && isUuid(newItem.userId)) {
-      try {
-        const row = mapClassifiedItemToRow(newItem);
-        await supabase.from('classifieds').insert([row]);
-      } catch (sbErr) {
-        console.warn('Erro ao inserir anúncio na tabela classifieds do Supabase:', sbErr);
-      }
-    }
+    const insertItem = (item: ClassifiedItem) =>
+      sb.from('classifieds').insert([mapClassifiedItemToRow(item)]).select().single();
 
-    items.unshift(newItem);
-    setStored(STORAGE_KEYS.CLASSIFIEDS, items);
+    let { data, error } = await insertItem(createItem());
+    if (error?.code === '23505') {
+      // Colisão de código/slug: tenta novamente com outro código
+      ({ data, error } = await insertItem(createItem()));
+    }
+    if (error) throw describeDbError(error, 'publicar o anúncio');
+
     safeDispatchEvent(new Event('folha_classifieds_updated'));
-    return newItem;
+    return mapClassifiedRowToItem(data);
   },
 
   async deleteClassified(id: string, user: UserProfile): Promise<boolean> {
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    const target = items.find(i => i.id === id);
+    const target = await this.getClassifiedById(id);
     if (!target) return false;
-
-    // Apenas dono ou administrador pode deletar
     if (target.userId !== user.id && user.role !== 'admin') {
       throw new Error('Você não tem permissão para excluir este anúncio.');
     }
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('classifieds').delete().eq('id', id);
-      } catch (sbErr) {
-        console.warn('Erro ao deletar anúncio no Supabase:', sbErr);
-      }
-    }
+    const sb = requireSupabase();
+    const { error } = await sb.from('classifieds').delete().eq('id', id);
+    if (error) throw describeDbError(error, 'excluir o anúncio');
 
-    const filtered = items.filter(i => i.id !== id);
-    setStored(STORAGE_KEYS.CLASSIFIEDS, filtered);
     safeDispatchEvent(new Event('folha_classifieds_updated'));
     return true;
   },
 
   async updateClassifiedStatus(
-    id: string, 
-    newStatus: ClassifiedStatus, 
-    user: UserProfile, 
+    id: string,
+    newStatus: ClassifiedStatus,
+    user: UserProfile,
     rejectionReason?: string
   ): Promise<boolean> {
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    const target = items.find(i => i.id === id);
+    const target = await this.getClassifiedById(id);
     if (!target) return false;
 
-    const isAdmin = user.role === 'admin' || user.role === 'editor';
+    const isStaff = user.role === 'admin' || user.role === 'editor';
     const isOwner = target.userId === user.id;
-
-    if (!isAdmin && !isOwner) {
+    if (!isStaff && !isOwner) {
       throw new Error('Permissão negada.');
     }
 
     // Usuário comum só pode pausar ou reativar (se já era publicado ou pausado)
-    if (!isAdmin) {
+    if (!isStaff) {
       if (newStatus !== 'paused' && newStatus !== 'published') {
         throw new Error('Você só pode pausar ou reativar seus anúncios.');
       }
@@ -3184,101 +2242,88 @@ export const classifiedsService = {
       }
     }
 
-    target.status = newStatus;
-    if (rejectionReason) {
-      target.rejectionReason = rejectionReason;
-    }
-    target.updatedAt = new Date().toISOString();
+    const sb = requireSupabase();
+    const { error } = await sb.from('classifieds').update({
+      status: newStatus,
+      rejection_reason: rejectionReason || null,
+      updated_at: new Date().toISOString()
+    }).eq('id', id);
+    if (error) throw describeDbError(error, 'alterar o status do anúncio');
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('classifieds').update({
-          status: newStatus,
-          rejection_reason: rejectionReason || null,
-          updated_at: target.updatedAt
-        }).eq('id', id);
-      } catch (sbErr) {
-        console.warn('Erro ao atualizar status do anúncio no Supabase:', sbErr);
-      }
-    }
-
-    setStored(STORAGE_KEYS.CLASSIFIEDS, items);
     safeDispatchEvent(new Event('folha_classifieds_updated'));
     return true;
   },
 
   async renewClassified(id: string, user: UserProfile): Promise<boolean> {
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    const target = items.find(i => i.id === id);
+    const target = await this.getClassifiedById(id);
     if (!target) return false;
-
     if (target.userId !== user.id && user.role !== 'admin') {
       throw new Error('Permissão negada.');
     }
 
     const settings = await this.getSettings();
     const days = settings.defaultValidityDays || 30;
-    target.expiresAt = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString();
-    
-    // Se estava expirado, volta para published (ou pending se configurado)
-    if (target.status === 'expired') {
-      target.status = settings.requireApproval && user.role !== 'admin' ? 'pending' : 'published';
-    }
-    target.updatedAt = new Date().toISOString();
+    // Se estava expirado, volta para publicado (ou para análise, se configurado)
+    const status: ClassifiedStatus = target.status === 'expired' || new Date(target.expiresAt) < new Date()
+      ? (settings.requireApproval && user.role !== 'admin' ? 'pending' : 'published')
+      : target.status;
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('classifieds').update({
-          expires_at: target.expiresAt,
-          status: target.status,
-          updated_at: target.updatedAt
-        }).eq('id', id);
-      } catch (sbErr) {
-        console.warn('Erro ao renovar anúncio no Supabase:', sbErr);
-      }
-    }
+    const sb = requireSupabase();
+    const { error } = await sb.from('classifieds').update({
+      expires_at: new Date(Date.now() + days * 24 * 3600 * 1000).toISOString(),
+      status,
+      updated_at: new Date().toISOString()
+    }).eq('id', id);
+    if (error) throw describeDbError(error, 'renovar o anúncio');
 
-    setStored(STORAGE_KEYS.CLASSIFIEDS, items);
     safeDispatchEvent(new Event('folha_classifieds_updated'));
     return true;
   },
 
   async incrementViews(id: string): Promise<number> {
-    const items = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, INITIAL_CLASSIFIEDS);
-    const target = items.find(i => i.id === id);
-    if (target) {
-      target.viewsCount = (target.viewsCount || 0) + 1;
-      setStored(STORAGE_KEYS.CLASSIFIEDS, items);
-      return target.viewsCount;
+    const cached = getStored<ClassifiedItem[]>(STORAGE_KEYS.CLASSIFIEDS, []).find(i => i.id === id);
+    if (supabase) {
+      supabase.rpc('increment_classified_views', { classified_id: id }).then(({ error }) => {
+        if (error) console.warn('Aviso: não foi possível registrar a visualização:', error.message);
+      });
     }
-    return 1;
+    return (cached?.viewsCount || 0) + 1;
   },
 
   // Denúncias
   async getReports(): Promise<ClassifiedReport[]> {
-    return getStored<ClassifiedReport[]>(STORAGE_KEYS.CLASSIFIED_REPORTS, []);
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('classified_reports').select('*').order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map(mapReportRow);
   },
 
   async createReport(reportData: Omit<ClassifiedReport, 'id' | 'createdAt' | 'status'>): Promise<ClassifiedReport> {
-    const reports = getStored<ClassifiedReport[]>(STORAGE_KEYS.CLASSIFIED_REPORTS, []);
-    const newReport: ClassifiedReport = {
-      id: 'rep-' + Math.random().toString(36).substring(2, 9),
+    const sb = requireSupabase();
+    const report: ClassifiedReport = {
+      id: newId(),
       ...reportData,
       status: 'pending',
       createdAt: new Date().toISOString()
     };
-    reports.unshift(newReport);
-    setStored(STORAGE_KEYS.CLASSIFIED_REPORTS, reports);
-    return newReport;
+    const { error } = await sb.from('classified_reports').insert([{
+      id: report.id,
+      classified_id: report.classifiedId,
+      classified_title: report.classifiedTitle,
+      reporter_name: report.reporterName || null,
+      reporter_email: report.reporterEmail || null,
+      reason: report.reason,
+      details: report.details,
+      status: 'pending'
+    }]);
+    if (error) throw describeDbError(error, 'enviar a denúncia');
+    return report;
   },
 
   async updateReportStatus(reportId: string, status: 'resolved' | 'dismissed'): Promise<void> {
-    const reports = getStored<ClassifiedReport[]>(STORAGE_KEYS.CLASSIFIED_REPORTS, []);
-    const target = reports.find(r => r.id === reportId);
-    if (target) {
-      target.status = status;
-      setStored(STORAGE_KEYS.CLASSIFIED_REPORTS, reports);
-    }
+    const sb = requireSupabase();
+    const { error } = await sb.from('classified_reports').update({ status }).eq('id', reportId);
+    if (error) throw describeDbError(error, 'atualizar a denúncia');
   }
 };
 
@@ -3380,9 +2425,16 @@ export const DEFAULT_PORTAL_SETTINGS: PortalSettings = {
   }
 };
 
+// Credenciais SMTP ficam só no navegador do administrador (a tabela site_settings é pública)
+interface SmtpSecret {
+  smtpUser?: string;
+  smtpPass?: string;
+}
+
 export const portalSettingsService = {
   getSettingsSync(): PortalSettings {
     const stored = getStored<Partial<PortalSettings>>(STORAGE_KEYS.PORTAL_SETTINGS, {});
+    const secret = getStored<SmtpSecret>(STORAGE_KEYS.SMTP_SECRET, {});
     // Se o logo gravado for inválido ou o hash transitório do GitHub, garante vetor.svg
     let effectiveLogo = stored.customLogoUrl;
     if (effectiveLogo && (effectiveLogo.includes('39f8b6c0') || !effectiveLogo.trim())) {
@@ -3410,7 +2462,9 @@ export const portalSettingsService = {
       },
       emailConfig: {
         ...DEFAULT_PORTAL_SETTINGS.emailConfig!,
-        ...(stored.emailConfig || {})
+        ...(stored.emailConfig || {}),
+        smtpUser: secret.smtpUser || stored.emailConfig?.smtpUser || '',
+        smtpPass: secret.smtpPass || ''
       }
     };
   },
@@ -3420,19 +2474,149 @@ export const portalSettingsService = {
   },
 
   async saveSettings(newSettings: PortalSettings): Promise<PortalSettings> {
+    const customLogoUrl = await mediaService.ensureUploaded(newSettings.customLogoUrl, 'portal');
     const updated: PortalSettings = {
       ...newSettings,
+      customLogoUrl,
       updatedAt: new Date().toISOString()
     };
-    setStored(STORAGE_KEYS.PORTAL_SETTINGS, updated);
-    safeDispatchEvent(new CustomEvent('folha_portal_settings_updated', { detail: updated }));
-    return updated;
+
+    const { smtpUser, smtpPass, ...publicEmailConfig } = updated.emailConfig || ({} as NonNullable<PortalSettings['emailConfig']>);
+    await saveSiteSetting('portal', {
+      ...updated,
+      emailConfig: updated.emailConfig ? publicEmailConfig : undefined
+    });
+    setStored<SmtpSecret>(STORAGE_KEYS.SMTP_SECRET, { smtpUser, smtpPass });
+
+    const effective = this.getSettingsSync();
+    safeDispatchEvent(new CustomEvent('folha_portal_settings_updated', { detail: effective }));
+    return effective;
   },
 
   async resetToDefaults(): Promise<PortalSettings> {
-    setStored(STORAGE_KEYS.PORTAL_SETTINGS, DEFAULT_PORTAL_SETTINGS);
-    safeDispatchEvent(new CustomEvent('folha_portal_settings_updated', { detail: DEFAULT_PORTAL_SETTINGS }));
-    return DEFAULT_PORTAL_SETTINGS;
+    const { smtpUser: _u, smtpPass: _p, ...publicEmailConfig } = DEFAULT_PORTAL_SETTINGS.emailConfig!;
+    await saveSiteSetting('portal', { ...DEFAULT_PORTAL_SETTINGS, emailConfig: publicEmailConfig });
+    const effective = this.getSettingsSync();
+    safeDispatchEvent(new CustomEvent('folha_portal_settings_updated', { detail: effective }));
+    return effective;
   }
 };
 
+// ==========================================
+// IMPORTAÇÃO DO CONTEÚDO DA VERSÃO ANTERIOR
+// Antes desta versão, notícias, banners e configurações editados no painel ficavam
+// apenas no localStorage do navegador de quem editou. Este serviço grava esse
+// conteúdo (mais as matérias e banners iniciais) no Supabase, sem sobrescrever
+// registros que já existam no banco.
+// ==========================================
+export interface LegacyImportResult {
+  articles: number;
+  ads: number;
+  settings: number;
+  errors: string[];
+}
+
+const mergeById = <T extends { id: string }>(base: T[], overrides: T[]): T[] => {
+  const map = new Map<string, T>();
+  base.forEach(item => map.set(item.id, item));
+  overrides.forEach(item => map.set(item.id, item));
+  return Array.from(map.values());
+};
+
+export const legacyContentService = {
+  hasLegacyData(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      return Object.values(LEGACY_STORAGE_KEYS).some(key => localStorage.getItem(key) !== null);
+    } catch {
+      return false;
+    }
+  },
+
+  // true quando o banco ainda não tem nenhuma matéria (o portal está exibindo as iniciais)
+  async isDatabaseEmpty(): Promise<boolean> {
+    if (!supabase) return false;
+    const { count, error } = await supabase.from('articles').select('id', { count: 'exact', head: true });
+    return !error && count === 0;
+  },
+
+  async importToSupabase(): Promise<LegacyImportResult> {
+    const sb = requireSupabase();
+    const result: LegacyImportResult = { articles: 0, ads: 0, settings: 0, errors: [] };
+
+    // 1. Matérias
+    const articles = mergeById(INITIAL_ARTICLES, getStored<Article[]>(LEGACY_STORAGE_KEYS.ARTICLES, []));
+    for (const article of articles) {
+      try {
+        const imageUrl = (await mediaService.ensureUploaded(article.imageUrl, 'articles')) || DEFAULT_ARTICLE_IMAGE;
+        const videoUrl = await mediaService.ensureUploaded(article.videoUrl, 'articles');
+        const row = {
+          ...articleToRow({ ...article, imageUrl, videoUrl, slug: article.slug || slugify(article.title) }),
+          id: article.id,
+          views_count: article.viewsCount || 0,
+          created_at: article.createdAt || new Date().toISOString()
+        };
+        const { data, error } = await sb.from('articles').upsert([row], { onConflict: 'id', ignoreDuplicates: true }).select('id');
+        // Mesmo slug com outro id: a matéria já está no banco (ex.: importada do backup)
+        if (error?.code === '23505') continue;
+        if (error) throw error;
+        if (data && data.length > 0) result.articles++;
+      } catch (err: any) {
+        result.errors.push(`Matéria "${article.title}": ${err?.message || err}`);
+      }
+    }
+
+    // 2. Banners
+    const ads = mergeById(INITIAL_ADS, getStored<AdItem[]>(LEGACY_STORAGE_KEYS.ADS, [])).map(normalizeAd);
+    for (const ad of ads) {
+      try {
+        const mediaUrl = (await mediaService.ensureUploaded(ad.mediaUrl, 'ads')) || ad.mediaUrl;
+        const row = {
+          ...adToRow({ ...ad, mediaUrl }),
+          id: ad.id,
+          impressions_count: ad.impressionsCount || 0,
+          clicks_count: ad.clicksCount || 0,
+          created_at: ad.createdAt || new Date().toISOString()
+        };
+        const { data, error } = await sb.from('ads').upsert([row], { onConflict: 'id', ignoreDuplicates: true }).select('id');
+        if (error) throw error;
+        if (data && data.length > 0) result.ads++;
+      } catch (err: any) {
+        result.errors.push(`Banner "${ad.title}": ${err?.message || err}`);
+      }
+    }
+
+    // 3. Configurações (só se existirem na versão anterior)
+    const legacyPortal = getStored<PortalSettings | null>(LEGACY_STORAGE_KEYS.PORTAL_SETTINGS, null);
+    if (legacyPortal) {
+      try {
+        setStored(STORAGE_KEYS.PORTAL_SETTINGS, legacyPortal);
+        await portalSettingsService.saveSettings(portalSettingsService.getSettingsSync());
+        result.settings++;
+      } catch (err: any) {
+        result.errors.push(`Configurações do portal: ${err?.message || err}`);
+      }
+    }
+    const legacySiteSettings: [SiteSettingKey, string][] = [
+      ['ads_placement', LEGACY_STORAGE_KEYS.ADS_SETTINGS],
+      ['ads_format', LEGACY_STORAGE_KEYS.ADS_FORMAT_SETTINGS]
+    ];
+    for (const [key, legacyKey] of legacySiteSettings) {
+      const value = getStored<unknown>(legacyKey, null);
+      if (!value) continue;
+      try {
+        await saveSiteSetting(key, value);
+        result.settings++;
+      } catch (err: any) {
+        result.errors.push(`Configurações de publicidade: ${err?.message || err}`);
+      }
+    }
+
+    if (result.errors.length === 0 && typeof window !== 'undefined') {
+      Object.values(LEGACY_STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    }
+
+    safeDispatchEvent(new CustomEvent('folha_ads_updated', { detail: {} }));
+    return result;
+  }
+};

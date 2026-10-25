@@ -63,11 +63,24 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
   const [items, setItems] = useState<ClassifiedItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // As operações vão para o Supabase e podem falhar (sessão expirada, sem permissão, rede)
+  const runSafely = async (action: () => Promise<void>) => {
+    try {
+      await action();
+    } catch (err: any) {
+      alert(err?.message || 'Não foi possível concluir a operação.');
+    }
+  };
+
   const loadUserItems = async () => {
     setLoading(true);
-    const userItems = await classifiedsService.getUserClassifieds(currentUser.id);
-    setItems(userItems);
-    setLoading(false);
+    try {
+      setItems(await classifiedsService.getUserClassifieds(currentUser.id));
+    } catch (err: any) {
+      alert(err?.message || 'Não foi possível carregar seus anúncios.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -78,24 +91,24 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleTogglePause = async (item: ClassifiedItem) => {
+  const handleTogglePause = (item: ClassifiedItem) => runSafely(async () => {
     const nextStatus: ClassifiedStatus = item.status === 'paused' ? 'published' : 'paused';
     await classifiedsService.updateClassifiedStatus(item.id, nextStatus, currentUser);
     await loadUserItems();
-  };
+  });
 
-  const handleDelete = async (item: ClassifiedItem) => {
+  const handleDelete = (item: ClassifiedItem) => runSafely(async () => {
     if (window.confirm(`Tem certeza que deseja excluir o anúncio "${item.title}"?`)) {
       await classifiedsService.deleteClassified(item.id, currentUser);
       await loadUserItems();
     }
-  };
+  });
 
-  const handleRenew = async (item: ClassifiedItem) => {
+  const handleRenew = (item: ClassifiedItem) => runSafely(async () => {
     await classifiedsService.renewClassified(item.id, currentUser);
     alert('Anúncio renovado por mais 30 dias!');
     await loadUserItems();
-  };
+  });
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">

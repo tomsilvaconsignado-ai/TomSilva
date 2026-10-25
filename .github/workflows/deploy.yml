@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - 'https/folhadaregiaonline'
+  # Recompila a cada 6 horas para gerar as prévias de compartilhamento (Open Graph)
+  # das matérias publicadas pelo painel desde o último deploy
+  schedule:
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 permissions:

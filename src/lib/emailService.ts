@@ -1,5 +1,5 @@
-import { OutboxEmail, UserProfile } from '../types/database';
-import { getApiAuthHeaders } from './supabase';
+import { OutboxEmail } from '../types/database';
+import { getApiAuthHeaders, apiFetch, isBackendAvailable, portalSettingsService } from './supabase';
 import { escapeHtml } from './seo';
 
 const OUTBOX_STORAGE_KEY = 'folha_outbox_emails_v1';
@@ -52,12 +52,16 @@ export const checkEmailRateLimit = (email: string, type: string, cooldownSeconds
  */
 async function dispatchEmailToBackend(email: OutboxEmail): Promise<{ delivered: boolean; error?: string }> {
   if (typeof window === 'undefined') return { delivered: false };
+  if (!isBackendAvailable()) {
+    return {
+      delivered: false,
+      error: 'Envio de e-mails personalizados exige o servidor de API (server.ts), que não roda no GitHub Pages.'
+    };
+  }
   try {
-    const rawSettings = localStorage.getItem('folha_portal_settings_v1');
-    const settings = rawSettings ? JSON.parse(rawSettings) : null;
-    const emailConfig = settings?.emailConfig;
+    const emailConfig = portalSettingsService.getSettingsSync().emailConfig;
 
-    const res = await fetch('/api/send-email', {
+    const res = await apiFetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(await getApiAuthHeaders()) },
       body: JSON.stringify({
@@ -177,190 +181,6 @@ export const emailService = {
     window.dispatchEvent(new Event('folha_outbox_updated'));
   },
 
-  // 1. E-MAIL DE CONFIRMAÇÃO DE CADASTRO
-  async sendEmailConfirmation(user: UserProfile, token: string): Promise<OutboxEmail> {
-    const base = getPublicPortalBaseUrl();
-    const actionUrl = `${base}/?action=confirm-email&token=${encodeURIComponent(token)}`;
-
-    const contentHtml = `
-      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${escapeHtml(user.fullName)}!</h2>
-      <p>Agradecemos por se cadastrar na <strong>Folha da Região</strong>.</p>
-      <p>Para concluir a ativação da sua conta, garantir a autenticidade e liberar a publicação de classificados e comentários, confirme seu endereço de e-mail clicando no botão abaixo:</p>
-      <div style="background-color: #f1f5f9; border: 1px dashed #cbd5e1; padding: 14px; border-radius: 8px; margin: 20px 0; text-align: center;">
-        <span style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">Código de ativação direta:</span>
-        <strong style="font-size: 16px; letter-spacing: 1px; color: #0f172a; font-family: monospace;">${escapeHtml(token)}</strong>
-      </div>
-    `;
-
-    const bodyHtml = generateBaseHtml(
-      'Confirme seu e-mail — Folha da Região',
-      contentHtml,
-      actionUrl,
-      'Confirmar meu e-mail',
-      '⚠️ Este link de confirmação é de uso único e possui validade de <strong>24 horas</strong>. Caso você não tenha solicitado este cadastro, ignore esta mensagem com segurança.'
-    );
-
-    const email: OutboxEmail = {
-      id: 'email-' + Math.random().toString(36).substring(2, 9),
-      to: user.email,
-      recipientName: user.fullName,
-      subject: 'Portal de Notícias — Confirmação de Conta',
-      type: 'email_confirmation',
-      bodyHtml,
-      actionUrl,
-      actionLabel: 'Confirmar meu e-mail',
-      sentAt: new Date().toISOString(),
-      status: 'delivered'
-    };
-
-    const outbox = getStoredEmails();
-    outbox.unshift(email);
-    saveStoredEmails(outbox);
-
-    window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
-    window.dispatchEvent(new Event('folha_outbox_updated'));
-
-    dispatchEmailToBackend(email).catch(console.error);
-
-    return email;
-  },
-
-  // 2. REENVIO DO E-MAIL DE CONFIRMAÇÃO
-  async sendResendConfirmation(user: UserProfile, token: string): Promise<OutboxEmail> {
-    const base = getPublicPortalBaseUrl();
-    const actionUrl = `${base}/?action=confirm-email&token=${encodeURIComponent(token)}`;
-
-    const contentHtml = `
-      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${escapeHtml(user.fullName)}!</h2>
-      <p>Você solicitou o reenvio do link de confirmação de e-mail para a sua conta no portal <strong>Folha da Região</strong>.</p>
-      <p>Clique no botão abaixo para validar seu e-mail e ativar todas as funções da sua conta:</p>
-      <div style="background-color: #f1f5f9; border: 1px dashed #cbd5e1; padding: 14px; border-radius: 8px; margin: 20px 0; text-align: center;">
-        <span style="font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">Código de ativação direta:</span>
-        <strong style="font-size: 16px; letter-spacing: 1px; color: #0f172a; font-family: monospace;">${escapeHtml(token)}</strong>
-      </div>
-    `;
-
-    const bodyHtml = generateBaseHtml(
-      'Novo link de confirmação — Folha da Região',
-      contentHtml,
-      actionUrl,
-      'Confirmar meu e-mail',
-      '⚠️ Este novo link é seguro, de uso único e substitui qualquer link enviado anteriormente. Validade: 24 horas.'
-    );
-
-    const email: OutboxEmail = {
-      id: 'email-' + Math.random().toString(36).substring(2, 9),
-      to: user.email,
-      recipientName: user.fullName,
-      subject: 'Portal de Notícias — Novo link de confirmação de conta',
-      type: 'email_confirmation',
-      bodyHtml,
-      actionUrl,
-      actionLabel: 'Confirmar meu e-mail',
-      sentAt: new Date().toISOString(),
-      status: 'delivered'
-    };
-
-    const outbox = getStoredEmails();
-    outbox.unshift(email);
-    saveStoredEmails(outbox);
-
-    window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
-    window.dispatchEvent(new Event('folha_outbox_updated'));
-
-    dispatchEmailToBackend(email).catch(console.error);
-
-    return email;
-  },
-
-  // 3. RECUPERAÇÃO DE SENHA
-  async sendPasswordReset(user: UserProfile, token: string): Promise<OutboxEmail> {
-    const base = getPublicPortalBaseUrl();
-    const actionUrl = `${base}/?action=reset-password&token=${encodeURIComponent(token)}`;
-
-    const contentHtml = `
-      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${user.fullName}!</h2>
-      <p>Recebemos uma solicitação para redefinir a senha de acesso da sua conta na <strong>Folha da Região</strong>.</p>
-      <p>Para cadastrar uma nova senha segura, clique no botão destacado abaixo:</p>
-    `;
-
-    const bodyHtml = generateBaseHtml(
-      'Redefinição de senha — Folha da Região',
-      contentHtml,
-      actionUrl,
-      'Redefinir minha senha',
-      '🔒 Por segurança, este link possui validade de <strong>1 hora</strong> e só poderá ser utilizado uma única vez. Se você não solicitou a redefinição da sua senha, fique tranquilo: nenhuma alteração foi realizada e sua conta permanece protegida.'
-    );
-
-    const email: OutboxEmail = {
-      id: 'email-' + Math.random().toString(36).substring(2, 9),
-      to: user.email,
-      recipientName: user.fullName,
-      subject: 'Portal de Notícias — Instruções para redefinir sua senha',
-      type: 'password_reset',
-      bodyHtml,
-      actionUrl,
-      actionLabel: 'Redefinir minha senha',
-      sentAt: new Date().toISOString(),
-      status: 'delivered'
-    };
-
-    const outbox = getStoredEmails();
-    outbox.unshift(email);
-    saveStoredEmails(outbox);
-
-    window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
-    window.dispatchEvent(new Event('folha_outbox_updated'));
-
-    dispatchEmailToBackend(email).catch(console.error);
-
-    return email;
-  },
-
-  // 4. CONFIRMAÇÃO DE SENHA ALTERADA
-  async sendPasswordChangedNotification(user: UserProfile): Promise<OutboxEmail> {
-    const contentHtml = `
-      <h2 style="font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 0;">Olá, ${user.fullName}!</h2>
-      <p>Informamos que a senha da sua conta no portal <strong>Folha da Região</strong> foi <strong>alterada com sucesso</strong> em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.</p>
-      <p>Você já pode acessar o portal utilizando sua nova senha.</p>
-      <p style="color: #dc2626; font-size: 12px; font-weight: 700; margin-top: 20px;">
-        ⚠️ Se você NÃO realizou esta alteração, entre em contato imediatamente com nossa equipe pelo suporte do portal.
-      </p>
-    `;
-
-    const bodyHtml = generateBaseHtml(
-      'Sua senha foi alterada com sucesso — Folha da Região',
-      contentHtml,
-      undefined,
-      undefined,
-      'Este é um aviso automático de segurança da sua conta.'
-    );
-
-    const email: OutboxEmail = {
-      id: 'email-' + Math.random().toString(36).substring(2, 9),
-      to: user.email,
-      recipientName: user.fullName,
-      subject: 'Portal de Notícias — Confirmação de alteração de senha',
-      type: 'password_changed',
-      bodyHtml,
-      actionUrl: '',
-      actionLabel: '',
-      sentAt: new Date().toISOString(),
-      status: 'delivered'
-    };
-
-    const outbox = getStoredEmails();
-    outbox.unshift(email);
-    saveStoredEmails(outbox);
-
-    window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
-    window.dispatchEvent(new Event('folha_outbox_updated'));
-
-    dispatchEmailToBackend(email).catch(console.error);
-
-    return email;
-  },
-
   // 5. NOTIFICAÇÃO / MENSAGEM DIRETA PARA USUÁRIO
   async sendUserNotification(
     user: { email: string; fullName: string },
@@ -394,8 +214,11 @@ export const emailService = {
       actionUrl,
       actionLabel: actionLabel || 'Acessar o Portal',
       sentAt: new Date().toISOString(),
-      status: 'delivered'
+      status: 'sent'
     };
+
+    const result = await dispatchEmailToBackend(email);
+    email.status = result.delivered ? 'delivered' : 'failed';
 
     const outbox = getStoredEmails();
     outbox.unshift(email);
@@ -404,15 +227,16 @@ export const emailService = {
     window.dispatchEvent(new CustomEvent('folha_email_sent', { detail: email }));
     window.dispatchEvent(new Event('folha_outbox_updated'));
 
-    dispatchEmailToBackend(email).catch(console.error);
-
+    if (!result.delivered) {
+      throw new Error(result.error || 'O e-mail não pôde ser entregue pelo servidor SMTP.');
+    }
     return email;
   },
 
   // 6. TESTE DE CONEXÃO SMTP
   async testSmtpConnection(testRecipient: string, smtpConfig: any): Promise<{ success: boolean; message: string; error?: string }> {
     try {
-      const res = await fetch('/api/test-smtp', {
+      const res = await apiFetch('/api/test-smtp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(await getApiAuthHeaders()) },
         body: JSON.stringify({ testRecipient, smtpConfig })
