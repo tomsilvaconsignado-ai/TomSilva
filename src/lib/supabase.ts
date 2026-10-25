@@ -323,7 +323,71 @@ const dataUrlToBlob = (dataUrl: string): Blob | null => {
   }
 };
 
+// Limites de envio pelo painel (o bucket aceita até 50 MB por arquivo)
+export const MEDIA_UPLOAD_LIMITS = {
+  imageBytes: 10 * 1024 * 1024,
+  videoBytes: 50 * 1024 * 1024
+};
+
+const EXTENSION_MIMES: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif',
+  mp4: 'video/mp4', webm: 'video/webm'
+};
+
+// Alguns sistemas enviam o arquivo sem tipo; nesse caso deduz pela extensão
+export const resolveMediaMime = (file: File): string | null => {
+  const type = (file.type || '').toLowerCase();
+  if (MIME_EXTENSIONS[type]) return type === 'image/jpg' ? 'image/jpeg' : type;
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  return EXTENSION_MIMES[ext] || null;
+};
+
+const translateStorageError = (message: string): string => {
+  const m = message.toLowerCase();
+  if (m.includes('bucket not found')) {
+    return 'O armazenamento de mídia ainda não foi criado. Execute o arquivo supabase/ATUALIZAR_BANCO.sql no SQL Editor do Supabase.';
+  }
+  if (m.includes('row-level security') || m.includes('unauthorized') || m.includes('not authorized') || m.includes('jwt')) {
+    return 'Sem permissão para enviar o arquivo. Entre no painel com uma conta de administrador e tente de novo.';
+  }
+  if (m.includes('mime type') || m.includes('not supported')) {
+    return 'Formato não aceito pelo armazenamento. Use JPG, PNG, WebP, GIF, MP4 ou WebM.';
+  }
+  if (m.includes('maximum allowed size') || m.includes('too large') || m.includes('payload')) {
+    return 'O arquivo é maior do que o armazenamento permite (50 MB).';
+  }
+  if (m.includes('failed to fetch') || m.includes('network')) {
+    return 'Falha de conexão durante o envio. Verifique a internet e tente de novo.';
+  }
+  return `Não foi possível enviar o arquivo: ${message}`;
+};
+
 export const mediaService = {
+  // Envia um arquivo do computador direto ao Storage e devolve a URL pública.
+  // Lança erro com mensagem amigável em vez de embutir o arquivo no banco.
+  async uploadFile(file: File, folder: string): Promise<string> {
+    const sb = requireSupabase();
+    const mime = resolveMediaMime(file);
+    if (!mime) {
+      throw new Error('Formato não aceito. Use imagem JPG, PNG, WebP, GIF animado ou vídeo MP4/WebM.');
+    }
+    const isVideo = mime.startsWith('video/');
+    const limit = isVideo ? MEDIA_UPLOAD_LIMITS.videoBytes : MEDIA_UPLOAD_LIMITS.imageBytes;
+    if (file.size > limit) {
+      const mb = Math.round(limit / 1024 / 1024);
+      throw new Error(`O arquivo tem ${(file.size / 1024 / 1024).toFixed(1)} MB e o limite para ${isVideo ? 'vídeo' : 'imagem'} é ${mb} MB. Otimize a peça e envie de novo.`);
+    }
+
+    const path = `${folder.replace(/\/+$/, '')}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${MIME_EXTENSIONS[mime]}`;
+    const { error } = await sb.storage.from(MEDIA_BUCKET).upload(path, file, {
+      contentType: mime,
+      cacheControl: '31536000',
+      upsert: false
+    });
+    if (error) throw new Error(translateStorageError(error.message));
+    return sb.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
+  },
+
   // Envia um data URL ao Storage e devolve a URL pública. URLs comuns são devolvidas sem alteração.
   async ensureUploaded(url: string | undefined, folder: string): Promise<string | undefined> {
     if (!url || !url.startsWith('data:') || !supabase) return url;
@@ -1291,6 +1355,10 @@ export const adsService = {
     const format = detectAdFormat({ adFormat: ad.adFormat, placement: ad.placement });
     const dims = AD_FORMAT_DIMENSIONS[format];
     const mediaUrl = (await mediaService.ensureUploaded(ad.mediaUrl, 'ads')) || ad.mediaUrl;
+    // Arquivo que não chegou ao Storage não é gravado embutido no banco (deixaria o site pesado)
+    if (mediaUrl.startsWith('data:') && mediaUrl.length > 300 * 1024) {
+      throw new Error('A arte não pôde ser enviada ao armazenamento de mídia. Execute o arquivo supabase/ATUALIZAR_BANCO.sql no SQL Editor do Supabase e envie o arquivo de novo.');
+    }
 
     const base = {
       ...ad,

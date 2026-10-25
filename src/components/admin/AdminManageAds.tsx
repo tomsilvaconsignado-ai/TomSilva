@@ -7,7 +7,7 @@ import {
   Square, RectangleVertical, Columns, ArrowRight
 } from 'lucide-react';
 import { AdItem, AdPlacement, AdFormat, AdStatus, PlacementSetting, FormatCarouselSetting, PlacementMode, isExtraSidebarSquare } from '../../types/database';
-import { adsService } from '../../lib/supabase';
+import { adsService, mediaService, resolveMediaMime, MEDIA_UPLOAD_LIMITS } from '../../lib/supabase';
 import { AdSlot } from '../news/AdSlot';
 
 interface AdminManageAdsProps {
@@ -164,6 +164,29 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Envio da arte direto do computador para o Storage
+  const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [mediaInfo, setMediaInfo] = useState<{ name?: string; sizeBytes?: number; width?: number; height?: number; durationSec?: number } | null>(null);
+
+  // Libera a prévia local quando ela é trocada
+  useEffect(() => {
+    return () => {
+      if (localPreview) URL.revokeObjectURL(localPreview);
+    };
+  }, [localPreview]);
+
+  const resetMediaUpload = () => {
+    setUploading(false);
+    setIsDragging(false);
+    setUploadError(null);
+    setLocalPreview(null);
+    setMediaInfo(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   // Definição do espaço ativo atual
   const currentSpaceDef = SPACES_DEFINITIONS.find(s => s.id === activeSpace) || SPACES_DEFINITIONS[0];
 
@@ -317,6 +340,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
     setCampaignName('');
     setMediaUrl('');
     setMediaType('image');
+    resetMediaUpload();
     setLinkUrl('');
     setAltText('');
     setPlacement(currentSpaceDef.placement);
@@ -346,6 +370,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
     setCampaignName(ad.campaignName || '');
     setMediaUrl(ad.mediaUrl);
     setMediaType(ad.mediaType);
+    resetMediaUpload();
     setLinkUrl(ad.linkUrl);
     setAltText(ad.altText || '');
     setPlacement(ad.placement || currentSpaceDef.placement);
@@ -360,36 +385,94 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
     setActiveView('create');
   };
 
-  // Upload de arquivo local para Base64
+  // Envio de arquivo do computador: vai direto ao Storage e o anúncio guarda só o link
+  const handleSelectedFile = async (file: File) => {
+    setUploadError(null);
+    setUploadError(null);
+    const mime = resolveMediaMime(file);
+    if (!mime) {
+      setUploadError('Formato não aceito. Selecione uma imagem JPG, PNG, WebP, um GIF animado ou um vídeo MP4/WebM.');
+      return;
+    }
+    const isVideo = mime.startsWith('video/');
+    const limit = isVideo ? MEDIA_UPLOAD_LIMITS.videoBytes : MEDIA_UPLOAD_LIMITS.imageBytes;
+    if (file.size > limit) {
+      setUploadError(`O arquivo tem ${(file.size / 1024 / 1024).toFixed(1)} MB e o limite para ${isVideo ? 'vídeo' : 'imagem'} é ${Math.round(limit / 1024 / 1024)} MB. Otimize a peça e envie de novo.`);
+      return;
+    }
+
+    const nextType: 'image' | 'video' | 'gif' = isVideo ? 'video' : mime === 'image/gif' ? 'gif' : 'image';
+    const preview = URL.createObjectURL(file);
+    setLocalPreview(preview);
+    setMediaType(nextType);
+    setMediaInfo({ name: file.name, sizeBytes: file.size });
+
+    // Lê as dimensões reais da peça para comparar com o formato do espaço
+    if (isVideo) {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => setMediaInfo(info => info && info.name === file.name
+        ? { ...info, width: video.videoWidth, height: video.videoHeight, durationSec: Math.round(video.duration) }
+        : info);
+      video.src = preview;
+    } else {
+      const img = new Image();
+      img.onload = () => setMediaInfo(info => info && info.name === file.name
+        ? { ...info, width: img.naturalWidth, height: img.naturalHeight }
+        : info);
+      img.src = preview;
+    }
+
+    setUploading(true);
+    try {
+      const publicUrl = await mediaService.uploadFile(file, 'ads');
+      setMediaUrl(publicUrl);
+    } catch (err: any) {
+      setUploadError(err?.message || 'Não foi possível enviar o arquivo.');
+      setLocalPreview(null);
+      setMediaInfo(null);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    setError(null);
-
-    const valid = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!valid.includes(file.type)) {
-      setError('Formato não aceito. Selecione uma imagem JPG, JPEG, PNG, GIF animado ou WebP.');
-      return;
-    }
-
-    if (file.size > 8 * 1024 * 1024) {
-      setError('O arquivo excede o limite de 8MB. Por favor, otimize a peça publicitária.');
-      return;
-    }
-
-    if (file.type === 'image/gif') {
-      setMediaType('gif');
-    } else {
-      setMediaType('image');
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setMediaUrl(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    if (file) handleSelectedFile(file);
   };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (uploading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleSelectedFile(file);
+  };
+
+  // Link digitado: deduz o tipo pela extensão
+  const handleMediaUrlInput = (value: string) => {
+    setMediaUrl(value);
+    setUploadError(null);
+    setLocalPreview(null);
+    setMediaInfo(null);
+    const clean = value.split('?')[0].toLowerCase();
+    if (/\.(mp4|webm)$/.test(clean)) setMediaType('video');
+    else if (/\.gif$/.test(clean)) setMediaType('gif');
+    else if (/\.(jpe?g|png|webp)$/.test(clean)) setMediaType('image');
+  };
+
+  const handleRemoveMedia = () => {
+    setMediaUrl('');
+    resetMediaUpload();
+  };
+
+  // Proporção esperada do espaço x proporção da peça enviada
+  const expectedDims = formFormat === '970x90' ? { w: 970, h: 90 } : formFormat === '728x90' ? { w: 728, h: 90 } : formFormat === '300x600' ? { w: 300, h: 600 } : { w: 300, h: 300 };
+  const ratioMismatch = mediaInfo?.width && mediaInfo?.height
+    ? Math.abs((mediaInfo.width / mediaInfo.height) / (expectedDims.w / expectedDims.h) - 1) > 0.06
+    : false;
+  const previewSrc = localPreview || mediaUrl;
 
   // Salvar anúncio com dimensões compatíveis
   const handleSaveAd = async (e: React.FormEvent) => {
@@ -403,6 +486,10 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
     }
     if (!sponsorName.trim()) {
       setError('Informe o nome do anunciante ou patrocinador.');
+      return;
+    }
+    if (uploading) {
+      setError('Aguarde o envio da arte terminar antes de salvar.');
       return;
     }
     if (!mediaUrl.trim()) {
@@ -757,44 +844,111 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <div className="lg:col-span-8 space-y-3">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
-                    >
-                      <Upload className="w-4 h-4 text-[#0056a4]" />
-                      Enviar Arquivo do Computador
-                    </button>
+                  {/* Área de envio: clique ou arraste o arquivo */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); if (!uploading) setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    onClick={() => { if (!uploading) fileInputRef.current?.click(); }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !uploading) { e.preventDefault(); fileInputRef.current?.click(); } }}
+                    className={`rounded-2xl border-2 border-dashed p-5 text-center transition-all ${
+                      uploading ? 'cursor-wait border-[#0056a4]/40 bg-blue-50/40'
+                      : isDragging ? 'cursor-copy border-[#0056a4] bg-blue-50'
+                      : 'cursor-pointer border-gray-300 bg-gray-50 hover:border-[#0056a4]/60 hover:bg-blue-50/30'
+                    }`}
+                  >
+                    {uploading ? (
+                      <div className="flex flex-col items-center gap-2 text-[#0056a4]">
+                        <RefreshCw className="w-6 h-6 animate-spin" />
+                        <span className="text-xs font-black uppercase tracking-wider">Enviando arquivo...</span>
+                        <span className="text-[11px] text-gray-500">Vídeos maiores podem levar alguns segundos.</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5">
+                        <Upload className="w-6 h-6 text-[#0056a4]" />
+                        <span className="text-xs font-black text-gray-800">
+                          {isDragging ? 'Solte o arquivo aqui' : 'Enviar arquivo do computador'}
+                        </span>
+                        <span className="text-[11px] text-gray-500">
+                          Clique ou arraste • Imagem JPG, PNG, WebP ou GIF animado (até {Math.round(MEDIA_UPLOAD_LIMITS.imageBytes / 1024 / 1024)} MB) • Vídeo MP4 ou WebM (até {Math.round(MEDIA_UPLOAD_LIMITS.videoBytes / 1024 / 1024)} MB)
+                        </span>
+                        <span className="text-[11px] font-bold text-[#0056a4]">
+                          Tamanho ideal para este espaço: {expectedDims.w} × {expectedDims.h} px
+                        </span>
+                      </div>
+                    )}
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,.jpg,.jpeg,.png,.gif,.webp,.mp4,.webm"
                       onChange={handleFileChange}
                       className="hidden"
                     />
+                  </div>
 
+                  {uploadError && (
+                    <div role="alert" className="p-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-[11px] font-bold flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+                      <span>{uploadError}</span>
+                    </div>
+                  )}
+
+                  {/* Dados do arquivo enviado */}
+                  {mediaInfo && !uploading && mediaUrl && (
+                    <div className={`p-3 rounded-xl border text-[11px] flex items-start gap-2 ${ratioMismatch ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
+                      {ratioMismatch ? <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> : <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />}
+                      <div className="space-y-0.5">
+                        <div className="font-bold break-all">
+                          {mediaInfo.name}
+                          {mediaInfo.sizeBytes ? ` • ${mediaInfo.sizeBytes < 1024 * 1024 ? `${Math.max(1, Math.round(mediaInfo.sizeBytes / 1024))} KB` : `${(mediaInfo.sizeBytes / 1024 / 1024).toFixed(1)} MB`}` : ''}
+                          {mediaInfo.width && mediaInfo.height ? ` • ${mediaInfo.width} × ${mediaInfo.height} px` : ''}
+                          {mediaInfo.durationSec ? ` • ${mediaInfo.durationSec}s` : ''}
+                        </div>
+                        <div>
+                          {ratioMismatch
+                            ? `A proporção da peça é diferente do espaço (${expectedDims.w} × ${expectedDims.h} px). Ela será ajustada e as bordas podem ser cortadas.`
+                            : 'Arquivo enviado ao armazenamento com sucesso.'}
+                          {mediaType === 'video' ? ' Vídeos tocam em repetição e sem som.' : ''}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
                     <select
                       value={mediaType}
-                      onChange={(e) => setMediaType(e.target.value as any)}
+                      onChange={(e) => setMediaType(e.target.value as 'image' | 'video' | 'gif')}
                       className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 outline-none"
+                      title="Detectado automaticamente pelo arquivo ou pelo link"
                     >
-                      <option value="image">Tipo: Imagem Estática (JPG/PNG)</option>
+                      <option value="image">Tipo: Imagem (JPG/PNG/WebP)</option>
                       <option value="gif">Tipo: GIF Animado</option>
-                      <option value="video">Tipo: Vídeo MP4</option>
+                      <option value="video">Tipo: Vídeo (MP4/WebM)</option>
                     </select>
+                    {mediaUrl && !uploading && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveMedia}
+                        className="px-3 py-2 bg-white border border-gray-200 hover:border-red-300 hover:text-red-600 text-gray-600 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" /> Remover arte
+                      </button>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-bold text-gray-500 mb-1">
-                      Ou informe a URL direta da imagem/vídeo:
+                      Ou informe a URL direta da imagem, GIF ou vídeo:
                     </label>
                     <input
                       type="url"
-                      value={mediaUrl}
-                      onChange={(e) => setMediaUrl(e.target.value)}
+                      value={mediaUrl.startsWith('data:') ? '' : mediaUrl}
+                      onChange={(e) => handleMediaUrlInput(e.target.value)}
+                      disabled={uploading}
                       placeholder="https://exemplo.com/arte-publicitaria.jpg"
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none disabled:opacity-60"
                     />
                   </div>
 
@@ -817,17 +971,22 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   <span className="text-[10px] font-black uppercase text-gray-400 mb-2">
                     Prévia da Arte ({formFormat.replace('x', '×')} px)
                   </span>
-                  {mediaUrl ? (
+                  {previewSrc ? (
                     <div 
-                      className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-xs w-full max-w-[240px] flex items-center justify-center"
+                      className="relative overflow-hidden rounded-lg border border-gray-300 bg-white shadow-xs w-full max-w-[240px] flex items-center justify-center"
                       style={{
                         aspectRatio: formFormat === '970x90' ? '970 / 90' : formFormat === '728x90' ? '728 / 90' : formFormat === '300x600' ? '1 / 2' : '1 / 1'
                       }}
                     >
                       {mediaType === 'video' ? (
-                        <video src={mediaUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                        <video key={previewSrc} src={previewSrc} autoPlay loop muted playsInline className="w-full h-full object-cover" />
                       ) : (
-                        <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+                        <img src={previewSrc} alt="Prévia da arte" className="w-full h-full object-cover" />
+                      )}
+                      {uploading && (
+                        <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
+                          <RefreshCw className="w-5 h-5 text-[#0056a4] animate-spin" />
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -914,10 +1073,10 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || uploading}
                 className="px-6 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
               >
-                {loading ? 'Salvando...' : editingAd ? 'Salvar Alterações' : 'Cadastrar Anúncio no Carrossel'}
+                {loading ? 'Salvando...' : uploading ? 'Aguardando envio da arte...' : editingAd ? 'Salvar Alterações' : 'Cadastrar Anúncio no Carrossel'}
               </button>
             </div>
           </div>
