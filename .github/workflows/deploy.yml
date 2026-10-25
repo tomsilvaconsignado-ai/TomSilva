@@ -41,6 +41,8 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Domínio próprio configurado em Settings > Pages (site na raiz do domínio)
+          CUSTOM_DOMAIN: www.folhadaregiaonline.com.br
         run: |
           npm run build
           # Preserva o 404.html especializado gerado pelo build com suporte a rotas SPA
