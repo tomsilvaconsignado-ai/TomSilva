@@ -136,39 +136,32 @@ const generateBaseHtml = (title: string, contentHtml: string, actionUrl?: string
 
 export const getPublicPortalBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
-    // 1. Limpeza proativa de URLs antigas sem DNS armazenadas no navegador
-    try {
-      const saved = localStorage.getItem('folha_production_url');
-      if (saved && (saved.includes('folhadaregiaonline.com.br') || saved.includes('folhadaregiaoonline.com.br'))) {
-        localStorage.removeItem('folha_production_url');
-      }
-    } catch {}
-
     const origin = (window.location.origin || '').replace(/\/+$/, '');
     const pathname = (window.location.pathname || '').replace(/\/+$/, '');
     const currentUrl = pathname ? `${origin}${pathname}` : origin;
 
-    // 2. Se estiver navegando em uma URL funcional ativa (ex: *.run.app, localhost, github.io)
-    if (origin.startsWith('http') && !origin.includes('folhadaregiaonline.com.br') && !origin.includes('folhadaregiaoonline.com.br')) {
+    // 1. Endereço em que o portal está aberto (domínio próprio, github.io, localhost)
+    if (origin.startsWith('http')) {
       return currentUrl;
     }
 
-    // 3. Fallback para URL de produção segura salva no localStorage
+    // 2. URL de produção salva nas configurações do painel
     try {
       const validSaved = localStorage.getItem('folha_production_url');
-      if (validSaved && validSaved.startsWith('http') && !validSaved.includes('folhadaregiaonline.com.br') && !validSaved.includes('folhadaregiaoonline.com.br')) {
+      if (validSaved && validSaved.startsWith('http')) {
         return validSaved.replace(/\/+$/, '');
       }
     } catch {}
   }
 
-  // 4. Fallback seguro garantido em produção funcional (GitHub Pages ou env APP_URL)
+  // 3. Endereço configurado no build (domínio próprio ou GitHub Pages)
   const envUrl = (typeof process !== 'undefined' && (process.env.APP_URL || process.env.VITE_SITE_URL || process.env.SITE_URL)) || '';
-  if (envUrl && envUrl.startsWith('http') && !envUrl.includes('folhadaregiaonline.com.br') && !envUrl.includes('folhadaregiaoonline.com.br')) {
+  if (envUrl && envUrl.startsWith('http')) {
     return envUrl.replace(/\/+$/, '');
   }
 
-  return 'https://tomsilvaconsignado-ai.github.io/TomSilva';
+  const buildUrl: string = String((typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) || '');
+  return (buildUrl || 'https://tomsilvaconsignado-ai.github.io/TomSilva').replace(/\/+$/, '');
 };
 
 export const emailService = {

@@ -141,7 +141,8 @@ async function runPrerender() {
       path.resolve(distDir, 'noticias', article.slug)
     ];
 
-    if (process.env.GITHUB_REPOSITORY) {
+    // Com domínio próprio o site fica na raiz; a cópia em /<repo>/ só serve ao endereço github.io
+    if (process.env.GITHUB_REPOSITORY && !process.env.CUSTOM_DOMAIN) {
       const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
       if (repo && !repo.endsWith('.github.io')) {
         targets.push(path.resolve(distDir, repo, 'noticia', article.slug));

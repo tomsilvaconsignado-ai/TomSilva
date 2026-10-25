@@ -19,6 +19,19 @@ export default defineConfig(() => {
     }
   }
 
+  // Endereço público do portal (links de e-mail, login e compartilhamento).
+  // Com domínio próprio, defina CUSTOM_DOMAIN no build (ex.: www.folhadaregiaonline.com.br).
+  if (!process.env.VITE_SITE_URL) {
+    if (process.env.CUSTOM_DOMAIN) {
+      process.env.VITE_SITE_URL = `https://${process.env.CUSTOM_DOMAIN.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`;
+    } else if (process.env.GITHUB_REPOSITORY) {
+      const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+      process.env.VITE_SITE_URL = repo.toLowerCase().endsWith('.github.io') ? `https://${repo}` : `https://${owner}.github.io/${repo}`;
+    } else {
+      process.env.VITE_SITE_URL = 'https://tomsilvaconsignado-ai.github.io/TomSilva';
+    }
+  }
+
   return {
     base,
     plugins: [react(), tailwindcss()],

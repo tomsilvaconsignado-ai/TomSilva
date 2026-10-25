@@ -5,7 +5,7 @@ import { Article } from '../types/database';
  */
 
 // Domínio padrão de fallback seguro se não for possível inferir do ambiente
-export const DEFAULT_PORTAL_DOMAIN = 'https://tomsilvaconsignado-ai.github.io/TomSilva';
+export const DEFAULT_PORTAL_DOMAIN: string = String((typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) || 'https://tomsilvaconsignado-ai.github.io/TomSilva').replace(/\/+$/, '');
 
 export const escapeHtml = (text: string = ''): string => {
   return String(text)

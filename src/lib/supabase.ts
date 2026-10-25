@@ -68,21 +68,19 @@ export const saveSupabaseConfig = (url: string, key: string) => {
 /**
  * URL do portal em produção (usada para links enviados por e-mail quando disparados do ambiente de desenvolvimento)
  */
-export const DEFAULT_PRODUCTION_URL = 'https://tomsilvaconsignado-ai.github.io/TomSilva';
+export const DEFAULT_PRODUCTION_URL: string = String((typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) || 'https://tomsilvaconsignado-ai.github.io/TomSilva').replace(/\/+$/, '');
 
 export const getProductionSiteUrl = (): string => {
   if (typeof window !== 'undefined') {
     try {
       const saved = localStorage.getItem('folha_production_url');
-      if (saved && (saved.includes('folhadaregiaonline.com.br') || saved.includes('folhadaregiaoonline.com.br'))) {
-        localStorage.removeItem('folha_production_url');
-      } else if (saved && saved.startsWith('http')) {
+      if (saved && saved.startsWith('http')) {
         return saved.replace(/\/+$/, '');
       }
     } catch {}
   }
   const envUrl = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) || (typeof process !== 'undefined' && process.env?.VITE_SITE_URL) || '').trim();
-  if (envUrl && !envUrl.includes('folhadaregiaonline.com.br') && !envUrl.includes('folhadaregiaoonline.com.br')) {
+  if (envUrl && envUrl.startsWith('http')) {
     return envUrl.replace(/\/+$/, '');
   }
   return DEFAULT_PRODUCTION_URL;
@@ -91,17 +89,14 @@ export const getProductionSiteUrl = (): string => {
 export const setProductionSiteUrl = (url: string) => {
   if (typeof window !== 'undefined') {
     const clean = url.trim().replace(/\/+$/, '');
-    if (clean.includes('folhadaregiaonline.com.br') || clean.includes('folhadaregiaoonline.com.br')) {
-      // Ignora gravação de domínio sem apontamento DNS para proteger links
-      return;
-    }
+    if (!clean.startsWith('http')) return;
     localStorage.setItem('folha_production_url', clean);
   }
 };
 
 /**
- * Gera URL de redirecionamento dinâmica segura preservando subdiretórios (ex: GitHub Pages /nome-do-repo/)
- * NUNCA direciona para domínios sem DNS ativo (*.folhadaregiaonline.com.br)
+ * Gera URL de redirecionamento preservando subdiretórios (ex: GitHub Pages /nome-do-repo/).
+ * Usa o endereço em que o portal está aberto (domínio próprio, github.io ou localhost).
  */
 export const getAuthRedirectUrl = (actionOrHash: string): string => {
   if (typeof window === 'undefined') {
@@ -113,8 +108,8 @@ export const getAuthRedirectUrl = (actionOrHash: string): string => {
 
   const hostname = window.location.hostname.toLowerCase();
 
-  // 1. Se estiver rodando em qualquer ambiente acessível (localhost, *.run.app, tomsilvaconsignado-ai.github.io):
-  if (!hostname.includes('folhadaregiaonline.com.br') && !hostname.includes('folhadaregiaoonline.com.br')) {
+  // 1. Endereço atual do portal (domínio próprio, github.io, localhost)
+  if (hostname) {
     try {
       const u = new URL(window.location.href);
       if (actionOrHash.startsWith('#')) {
@@ -128,7 +123,7 @@ export const getAuthRedirectUrl = (actionOrHash: string): string => {
     } catch {}
   }
 
-  // 2. Fallback seguro garantido se estiver rodando em domínio sem apontamento DNS:
+  // 2. Fallback: endereço de produção configurado no build
   const targetBase = getProductionSiteUrl();
   return actionOrHash.startsWith('#')
     ? `${targetBase}/${actionOrHash.replace(/^\/+/, '')}`
