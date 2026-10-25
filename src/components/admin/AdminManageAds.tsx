@@ -98,14 +98,14 @@ const SPACES_DEFINITIONS: SpaceDefinition[] = [
   },
   {
     id: 'sidebar_300x900',
-    title: 'Lateral — 300×900 (Vertical)',
-    subtitle: 'Espaço vertical skyscraper de alto impacto na coluna lateral.',
+    title: 'Lateral — 300×600 (Vertical)',
+    subtitle: 'Espaço vertical (meia página) de alto impacto na coluna lateral.',
     badge: 'Coluna Lateral',
     placement: 'sidebar_300x900',
-    compatibleFormats: ['300x900'],
-    defaultFormat: '300x900',
+    compatibleFormats: ['300x600'],
+    defaultFormat: '300x600',
     isFormatSelectorAllowed: false,
-    aspectDesc: '300×900 px (Vertical 1:3)'
+    aspectDesc: '300×600 px (Vertical 1:2)'
   },
   {
     id: 'article',
@@ -207,6 +207,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
         a.adFormat === '300x900' || 
         a.placement === 'sidebar_300x900' || 
         a.aspectRatio === '1 / 3' ||
+        a.aspectRatio === '1 / 2' ||
         a.adFormat === '300x600' ||
         a.placement === 'sidebar_300x600'
       ).sort((a, b) => (a.displayOrder || 1) - (b.displayOrder || 1));
@@ -232,7 +233,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
   // Formato ativo atual do espaço
   const currentActiveFormat: AdFormat = (() => {
     if (activeSpace === 'sidebar_300x300' || activeSpace === 'article' || isExtraSidebarSquare(activeSpace)) return '300x300';
-    if (activeSpace === 'sidebar_300x900') return '300x900';
+    if (activeSpace === 'sidebar_300x900') return '300x600';
     const curPref = placementSettings[currentSpaceDef.placement]?.preferredFormat;
     if (curPref === '970x90' || curPref === '728x90') return curPref;
     return currentSpaceDef.defaultFormat;
@@ -419,10 +420,10 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
     try {
       const is970 = formFormat === '970x90';
       const is728 = formFormat === '728x90';
-      const is900 = formFormat === '300x900';
+      const isVertical = formFormat === '300x600' || formFormat === '300x900';
       const is300 = formFormat === '300x300';
 
-      const finalPlacement: AdPlacement = is900 ? 'sidebar_300x900' : (is300 ? (placement === 'article' || isExtraSidebarSquare(placement) ? placement : 'sidebar') : placement);
+      const finalPlacement: AdPlacement = isVertical ? 'sidebar_300x900' : (is300 ? (placement === 'article' || isExtraSidebarSquare(placement) ? placement : 'sidebar') : placement);
 
       await adsService.saveAd({
         id: editingAd?.id,
@@ -435,10 +436,10 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
         altText: altText.trim() || `${sponsorName.trim()} - ${title.trim()}`,
         placement: finalPlacement,
         adFormat: formFormat,
-        aspectRatio: is970 ? '970 / 90' : (is728 ? '728 / 90' : (is900 ? '1 / 3' : '1 / 1')),
+        aspectRatio: is970 ? '970 / 90' : (is728 ? '728 / 90' : (isVertical ? '1 / 2' : '1 / 1')),
         maxWidth: is970 ? 970 : (is728 ? 728 : 300),
         width: is970 ? 970 : (is728 ? 728 : 300),
-        height: is970 ? 90 : (is728 ? 90 : (is900 ? 900 : 300)),
+        height: is970 ? 90 : (is728 ? 90 : (isVertical ? 600 : 300)),
         active: status === 'active',
         status,
         displayOrder: Number(displayOrder) || 1,
@@ -516,7 +517,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1 max-w-2xl leading-relaxed">
-            Configure os formatos permitidos por espaço (Topo, Entre Notícias e Rodapé: 728×90 / 970×90; Laterais: 300×300 e 300×900), com temporizadores independentes e prévia responsiva.
+            Configure os formatos permitidos por espaço (Topo, Entre Notícias e Rodapé: 728×90 / 970×90; Laterais: 300×300 e 300×600), com temporizadores independentes e prévia responsiva.
           </p>
         </div>
 
@@ -557,7 +558,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
               return ads.filter(a => (a.adFormat === '300x300' || a.aspectRatio === '1 / 1') && a.placement !== 'sidebar_300x900' && a.placement !== 'sidebar_300x600' && !isExtraSidebarSquare(a.placement));
             }
             if (spaceDef.id === 'sidebar_300x900') {
-              return ads.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.adFormat === '300x600');
+              return ads.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.aspectRatio === '1 / 2' || a.adFormat === '300x600');
             }
             return ads.filter(a => a.placement === spaceDef.placement);
           })();
@@ -565,7 +566,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
           const spaceActiveCount = spaceAds.filter(a => a.active && a.status !== 'paused').length;
           const activeFmt = (() => {
             if (spaceDef.id === 'sidebar_300x300' || isExtraSidebarSquare(spaceDef.id)) return '300×300';
-            if (spaceDef.id === 'sidebar_300x900') return '300×900';
+            if (spaceDef.id === 'sidebar_300x900') return '300×600';
             const pref = placementSettings[spaceDef.placement]?.preferredFormat;
             return pref === '970x90' ? '970×90' : '728×90';
           })();
@@ -655,16 +656,16 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                     ? 'Banner Super Leaderboard — 970 × 90 px' 
                     : fmt === '728x90'
                     ? 'Banner Leaderboard Tradicional — 728 × 90 px'
-                    : fmt === '300x900'
-                    ? 'Banner Skyscraper Vertical — 300 × 900 px'
+                    : fmt === '300x600'
+                    ? 'Banner Vertical (Meia Página) — 300 × 600 px'
                     : 'Banner Quadrado Médio — 300 × 300 px';
 
                   const desc = fmt === '970x90'
                     ? 'Formato horizontal estendido para telas maiores e máxima visibilidade'
                     : fmt === '728x90'
                     ? 'Formato horizontal clássico para cabeçalho, feed e rodapé'
-                    : fmt === '300x900'
-                    ? 'Formato vertical skyscraper de alto impacto na coluna lateral'
+                    : fmt === '300x600'
+                    ? 'Formato vertical de alto impacto na coluna lateral'
                     : 'Formato quadrado ideal para a coluna lateral ou corpo da matéria';
 
                   return (
@@ -678,7 +679,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                       }`}
                     >
                       <div className="p-1 rounded bg-white border border-gray-200 text-[#0056a4] shrink-0">
-                        {fmt === '300x900' ? <RectangleVertical className="w-5 h-5" /> : fmt === '300x300' ? <Square className="w-5 h-5" /> : <Layout className="w-5 h-5" />}
+                        {fmt === '300x600' ? <RectangleVertical className="w-5 h-5" /> : fmt === '300x300' ? <Square className="w-5 h-5" /> : <Layout className="w-5 h-5" />}
                       </div>
                       <div className="flex-1">
                         <div className="text-xs font-black uppercase text-gray-900">{label}</div>
@@ -820,7 +821,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                     <div 
                       className="overflow-hidden rounded-lg border border-gray-300 bg-white shadow-xs w-full max-w-[240px] flex items-center justify-center"
                       style={{
-                        aspectRatio: formFormat === '970x90' ? '970 / 90' : formFormat === '728x90' ? '728 / 90' : formFormat === '300x900' ? '1 / 3' : '1 / 1'
+                        aspectRatio: formFormat === '970x90' ? '970 / 90' : formFormat === '728x90' ? '728 / 90' : formFormat === '300x600' ? '1 / 2' : '1 / 1'
                       }}
                     >
                       {mediaType === 'video' ? (
@@ -833,7 +834,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                     <div 
                       className="w-full max-w-[240px] rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 text-xs p-4"
                       style={{
-                        aspectRatio: formFormat === '970x90' ? '970 / 90' : formFormat === '728x90' ? '728 / 90' : formFormat === '300x900' ? '1 / 3' : '1 / 1'
+                        aspectRatio: formFormat === '970x90' ? '970 / 90' : formFormat === '728x90' ? '728 / 90' : formFormat === '300x600' ? '1 / 2' : '1 / 1'
                       }}
                     >
                       <ImageIcon className="w-8 h-8 mb-1 text-gray-300" />
@@ -1161,7 +1162,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                             {/* Miniatura da Mídia */}
                             <div 
                               className={`w-14 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 shrink-0 flex items-center justify-center ${
-                                ad.adFormat === '300x900' ? 'h-24' : 'h-14'
+                                (ad.adFormat === '300x600' || ad.adFormat === '300x900') ? 'h-24' : 'h-14'
                               }`}
                             >
                               {ad.mediaType === 'video' ? (

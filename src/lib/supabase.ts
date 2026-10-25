@@ -1048,8 +1048,8 @@ export const DEFAULT_PLACEMENT_SETTINGS: Record<AdPlacement, PlacementSetting> =
   header: { placement: 'header', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '728x90' },
   feed: { placement: 'feed', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '728x90' },
   sidebar: { placement: 'sidebar', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '300x300' },
-  sidebar_300x900: { placement: 'sidebar_300x900', mode: 'carousel', isPaused: false, defaultDurationSeconds: 8, preferredFormat: '300x900' },
-  sidebar_300x600: { placement: 'sidebar_300x600', mode: 'carousel', isPaused: false, defaultDurationSeconds: 8, preferredFormat: '300x900' },
+  sidebar_300x900: { placement: 'sidebar_300x900', mode: 'carousel', isPaused: false, defaultDurationSeconds: 8, preferredFormat: '300x600' },
+  sidebar_300x600: { placement: 'sidebar_300x600', mode: 'carousel', isPaused: false, defaultDurationSeconds: 8, preferredFormat: '300x600' },
   sidebar_300x300_2: { placement: 'sidebar_300x300_2', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '300x300' },
   sidebar_300x300_3: { placement: 'sidebar_300x300_3', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '300x300' },
   article: { placement: 'article', mode: 'carousel', isPaused: false, defaultDurationSeconds: 5, preferredFormat: '300x300' },
@@ -1062,20 +1062,21 @@ export const DEFAULT_FORMAT_SETTINGS: Record<'300x300' | '300x900' | '300x600', 
   '300x600': { format: '300x600', durationSeconds: 8, isPaused: false, mode: 'carousel' }
 };
 
-const AD_FORMAT_DIMENSIONS: Record<'300x300' | '300x900' | '728x90' | '970x90', { ratio: string; width: number; height: number; duration: number }> = {
+// O formato vertical da lateral é 300x600; anúncios antigos gravados como 300x900 são convertidos
+const AD_FORMAT_DIMENSIONS: Record<'300x300' | '300x600' | '728x90' | '970x90', { ratio: string; width: number; height: number; duration: number }> = {
   '300x300': { ratio: '1 / 1', width: 300, height: 300, duration: 5 },
-  '300x900': { ratio: '1 / 3', width: 300, height: 900, duration: 8 },
+  '300x600': { ratio: '1 / 2', width: 300, height: 600, duration: 8 },
   '728x90': { ratio: '728 / 90', width: 728, height: 90, duration: 5 },
   '970x90': { ratio: '970 / 90', width: 970, height: 90, duration: 5 }
 };
 
 // Deduz o formato a partir dos campos (inclui dados antigos sem ad_format)
-const detectAdFormat = (ad: Partial<AdItem>): '300x300' | '300x900' | '728x90' | '970x90' => {
-  if (ad.adFormat === '970x90' || ad.adFormat === '728x90' || ad.adFormat === '300x300' || ad.adFormat === '300x900') {
+const detectAdFormat = (ad: Partial<AdItem>): '300x300' | '300x600' | '728x90' | '970x90' => {
+  if (ad.adFormat === '970x90' || ad.adFormat === '728x90' || ad.adFormat === '300x300') {
     return ad.adFormat;
   }
-  if (ad.adFormat === '300x600' || ad.placement === 'sidebar_300x900' || ad.placement === 'sidebar_300x600') {
-    return '300x900';
+  if (ad.adFormat === '300x600' || ad.adFormat === '300x900' || ad.placement === 'sidebar_300x900' || ad.placement === 'sidebar_300x600') {
+    return '300x600';
   }
   const is970 = ad.adFormat === '970x90' || ad.aspectRatio === '970 / 90' || ad.aspectRatio === '970/90' || ad.width === 970;
   if (is970) return '970x90';
@@ -1083,7 +1084,7 @@ const detectAdFormat = (ad: Partial<AdItem>): '300x300' | '300x900' | '728x90' |
   const is300 = ad.adFormat === '300x300' || ad.aspectRatio === '1 / 1' || ad.aspectRatio === '1/1' || ad.placement === 'sidebar' || ad.placement === 'article' || isExtraSidebarSquare(ad.placement);
   const is728 = ad.adFormat === '728x90' || ad.aspectRatio === '728 / 90' || ad.aspectRatio === '728/90' || ad.placement === 'header' || ad.placement === 'feed' || ad.placement === 'footer';
   if (is728 && !is900 && !is300) return '728x90';
-  if (is900) return '300x900';
+  if (is900) return '300x600';
   return '300x300';
 };
 
@@ -1255,7 +1256,7 @@ export const adsService = {
     return all
       .filter(a => {
         if (format === '300x900' || format === '300x600') {
-          return a.adFormat === '300x900' || a.adFormat === '300x600' || a.placement === 'sidebar_300x900' || a.placement === 'sidebar_300x600' || a.aspectRatio === '1 / 3';
+          return a.adFormat === '300x900' || a.adFormat === '300x600' || a.placement === 'sidebar_300x900' || a.placement === 'sidebar_300x600' || a.aspectRatio === '1 / 3' || a.aspectRatio === '1 / 2';
         }
         if (format === '300x300') {
           return (a.adFormat === '300x300' || (a.aspectRatio === '1 / 1' && a.placement !== 'sidebar_300x900' && a.placement !== 'sidebar_300x600')) && !isExtraSidebarSquare(a.placement);
@@ -1277,7 +1278,7 @@ export const adsService = {
     return all
       .filter(a => {
         if (placement === 'sidebar_300x900' || placement === 'sidebar_300x600') {
-          return a.placement === 'sidebar_300x900' || a.placement === 'sidebar_300x600' || a.adFormat === '300x900';
+          return a.placement === 'sidebar_300x900' || a.placement === 'sidebar_300x600' || a.adFormat === '300x900' || a.adFormat === '300x600';
         }
         return a.placement === placement;
       })

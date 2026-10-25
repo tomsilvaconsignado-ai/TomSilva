@@ -431,7 +431,7 @@ export default function App() {
   const ads300x300 = ads.filter(a => (a.adFormat === '300x300' || a.aspectRatio === '1 / 1') && a.placement !== 'sidebar_300x900' && a.placement !== 'sidebar_300x600' && !isExtraSidebarSquare(a.placement));
   const ads300x300Second = ads.filter(a => a.placement === 'sidebar_300x300_2');
   const ads300x300Third = ads.filter(a => a.placement === 'sidebar_300x300_3');
-  const ads300x900 = ads.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.adFormat === '300x600' || a.placement === 'sidebar_300x600');
+  const ads300x900 = ads.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.adFormat === '300x600' || a.placement === 'sidebar_300x600' || a.aspectRatio === '1 / 2');
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans selection:bg-[#0056a4] selection:text-white flex flex-col">
@@ -634,9 +634,9 @@ export default function App() {
                   </div>
                 </section>
 
-                {/* Espaço Publicitário Formato 300x900 (Vertical - Carrossel Independente) */}
+                {/* Espaço Publicitário Formato 300x600 (Vertical - Carrossel Independente) */}
                 <div className="flex justify-center w-full">
-                  <AdSlot format="300x900" placement="sidebar_300x900" ads={ads300x900} />
+                  <AdSlot format="300x600" placement="sidebar_300x900" ads={ads300x900} />
                 </div>
 
                 {/* Widget Newsletter Folha News */}

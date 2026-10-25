@@ -25,7 +25,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({
     propSingleAd?.placement || 
     (propAdsList && propAdsList.length > 0 ? propAdsList[0].placement : undefined);
 
-  // Configuração por espaço (header, feed, footer, sidebar, sidebar_300x900, article)
+  // Configuração por espaço (header, feed, footer, sidebar, sidebar_300x900 = vertical 300x600, article)
   const [placementSettings, setPlacementSettings] = useState<PlacementSetting>(() => {
     if (placement) {
       return adsService.getPlacementSettings()[placement];
@@ -35,29 +35,32 @@ export const AdSlot: React.FC<AdSlotProps> = ({
 
   const preferredFormatForPlacement = placement ? placementSettings?.preferredFormat : undefined;
 
-  // Determina o formato efetivo com suporte a 728x90, 970x90, 300x300, 300x900
-  const determinedFormat: AdFormat = 
+  // Determina o formato efetivo (728x90, 970x90, 300x300, 300x600).
+  // O vertical antigo 300x900 (anúncios e configurações já gravados) é exibido como 300x600.
+  const rawFormat: AdFormat = 
     propFormat || 
     preferredFormatForPlacement ||
     propSingleAd?.adFormat ||
     (propAdsList && propAdsList.length > 0 ? propAdsList[0].adFormat : undefined) ||
-    (placement === 'sidebar_300x900' ? '300x900' :
-     placement === 'sidebar_300x600' ? '300x900' :
+    (placement === 'sidebar_300x900' ? '300x600' :
+     placement === 'sidebar_300x600' ? '300x600' :
      placement === 'sidebar' ? '300x300' :
      placement === 'article' ? '300x300' :
      placement === 'header' ? '728x90' :
      placement === 'feed' ? '728x90' :
      placement === 'footer' ? '728x90' : '300x300');
+  const determinedFormat: AdFormat = rawFormat === '300x900' ? '300x600' : rawFormat;
 
-  // Configuração independente de temporizador e modo (por formato se 300x300/300x900, ou por placement)
+  // Configuração independente de temporizador e modo (por formato se 300x300/300x600, ou por placement).
+  // O temporizador do vertical continua gravado na chave '300x900' das configurações.
   const [formatSettings, setFormatSettings] = useState<FormatCarouselSetting>(() => {
-    const fKey = (determinedFormat === '300x900' || determinedFormat === '300x600') ? '300x900' : '300x300';
+    const fKey = determinedFormat === '300x600' ? '300x900' : '300x300';
     return adsService.getFormatSettings()[fKey] || { format: '300x300', durationSeconds: 5, isPaused: false, mode: 'carousel' };
   });
 
   // Os formatos laterais seguem o temporizador do formato, exceto os painéis 300x300 extras,
   // que têm temporizador e pausa próprios no espaço
-  const isFormatBased = (determinedFormat === '300x300' || determinedFormat === '300x900' || determinedFormat === '300x600') && !isExtraSidebarSquare(placement);
+  const isFormatBased = (determinedFormat === '300x300' || determinedFormat === '300x600') && !isExtraSidebarSquare(placement);
 
   // Lista de anúncios
   const [slotAds, setSlotAds] = useState<AdItem[]>(() => {
@@ -89,7 +92,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({
       const customEvent = e as CustomEvent<{ placement?: AdPlacement; format?: AdFormat }>;
       const eventDetail = customEvent.detail;
 
-      const fKey = (determinedFormat === '300x900' || determinedFormat === '300x600') ? '300x900' : '300x300';
+      const fKey = determinedFormat === '300x600' ? '300x900' : '300x300';
       if (!eventDetail?.format || eventDetail.format === determinedFormat || eventDetail.format === fKey) {
         const allFormatSettings = adsService.getFormatSettings();
         setFormatSettings(allFormatSettings[fKey]);
@@ -234,7 +237,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({
     if (!canRotate || !currentAd) return;
 
     // Intervalo independente: lê o temporizador configurado no formato ou no espaço pelo admin
-    const defaultSec = (determinedFormat === '300x900' || determinedFormat === '300x600') ? 8 : 5;
+    const defaultSec = determinedFormat === '300x600' ? 8 : 5;
     const formatDurationSec = isFormatBased
       ? (formatSettings.durationSeconds || defaultSec)
       : (placementSettings.defaultDurationSeconds || 5);
@@ -293,10 +296,6 @@ export const AdSlot: React.FC<AdSlotProps> = ({
     slotMaxWidth = '728px';
     containerDimensionsStyle = { width: '100%', maxWidth: '728px', aspectRatio: '728 / 90' };
     aspectRatioClass = 'aspect-[728/90]';
-  } else if (determinedFormat === '300x900') {
-    slotMaxWidth = '300px';
-    containerDimensionsStyle = { width: '100%', maxWidth: '300px', height: '900px', aspectRatio: '1 / 3' };
-    aspectRatioClass = 'aspect-[1/3]';
   } else if (determinedFormat === '300x600') {
     slotMaxWidth = '300px';
     containerDimensionsStyle = { width: '100%', maxWidth: '300px', height: '600px', aspectRatio: '1 / 2' };
@@ -317,8 +316,8 @@ export const AdSlot: React.FC<AdSlotProps> = ({
       aspectRatioClass = 'aspect-[728/90]';
     } else if (cleanRatio === '1/3') {
       slotMaxWidth = '300px';
-      containerDimensionsStyle = { width: '100%', maxWidth: '300px', height: '900px', aspectRatio: '1 / 3' };
-      aspectRatioClass = 'aspect-[1/3]';
+      containerDimensionsStyle = { width: '100%', maxWidth: '300px', height: '600px', aspectRatio: '1 / 2' };
+      aspectRatioClass = 'aspect-[1/2]';
     } else if (cleanRatio === '1/2') {
       slotMaxWidth = '300px';
       containerDimensionsStyle = { width: '100%', maxWidth: '300px', height: '600px', aspectRatio: '1 / 2' };
@@ -333,7 +332,6 @@ export const AdSlot: React.FC<AdSlotProps> = ({
   const formatLabel = 
     determinedFormat === '970x90' ? 'Publicidade 970×90' :
     determinedFormat === '728x90' ? 'Publicidade 728×90' :
-    determinedFormat === '300x900' ? 'Publicidade 300×900' :
     determinedFormat === '300x600' ? 'Publicidade 300×600' :
     determinedFormat === '300x300' ? 'Publicidade 300×300' : 'Publicidade';
 
