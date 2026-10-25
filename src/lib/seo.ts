@@ -312,7 +312,8 @@ export const getClassifiedCanonicalUrl = (slug: string, customOrigin?: string): 
   origin = origin.replace(/\/+$/, '');
   const cleanBase = basePath.startsWith('/') ? basePath : `/${basePath}`;
   const formattedBase = cleanBase.endsWith('/') ? cleanBase : `${cleanBase}/`;
-  return `${origin}${formattedBase}classificado/${encodeURIComponent(slug)}`;
+  // Barra final: o GitHub Pages serve a página estática em /slug/ (sem ela responderia com redirecionamento)
+  return `${origin}${formattedBase}classificado/${encodeURIComponent(slug)}/`;
 };
 
 const isJobClassified = (item: Pick<ClassifiedItem, 'section'>): boolean =>

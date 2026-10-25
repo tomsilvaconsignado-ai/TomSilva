@@ -97,7 +97,7 @@ export default function App() {
     if (updateUrl !== 'none' && item.slug) {
       const basePath = getAppBasePath();
       const cleanBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-      const targetUrl = `${cleanBase}classificado/${encodeURIComponent(item.slug)}`;
+      const targetUrl = `${cleanBase}classificado/${encodeURIComponent(item.slug)}/`;
       if (window.location.pathname !== targetUrl) {
         window.history[updateUrl === 'push' ? 'pushState' : 'replaceState']({ classifiedSlug: item.slug }, '', targetUrl);
       }
