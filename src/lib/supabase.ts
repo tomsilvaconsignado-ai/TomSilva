@@ -12,8 +12,8 @@ import { checkEmailRateLimit } from './emailService';
 
 // Configurações lidas do ambiente ou do localStorage (para configuração em tempo de execução)
 // Configurações padrão do projeto oficial Supabase (garante comunicação 100% no GitHub Pages, Vercel e produção)
-export const DEFAULT_SUPABASE_URL = 'https://qqjqbdpemydxdzlufgfo.supabase.co';
-export const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_Iw8_Yc9-9V6b-y-TAnrbbQ_s1o43Nhu';
+import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from './supabaseConfig';
+export { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY };
 
 // Configurações lidas do ambiente ou do localStorage (para configuração em tempo de execução)
 const envUrl = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || (typeof process !== 'undefined' && process.env?.VITE_SUPABASE_URL) || '').trim();
