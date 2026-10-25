@@ -36,6 +36,23 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// O Chrome só libera a janela de instalação depois que o leitor tocou na página e ficou
+// cerca de 30 segundos nela. Enquanto isso, espera o evento chegar (ou o tempo acabar).
+export const waitForInstallPrompt = (timeoutMs: number): Promise<boolean> => {
+  if (deferredPrompt) return Promise.resolve(true);
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const done = (ok: boolean) => {
+      window.clearTimeout(timer);
+      window.removeEventListener(PROMPT_EVENT, onReady);
+      resolve(ok);
+    };
+    const onReady = () => done(deferredPrompt !== null);
+    const timer = window.setTimeout(() => done(deferredPrompt !== null), timeoutMs);
+    window.addEventListener(PROMPT_EVENT, onReady);
+  });
+};
+
 export const isRunningInstalled = (): boolean => {
   if (typeof window === 'undefined') return false;
   return (

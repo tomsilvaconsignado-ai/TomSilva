@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <script>
+      // Sempre na versão segura (https): sem ela o navegador não permite instalar o aplicativo
+      // nem usar login com segurança. O GitHub Pages também redireciona com "Enforce HTTPS".
+      (function () {
+        var l = window.location;
+        if (l.protocol === 'http:' && l.hostname !== 'localhost' && l.hostname !== '127.0.0.1' && !/^192\.168\./.test(l.hostname)) {
+          l.replace('https://' + l.host + l.pathname + l.search + l.hash);
+        }
+      })();
+    </script>
+    <script>
       // Se o arquivo principal do site não carregar (ex.: página antiga guardada no cache do
       // navegador depois de uma atualização), recarrega uma vez buscando a versão mais nova.
       // Se ainda assim falhar, troca o "Carregando" por um botão de tentar novamente.
