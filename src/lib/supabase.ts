@@ -284,7 +284,7 @@ const describeDbError = (error: { message?: string; code?: string } | null | und
     return new Error(`Não foi possível ${action}: já existe um registro com esses dados (ex.: mesmo endereço/slug).`);
   }
   if (code === '42703' || code === 'PGRST204') {
-    return new Error(`Não foi possível ${action}: o banco está desatualizado. Execute as migrações em supabase/migrations no SQL Editor.`);
+    return new Error(`Não foi possível ${action}: o banco está desatualizado. Execute o arquivo supabase/ATUALIZAR_BANCO.sql no SQL Editor do Supabase.`);
   }
   return new Error(`Não foi possível ${action}${msg ? `: ${msg}` : '.'}`);
 };
