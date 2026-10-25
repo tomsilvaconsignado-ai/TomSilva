@@ -2,6 +2,46 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Se o arquivo principal do site não carregar (ex.: página antiga guardada no cache do
+      // navegador depois de uma atualização), recarrega uma vez buscando a versão mais nova.
+      // Se ainda assim falhar, troca o "Carregando" por um botão de tentar novamente.
+      (function () {
+        var KEY = 'folha_reload_attempt';
+        var showRetry = function () {
+          var root = document.getElementById('root');
+          if (!root || root.innerText.indexOf('Carregando Folha da Região') === -1) return;
+          root.innerHTML = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:#f8fafc;color:#334155;text-align:center;padding:24px">'
+            + '<p style="font-size:15px;font-weight:700;margin:0">Não foi possível carregar a Folha da Região.</p>'
+            + '<p style="font-size:13px;margin:0">Verifique sua conexão e tente novamente.</p>'
+            + '<button onclick="location.reload()" style="margin-top:8px;padding:10px 20px;border:0;border-radius:10px;background:#0056a4;color:#fff;font-weight:700;cursor:pointer">Tentar novamente</button></div>';
+        };
+        var reloadFresh = function () {
+          try {
+            if (sessionStorage.getItem(KEY)) { showRetry(); return; }
+            sessionStorage.setItem(KEY, '1');
+          } catch (e) { showRetry(); return; }
+          var url = new URL(window.location.href);
+          url.searchParams.set('_v', String(Date.now()));
+          window.location.replace(url.toString());
+        };
+        window.addEventListener('error', function (e) {
+          var t = e && e.target;
+          if (t && t.tagName === 'SCRIPT' && /\/assets\/index-[^/]*\.js/.test(t.src || '')) reloadFresh();
+        }, true);
+        window.addEventListener('load', function () {
+          // Tira o parâmetro técnico da recarga da barra de endereço
+          try {
+            var current = new URL(window.location.href);
+            if (current.searchParams.has('_v')) {
+              current.searchParams.delete('_v');
+              window.history.replaceState(window.history.state, '', current.pathname + current.search + current.hash);
+            }
+          } catch (e) {}
+          setTimeout(showRetry, 30000);
+        });
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Folha da Região - A notícia onde você estiver</title>
     <link rel="icon" type="image/svg+xml" href="./vetor.svg" />
