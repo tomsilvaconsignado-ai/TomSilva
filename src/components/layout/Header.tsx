@@ -7,6 +7,7 @@ import { AdItem, CategorySlug, UserProfile, PortalSettings } from '../../types/d
 import { INITIAL_CATEGORIES } from '../../data/initialData';
 import { portalSettingsService } from '../../lib/supabase';
 import { getAssetUrl } from '../../lib/assets';
+import { InstallAppButton } from '../common/InstallAppButton';
 
 interface HeaderProps {
   currentCategory: CategorySlug;
@@ -90,6 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-4">
+            <InstallAppButton variant="compact" />
             {/* Redes Sociais */}
             <div className="flex items-center gap-3">
               {portalSettings.showFacebook && portalSettings.facebookUrl && (
@@ -329,6 +331,9 @@ export const Header: React.FC<HeaderProps> = ({
                 className="bg-transparent text-sm w-full outline-none"
               />
             </form>
+
+            {/* Instalar o portal como aplicativo (some quando já está instalado) */}
+            <InstallAppButton variant="menu" />
 
             <div className="grid grid-cols-2 gap-2 pt-2">
               {INITIAL_CATEGORIES.map((cat) => {
