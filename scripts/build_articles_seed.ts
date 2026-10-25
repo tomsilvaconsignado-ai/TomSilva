@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { INITIAL_ARTICLES } from '../src/data/initialData';
+import { PROJECT_ARTICLES } from '../src/data/initialData';
 import { Article } from '../src/types/database';
 
 // Gera um SQL de importação de notícias a partir do backup exportado do portal original
@@ -11,6 +11,8 @@ import { Article } from '../src/types/database';
 //
 // - Inclui as matérias que já estão no projeto (src/data/initialData.ts) e acrescenta
 //   apenas as do backup que ainda não existem, comparando por slug e por título.
+// - Grava também src/data/backupArticles.json, que o portal soma às matérias iniciais:
+//   assim elas aparecem no site, na pré-renderização e no "Importar conteúdo" do painel.
 // - O SQL usa ON CONFLICT DO NOTHING: rodar mais de uma vez não duplica nada e não
 //   altera matérias que já estejam no banco.
 
@@ -143,12 +145,13 @@ function run() {
   const published = backup.filter(b => b.status === 'published');
   const backupBySlug = new Map(published.map(b => [b.slug, b]));
 
-  const projectSlugs = new Set(INITIAL_ARTICLES.map(a => a.slug));
-  const projectTitles = new Set(INITIAL_ARTICLES.map(a => normalizeTitle(a.title)));
+  const projectSlugs = new Set(PROJECT_ARTICLES.map(a => a.slug));
+  const projectTitles = new Set(PROJECT_ARTICLES.map(a => normalizeTitle(a.title)));
 
-  const projectRows = INITIAL_ARTICLES.map(a => fromProject(a, backupBySlug.get(a.slug)?.published_at || undefined));
+  const projectRows = PROJECT_ARTICLES.map(a => fromProject(a, backupBySlug.get(a.slug)?.published_at || undefined));
   const missing = published.filter(b => !projectSlugs.has(b.slug) && !projectTitles.has(normalizeTitle(b.title)));
-  const rows = [...projectRows, ...missing.map(fromBackup)]
+  const missingRows = missing.map(fromBackup);
+  const rows = [...projectRows, ...missingRows]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const outputPath = path.resolve(outputArg || path.join(rootDir, 'supabase', 'seed', 'articles_seed.sql'));
@@ -184,9 +187,34 @@ COMMIT;
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, header + rows.map(toInsert).join(',\n') + footer, 'utf-8');
 
+  const publishedAt: Record<string, string> = {};
+  for (const a of PROJECT_ARTICLES) {
+    const date = backupBySlug.get(a.slug)?.published_at;
+    if (date) publishedAt[a.slug] = date;
+  }
+  const jsonPath = path.join(rootDir, 'src', 'data', 'backupArticles.json');
+  const jsonArticles: Article[] = missingRows.map(r => ({
+    id: r.id,
+    title: r.title,
+    ...(r.subtitle ? { subtitle: r.subtitle } : {}),
+    slug: r.slug,
+    content: r.content,
+    category: r.category,
+    imageUrl: r.imageUrl,
+    ...(r.videoUrl ? { videoUrl: r.videoUrl } : {}),
+    isVideo: r.isVideo,
+    viewsCount: r.viewsCount,
+    author: r.author,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    status: 'published'
+  }));
+  fs.writeFileSync(jsonPath, JSON.stringify({ publishedAt, articles: jsonArticles }, null, 1) + '\n', 'utf-8');
+
   console.log(`[Seed] Backup: ${backup.length} matérias (${published.length} publicadas).`);
   console.log(`[Seed] Já existentes no projeto: ${published.length - missing.length}. Novas: ${missing.length}.`);
   console.log(`[Seed] Total no SQL: ${rows.length}. Arquivo: ${path.relative(rootDir, outputPath)}`);
+  console.log(`[Seed] ${jsonArticles.length} matérias gravadas em ${path.relative(rootDir, jsonPath)}`);
 }
 
 run();

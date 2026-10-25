@@ -100,6 +100,12 @@ async function runPrerender() {
   // 3. Para cada notícia publicada, gera o arquivo estático com Open Graph no head
   for (const article of articles) {
     if (article.status === 'draft') continue;
+    // Sistemas de arquivos limitam o nome da pasta a 255 bytes; slugs maiores (há matérias antigas
+    // com o texto inteiro no slug) continuam abrindo pelo roteamento do SPA via 404.html
+    if (Buffer.byteLength(article.slug, 'utf-8') > 200) {
+      console.warn(`[SSG Pre-render] Slug longo demais, sem página estática: ${article.title}`);
+      continue;
+    }
 
     const metaBlock = generateOpenGraphHtml(article, origin);
 
