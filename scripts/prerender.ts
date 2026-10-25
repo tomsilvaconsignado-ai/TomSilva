@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { INITIAL_ARTICLES } from '../src/data/initialData';
-import { Article } from '../src/types/database';
-import { generateOpenGraphHtml, escapeHtml, DEFAULT_PORTAL_DOMAIN } from '../src/lib/seo';
+import { Article, ClassifiedItem } from '../src/types/database';
+import { generateOpenGraphHtml, generateClassifiedOpenGraphHtml, escapeHtml, DEFAULT_PORTAL_DOMAIN } from '../src/lib/seo';
 import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../src/lib/supabaseConfig';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,6 +44,87 @@ async function fetchPublishedArticles(): Promise<Article[]> {
   } catch (e) {
     console.warn('[SSG Pre-render] Não foi possível consultar o Supabase; usando matérias iniciais.', e);
     return [];
+  }
+}
+
+// Lê os anúncios publicados e ainda válidos dos classificados (a leitura pública é liberada pelo RLS)
+async function fetchPublishedClassifieds(): Promise<ClassifiedItem[]> {
+  const url = (process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).trim().replace(/\/+$/, '');
+  const key = (process.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY).trim();
+  try {
+    const resp = await fetch(
+      `${url}/rest/v1/classifieds?select=id,code,slug,title,description,section,type,category,price_type,price,city,state,images,status,created_at,updated_at,expires_at&status=eq.published&order=created_at.desc`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
+    );
+    if (!resp.ok) {
+      console.warn(`[SSG Pre-render] Supabase respondeu ${resp.status} ao listar classificados; nenhum anúncio pré-renderizado.`);
+      return [];
+    }
+    const now = Date.now();
+    const rows: any[] = await resp.json();
+    return rows
+      .filter(r => r.slug && (!r.expires_at || new Date(r.expires_at).getTime() > now))
+      .map(r => ({
+        id: r.id,
+        code: r.code,
+        userId: '',
+        section: r.section,
+        type: r.type,
+        category: r.category || '',
+        title: r.title,
+        slug: r.slug,
+        description: r.description || '',
+        priceType: r.price_type || 'fixed',
+        price: r.price !== null && r.price !== undefined ? Number(r.price) : undefined,
+        city: r.city || '',
+        state: r.state || '',
+        advertiserName: '',
+        phone: '',
+        images: Array.isArray(r.images) ? r.images : [],
+        status: r.status,
+        viewsCount: 0,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at || undefined,
+        expiresAt: r.expires_at
+      }));
+  } catch (e) {
+    console.warn('[SSG Pre-render] Não foi possível consultar os classificados no Supabase.', e);
+    return [];
+  }
+}
+
+// Monta a página estática: metadados próprios no <head> e caminhos de assets a 2 níveis da raiz
+function buildStaticPage(baseHtml: string, metaBlock: string, routeScript: string): string {
+  let html = baseHtml
+    .replace(/<title>[\s\S]*?<\/title>/gi, '')
+    .replace(/<meta\s+name=["']description["'][\s\S]*?>/gi, '')
+    .replace(/<meta\s+property=["']og:[\s\S]*?>/gi, '')
+    .replace(/<meta\s+name=["']twitter:[\s\S]*?>/gi, '')
+    .replace(/<link\s+rel=["']canonical["'][\s\S]*?>/gi, '');
+
+  html = html.replace('<head>', `<head>\n${metaBlock}\n`);
+  html = html.replace('</head>', `  <script>${routeScript}</script>\n</head>`);
+
+  return html
+    .replace(/(src|href)=["']\.\/assets\//g, '$1="../../assets/')
+    .replace(/(src|href)=["']\.\/vetor\.svg["']/g, '$1="../../vetor.svg"')
+    .replace(/(src|href)=["']\.\/logo\.svg["']/g, '$1="../../logo.svg"')
+    .replace(/(src|href)=["']\.\/og-image\.png["']/g, '$1="../../og-image.png"')
+    .replace(/(src|href)=["']\/assets\//g, '$1="../../assets/');
+}
+
+// Grava a página em /<pasta>/<slug>/ (e na cópia /<repo>/... quando o site está em github.io/<repo>)
+function writeStaticPage(folders: string[], slug: string, html: string) {
+  const targets = folders.map(folder => path.resolve(distDir, folder, slug));
+  if (process.env.GITHUB_REPOSITORY && !process.env.CUSTOM_DOMAIN) {
+    const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
+    if (repo && !repo.endsWith('.github.io')) {
+      folders.forEach(folder => targets.push(path.resolve(distDir, repo, folder, slug)));
+    }
+  }
+  for (const targetFolder of targets) {
+    fs.mkdirSync(targetFolder, { recursive: true });
+    fs.writeFileSync(path.resolve(targetFolder, 'index.html'), html, 'utf-8');
   }
 }
 
@@ -108,57 +189,23 @@ async function runPrerender() {
     }
 
     const metaBlock = generateOpenGraphHtml(article, origin);
-
-    // Limpa tags genéricas do index.html
-    let html = baseHtml
-      .replace(/<title>[\s\S]*?<\/title>/gi, '')
-      .replace(/<meta\s+name=["']description["'][\s\S]*?>/gi, '')
-      .replace(/<meta\s+property=["']og:[\s\S]*?>/gi, '')
-      .replace(/<meta\s+name=["']twitter:[\s\S]*?>/gi, '')
-      .replace(/<link\s+rel=["']canonical["'][\s\S]*?>/gi, '');
-
-    // Insere os metadados específicos da notícia logo após <head>
-    html = html.replace('<head>', `<head>\n${metaBlock}\n`);
-
-    // Injeta indicador de rota para o cliente React
-    html = html.replace(
-      '</head>',
-      `  <script>window.__INITIAL_ARTICLE_SLUG__ = "${escapeHtml(article.slug)}";</script>\n</head>`
-    );
-
-    // Ajusta caminhos relativos de assets para funcionar em subdiretórios (/noticia/slug/index.html fica a 2 níveis da raiz)
-    // Converte href="./" e src="./" para "../../"
-    html = html
-      .replace(/(src|href)=["']\.\/assets\//g, '$1="../../assets/')
-      .replace(/(src|href)=["']\.\/vetor\.svg["']/g, '$1="../../vetor.svg"')
-      .replace(/(src|href)=["']\.\/logo\.svg["']/g, '$1="../../logo.svg"')
-      .replace(/(src|href)=["']\.\/og-image\.png["']/g, '$1="../../og-image.png"')
-      .replace(/(src|href)=["']\/assets\//g, '$1="../../assets/');
-
-    // Cria as pastas e grava index.html para /noticia/slug e /noticias/slug
-    const targets = [
-      path.resolve(distDir, 'noticia', article.slug),
-      path.resolve(distDir, 'noticias', article.slug)
-    ];
-
-    // Com domínio próprio o site fica na raiz; a cópia em /<repo>/ só serve ao endereço github.io
-    if (process.env.GITHUB_REPOSITORY && !process.env.CUSTOM_DOMAIN) {
-      const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
-      if (repo && !repo.endsWith('.github.io')) {
-        targets.push(path.resolve(distDir, repo, 'noticia', article.slug));
-        targets.push(path.resolve(distDir, repo, 'noticias', article.slug));
-      }
-    }
-
-    for (const targetFolder of targets) {
-      if (!fs.existsSync(targetFolder)) {
-        fs.mkdirSync(targetFolder, { recursive: true });
-      }
-      fs.writeFileSync(path.resolve(targetFolder, 'index.html'), html, 'utf-8');
-    }
+    const html = buildStaticPage(baseHtml, metaBlock, `window.__INITIAL_ARTICLE_SLUG__ = "${escapeHtml(article.slug)}";`);
+    writeStaticPage(['noticia', 'noticias'], article.slug, html);
 
     generatedCount++;
   }
+
+  // 3.b Classificados: uma página por anúncio com a primeira foto, o título e o nome do portal
+  const classifieds = await fetchPublishedClassifieds();
+  let classifiedCount = 0;
+  for (const item of classifieds) {
+    if (Buffer.byteLength(item.slug, 'utf-8') > 200) continue;
+    const metaBlock = generateClassifiedOpenGraphHtml(item, origin);
+    const html = buildStaticPage(baseHtml, metaBlock, `window.__INITIAL_CLASSIFIED_SLUG__ = "${escapeHtml(item.slug)}";`);
+    writeStaticPage(['classificado'], item.slug, html);
+    classifiedCount++;
+  }
+  console.log(`[SSG Pre-render] ${classifiedCount} anúncios dos classificados pré-renderizados em /classificado/.`);
 
   // 4. Garante que .nojekyll e 404.html estejam presentes no dist
   const nojekyllSrc = path.resolve(rootDir, 'public/.nojekyll');

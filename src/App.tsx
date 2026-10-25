@@ -23,11 +23,11 @@ import { MyClassifiedsModal } from './components/classifieds/MyClassifiedsModal'
 import { Article, AdItem, CategorySlug, UserProfile, ClassifiedItem, isExtraSidebarSquare } from './types/database';
 import { 
   newsService, adsService, authService, newsletterService,
-  siteSettingsService, supabase, isSupabaseConfigured
+  siteSettingsService, supabase, isSupabaseConfigured, classifiedsService
 } from './lib/supabase';
 import { INITIAL_ARTICLES, INITIAL_ADS } from './data/initialData';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
-import { updateClientHeadForArticle, getAppBasePath } from './lib/seo';
+import { updateClientHeadForArticle, updateClientHeadForClassified, getAppBasePath } from './lib/seo';
 
 export default function App() {
   const [articles, setArticles] = useState<Article[]>(INITIAL_ARTICLES);
@@ -66,6 +66,58 @@ export default function App() {
   // Newsletter Sidebar
   const [sidebarEmail, setSidebarEmail] = useState('');
   const [sidebarSubscribed, setSidebarSubscribed] = useState(false);
+
+  // Slug de anúncio dos classificados no endereço (/classificado/slug, página estática ou ?p= do 404.html)
+  const extractClassifiedSlug = (): string | null => {
+    if (typeof window === 'undefined') return null;
+    const windowSlug = (window as any).__INITIAL_CLASSIFIED_SLUG__;
+    if (windowSlug) return windowSlug;
+    const re = /(?:^|\/)classificados?\/([^/?#]+)/i;
+    const pathMatch = window.location.pathname.match(re);
+    if (pathMatch && pathMatch[1]) return decodeURIComponent(pathMatch[1]);
+    const pParam = new URLSearchParams(window.location.search).get('p');
+    const pMatch = pParam ? pParam.match(re) : null;
+    return pMatch && pMatch[1] ? decodeURIComponent(pMatch[1]) : null;
+  };
+
+  // Volta a barra de endereço para a raiz do portal (ao sair de uma notícia ou anúncio)
+  const resetPathToBase = () => {
+    const basePath = getAppBasePath();
+    if (window.location.pathname !== basePath) {
+      window.history.pushState({}, '', basePath);
+    }
+  };
+
+  // Abre um anúncio com link próprio (/classificado/slug) para copiar e compartilhar
+  const openClassified = (item: ClassifiedItem, updateUrl: 'push' | 'replace' | 'none' = 'push') => {
+    setSelectedClassified(item);
+    setSelectedArticle(null);
+    setCurrentCategory('classificados');
+    setViewMode('classified-detail');
+    if (updateUrl !== 'none' && item.slug) {
+      const basePath = getAppBasePath();
+      const cleanBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
+      const targetUrl = `${cleanBase}classificado/${encodeURIComponent(item.slug)}`;
+      if (window.location.pathname !== targetUrl) {
+        window.history[updateUrl === 'push' ? 'pushState' : 'replaceState']({ classifiedSlug: item.slug }, '', targetUrl);
+      }
+    }
+    updateClientHeadForClassified(item);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openClassifiedBySlug = async (slug: string, updateUrl: 'replace' | 'none') => {
+    try {
+      const found = await classifiedsService.getClassifiedBySlug(slug);
+      if (found && found.status === 'published') {
+        openClassified(found, updateUrl);
+        return true;
+      }
+    } catch (err) {
+      console.warn('Não foi possível abrir o anúncio do link:', err);
+    }
+    return false;
+  };
 
   // Carregar dados iniciais e sessão
   const loadData = async () => {
@@ -107,6 +159,12 @@ export default function App() {
 
       return null;
     };
+
+    const initialClassifiedSlug = extractClassifiedSlug();
+    if (initialClassifiedSlug) {
+      await openClassifiedBySlug(initialClassifiedSlug, 'replace');
+      return;
+    }
 
     const initialSlug = extractSlug();
     if (initialSlug) {
@@ -238,6 +296,12 @@ export default function App() {
   // Monitora navegação pelo histórico do navegador (botões Voltar e Avançar)
   useEffect(() => {
     const handlePopState = () => {
+      const classifiedSlug = extractClassifiedSlug();
+      if (classifiedSlug) {
+        openClassifiedBySlug(classifiedSlug, 'none');
+        return;
+      }
+
       const pathMatch = window.location.pathname.match(/(?:^|\/)(?:noticia|noticias|artigo|artigos)\/([^/?#]+)/i);
       const params = new URLSearchParams(window.location.search);
       const searchSlug = params.get('noticia') || params.get('slug');
@@ -259,7 +323,8 @@ export default function App() {
       const currentPath = window.location.pathname;
       if (currentPath === '/' || currentPath === basePath || currentPath === basePath.replace(/\/$/, '') || !slug) {
         setSelectedArticle(null);
-        setViewMode('home');
+        setSelectedClassified(null);
+        setViewMode(prev => (prev === 'classified-detail' ? 'classifieds' : 'home'));
         document.title = 'Folha da Região - A notícia onde você estiver';
       }
     };
@@ -301,6 +366,7 @@ export default function App() {
     setSearchQuery('');
     setSelectedArticle(null);
     setSelectedClassified(null);
+    resetPathToBase();
     if (cat === 'classificados') {
       setViewMode('classifieds');
     } else {
@@ -311,9 +377,7 @@ export default function App() {
   };
 
   const handleSelectClassified = (item: ClassifiedItem) => {
-    setSelectedClassified(item);
-    setViewMode('classified-detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    openClassified(item);
   };
 
   const handleOpenCreateClassified = () => {
@@ -343,9 +407,7 @@ export default function App() {
 
   const handleViewClassified = (item: ClassifiedItem) => {
     setIsMyClassifiedsOpen(false);
-    setSelectedClassified(item);
-    setViewMode('classified-detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    openClassified(item);
   };
 
   const handleSearch = (query: string) => {
@@ -500,7 +562,12 @@ export default function App() {
         {viewMode === 'classified-detail' && selectedClassified && (
           <ClassifiedDetail
             classified={selectedClassified}
-            onBack={() => setViewMode('classifieds')}
+            onBack={() => {
+              setViewMode('classifieds');
+              setSelectedClassified(null);
+              resetPathToBase();
+              document.title = 'Folha da Região - A notícia onde você estiver';
+            }}
           />
         )}
 
@@ -691,6 +758,7 @@ export default function App() {
           setViewMode('classifieds');
           setSelectedArticle(null);
           setSelectedClassified(null);
+          resetPathToBase();
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
@@ -744,8 +812,7 @@ export default function App() {
             onSuccess={(saved) => {
               setIsClassifiedFormOpen(false);
               setEditingClassified(null);
-              setSelectedClassified(saved);
-              setViewMode('classified-detail');
+              openClassified(saved);
             }}
           />
 

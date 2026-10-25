@@ -8,6 +8,7 @@ import { classifiedsService } from '../../lib/supabase';
 import { formatPrice, getTypeLabel } from './ClassifiedCard';
 import { formatRelativeTime } from '../news/ArticleCard';
 import { ClassifiedReportModal } from './ClassifiedReportModal';
+import { getClassifiedShareData } from '../../lib/seo';
 
 interface ClassifiedDetailProps {
   classified: ClassifiedItem;
@@ -40,18 +41,41 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
   );
   const whatsappUrl = `https://api.whatsapp.com/send?phone=${internationalPhone}&text=${whatsappMessage}`;
 
-  const handleShare = (platform: 'whatsapp' | 'facebook' | 'copy') => {
-    const url = window.location.href;
-    const title = `${classified.title} - Classificados Folha da Região`;
+  // Compartilha o link permanente do anúncio (/classificado/slug). O WhatsApp e o Facebook leem
+  // a página desse link e mostram a primeira foto, o título e o nome "Folha da Região".
+  const handleShare = async (platform: 'whatsapp' | 'facebook' | 'copy') => {
+    const share = getClassifiedShareData(classified);
 
     if (platform === 'whatsapp') {
-      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(`${title}: ${url}`)}`, '_blank');
-    } else if (platform === 'facebook') {
-      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
-    } else {
-      navigator.clipboard.writeText(url);
+      window.open(share.whatsappUrl, '_blank');
+      return;
+    }
+    if (platform === 'facebook') {
+      window.open(share.facebookUrl, '_blank');
+      return;
+    }
+
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(share.canonicalUrl);
+      ok = true;
+    } catch {
+      // Navegadores sem acesso à área de transferência: cópia pelo método antigo
+      const field = document.createElement('textarea');
+      field.value = share.canonicalUrl;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      try { ok = document.execCommand('copy'); } catch { ok = false; }
+      document.body.removeChild(field);
+    }
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
+    } else {
+      window.prompt('Copie o link do anúncio:', share.canonicalUrl);
     }
   };
 
@@ -277,10 +301,11 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
                 </button>
                 <button
                   onClick={() => handleShare('copy')}
+                  title="Copiar o link do anúncio para colar no WhatsApp, Facebook ou Instagram"
                   className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded font-bold hover:bg-gray-200 transition-colors cursor-pointer text-xs flex items-center gap-1"
                 >
                   {copied ? <Check className="w-3 h-3 text-green-600" /> : null}
-                  {copied ? 'Copiado!' : 'Link'}
+                  {copied ? 'Link copiado!' : 'Copiar link'}
                 </button>
               </div>
             </div>

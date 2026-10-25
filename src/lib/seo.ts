@@ -1,4 +1,4 @@
-import { Article } from '../types/database';
+import { Article, ClassifiedItem } from '../types/database';
 
 /**
  * Utilitários de SEO e Metadados Open Graph para WhatsApp e Redes Sociais
@@ -37,13 +37,13 @@ export const getAppBasePath = (): string => {
     // 2. Se estiver em subdiretório do GitHub Pages (ex: tomsilva.github.io/nome-do-repo/)
     if (window.location.hostname.endsWith('github.io')) {
       const parts = window.location.pathname.split('/').filter(Boolean);
-      if (parts.length > 0 && !['noticia', 'noticias', 'artigo', 'artigos'].includes(parts[0].toLowerCase())) {
+      if (parts.length > 0 && !['noticia', 'noticias', 'artigo', 'artigos', 'classificado', 'classificados'].includes(parts[0].toLowerCase())) {
         return `/${parts[0]}/`;
       }
     }
 
     // 3. Fallback: extrai subdiretório anterior a rotas conhecidas de matérias
-    const match = window.location.pathname.match(/^(\/[^/]+)\/(?:noticia|noticias|artigo|artigos)/i);
+    const match = window.location.pathname.match(/^(\/[^/]+)\/(?:noticia|noticias|artigo|artigos|classificado|classificados)/i);
     if (match && match[1]) {
       return `${match[1]}/`;
     }
@@ -284,4 +284,148 @@ export const updateClientHeadForArticle = (article: Article) => {
     document.head.appendChild(canonicalEl);
   }
   canonicalEl.setAttribute('href', canonicalUrl);
+};
+
+// ==========================================
+// CLASSIFICADOS: link permanente e prévia no WhatsApp / Facebook
+// ==========================================
+
+const PORTAL_NAME = 'Folha da Região';
+const CLASSIFIEDS_LABEL = 'Classificados Folha da Região';
+
+/**
+ * Link permanente de um anúncio dos classificados (ex.: https://www.folhadaregiaonline.com.br/classificado/moto-cl-1819)
+ */
+export const getClassifiedCanonicalUrl = (slug: string, customOrigin?: string): string => {
+  let origin = customOrigin;
+  let basePath = '/';
+
+  if (!origin && typeof window !== 'undefined' && window.location?.origin) {
+    origin = window.location.origin;
+    basePath = getAppBasePath();
+  }
+  if (!origin) {
+    origin = DEFAULT_PORTAL_DOMAIN;
+    basePath = '/';
+  }
+
+  origin = origin.replace(/\/+$/, '');
+  const cleanBase = basePath.startsWith('/') ? basePath : `/${basePath}`;
+  const formattedBase = cleanBase.endsWith('/') ? cleanBase : `${cleanBase}/`;
+  return `${origin}${formattedBase}classificado/${encodeURIComponent(slug)}`;
+};
+
+const isJobClassified = (item: Pick<ClassifiedItem, 'section'>): boolean =>
+  item.section === 'vagas_emprego' || item.section === 'procuro_emprego';
+
+// Preço em texto curto para a prévia (R$ 31.999,00 / A combinar / Gratuito)
+export const getClassifiedPriceText = (item: Pick<ClassifiedItem, 'priceType' | 'price' | 'section'>): string => {
+  if (isJobClassified(item)) return item.section === 'vagas_emprego' ? 'Vaga de emprego' : 'Procuro emprego';
+  if (item.priceType === 'free') return 'Gratuito';
+  if (item.priceType === 'negotiable' || item.price === undefined || item.price === null) return 'A combinar';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 }).format(item.price);
+};
+
+// Texto da prévia: preço • cidade/UF — começo da descrição
+export const getClassifiedDescription = (item: ClassifiedItem): string => {
+  const place = [item.city, item.state].filter(Boolean).join('/');
+  const head = [getClassifiedPriceText(item), place].filter(Boolean).join(' • ');
+  const body = stripHtml(item.description || '');
+  const text = body ? `${head} — ${body}` : `${head} — ${CLASSIFIEDS_LABEL}`;
+  return text.length > 160 ? text.slice(0, 157) + '...' : text;
+};
+
+// Primeira foto do anúncio em URL pública e absoluta (o WhatsApp precisa baixar por HTTP)
+export const getClassifiedImageUrl = (item: Pick<ClassifiedItem, 'images'>, customOrigin?: string): string => {
+  const first = (item.images || []).find(img => img && !img.startsWith('data:'));
+  return getAbsoluteImageUrl(first, customOrigin);
+};
+
+/**
+ * Texto de compartilhamento: título + nome do portal + link permanente.
+ * O WhatsApp lê a página do link e monta a prévia com a foto, o título e "Folha da Região".
+ */
+export const getClassifiedShareData = (item: ClassifiedItem, customOrigin?: string) => {
+  const canonicalUrl = getClassifiedCanonicalUrl(item.slug || item.id, customOrigin);
+  const title = item.title.trim();
+  const text = `${title} — ${CLASSIFIEDS_LABEL}\n\n${canonicalUrl}`;
+  return {
+    title,
+    canonicalUrl,
+    formattedText: text,
+    whatsappUrl: `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`,
+    facebookUrl: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(canonicalUrl)}`
+  };
+};
+
+/**
+ * Tags Open Graph da página estática de um anúncio (geradas na publicação do site)
+ */
+export const generateClassifiedOpenGraphHtml = (item: ClassifiedItem, origin: string): string => {
+  const canonicalUrl = getClassifiedCanonicalUrl(item.slug || item.id, origin);
+  const imageUrl = getClassifiedImageUrl(item, origin);
+  const description = getClassifiedDescription(item);
+  const pageTitle = `${item.title} - ${CLASSIFIEDS_LABEL}`;
+
+  return `
+    <title>${escapeHtml(pageTitle)}</title>
+    <meta name="title" content="${escapeHtml(pageTitle)}" />
+    <meta name="description" content="${escapeHtml(description)}" />
+
+    <meta property="og:site_name" content="${escapeHtml(PORTAL_NAME)}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="${escapeHtml(item.title)}" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
+    <meta property="og:image" content="${escapeHtml(imageUrl)}" />
+    <meta property="og:image:secure_url" content="${escapeHtml(imageUrl)}" />
+    <meta property="og:image:alt" content="${escapeHtml(item.title)}" />
+    <meta property="og:locale" content="pt_BR" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(item.title)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${escapeHtml(imageUrl)}" />
+
+    <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
+  `;
+};
+
+/**
+ * Atualiza título e tags da página quando o anúncio é aberto dentro do site
+ */
+export const updateClientHeadForClassified = (item: ClassifiedItem) => {
+  if (typeof document === 'undefined') return;
+  const origin = window.location.origin;
+  const canonicalUrl = getClassifiedCanonicalUrl(item.slug || item.id, origin);
+  const imageUrl = getClassifiedImageUrl(item, origin);
+  const description = getClassifiedDescription(item);
+
+  document.title = `${item.title} - ${CLASSIFIEDS_LABEL}`;
+
+  const setMeta = (attr: 'property' | 'name', value: string, content: string) => {
+    let el = document.querySelector(`meta[${attr}="${value}"]`);
+    if (!el) {
+      el = document.createElement('meta');
+      el.setAttribute(attr, value);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', content);
+  };
+
+  setMeta('name', 'description', description);
+  setMeta('property', 'og:site_name', PORTAL_NAME);
+  setMeta('property', 'og:type', 'website');
+  setMeta('property', 'og:title', item.title);
+  setMeta('property', 'og:description', description);
+  setMeta('property', 'og:url', canonicalUrl);
+  setMeta('property', 'og:image', imageUrl);
+
+  let canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement('link');
+    canonical.setAttribute('rel', 'canonical');
+    document.head.appendChild(canonical);
+  }
+  canonical.setAttribute('href', canonicalUrl);
 };

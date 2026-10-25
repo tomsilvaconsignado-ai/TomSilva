@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { compressImageFile } from '../../lib/imageCompress';
 import { 
   X, Upload, Trash2, Camera, AlertCircle, CheckCircle2, Briefcase, Plus, 
   Image as ImageIcon, ShieldAlert, ShieldCheck, RotateCw, ArrowLeft, UserCheck
@@ -169,38 +170,37 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
     }
   };
 
-  // Upload de arquivos locais (máximo 3 fotos)
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  // Upload de arquivos locais (máximo 3 fotos). As fotos são reduzidas e comprimidas antes do
+  // envio: carregam mais rápido e aparecem na prévia do link no WhatsApp (limite ~600 KB).
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const files = input.files ? Array.from(input.files) : [];
+    if (files.length === 0) return;
 
     if (images.length + files.length > 3) {
       setError('Limite máximo de 3 fotografias por anúncio excedido.');
+      input.value = '';
       return;
     }
 
     setError(null);
-    Array.from(files).forEach((file) => {
+    for (const file of files) {
       if (!file.type.startsWith('image/')) {
         setError('Apenas arquivos de imagem (JPEG, PNG, WEBP) são permitidos.');
-        return;
+        continue;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        setError('O tamanho máximo permitido por foto é de 5MB.');
-        return;
+      if (file.size > 15 * 1024 * 1024) {
+        setError('O tamanho máximo permitido por foto é de 15MB.');
+        continue;
       }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result && typeof event.target.result === 'string') {
-          setImages((prev) => {
-            if (prev.length >= 3) return prev;
-            return [...prev, event.target!.result as string];
-          });
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+      try {
+        const compressed = await compressImageFile(file);
+        setImages((prev) => (prev.length >= 3 ? prev : [...prev, compressed]));
+      } catch {
+        setError('Não foi possível processar uma das fotos. Tente outra imagem.');
+      }
+    }
+    input.value = '';
   };
 
   const handleAddImageUrl = () => {
