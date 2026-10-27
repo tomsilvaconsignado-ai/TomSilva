@@ -28,7 +28,7 @@ import {
 import { HomeSkeleton } from './components/news/HomeSkeleton';
 import { INITIAL_ARTICLES, INITIAL_ADS } from './data/initialData';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
-import { updateClientHeadForArticle, updateClientHeadForClassified, getAppBasePath } from './lib/seo';
+import { updateClientHeadForArticle, updateClientHeadForClassified, getAppBasePath, getArticlePathKey } from './lib/seo';
 
 export default function App() {
   // Começam vazios: a página mostra o esqueleto até as notícias e banners atuais chegarem,
@@ -352,7 +352,7 @@ export default function App() {
     // Atualiza a URL canônica na barra de endereços do navegador preservando a base da aplicação
     const basePath = getAppBasePath();
     const cleanBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
-    const targetUrl = `${cleanBase}noticia/${encodeURIComponent(art.slug)}/`;
+    const targetUrl = `${cleanBase}noticia/${encodeURIComponent(getArticlePathKey(art))}/`;
     if (window.location.pathname !== targetUrl) {
       window.history.pushState({ articleSlug: art.slug }, '', targetUrl);
     }

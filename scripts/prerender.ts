@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { INITIAL_ARTICLES } from '../src/data/initialData';
 import { Article, ClassifiedItem } from '../src/types/database';
-import { generateOpenGraphHtml, generateClassifiedOpenGraphHtml, escapeHtml, DEFAULT_PORTAL_DOMAIN } from '../src/lib/seo';
+import { generateOpenGraphHtml, generateClassifiedOpenGraphHtml, escapeHtml, DEFAULT_PORTAL_DOMAIN, getArticlePathKey } from '../src/lib/seo';
 import { DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY } from '../src/lib/supabaseConfig';
 import sharp from 'sharp';
 
@@ -236,23 +236,26 @@ async function runPrerender() {
   console.log(`[SSG Pre-render] ${lightCount} fotos pesadas ganharam versão leve para a prévia do WhatsApp.`);
 
   let generatedCount = 0;
+  // id -> título e foto de cada matéria com página estática (lido pelo vigia og-watch.yml)
+  const prerendered: Record<string, string> = {};
 
   // 3. Para cada notícia publicada, gera o arquivo estático com Open Graph no head
   for (const article of articles) {
     if (article.status === 'draft') continue;
-    // Sistemas de arquivos limitam o nome da pasta a 255 bytes; slugs maiores (há matérias antigas
-    // com o texto inteiro no slug) continuam abrindo pelo roteamento do SPA via 404.html
-    if (Buffer.byteLength(article.slug, 'utf-8') > 200) {
-      console.warn(`[SSG Pre-render] Slug longo demais, sem página estática: ${article.title}`);
-      continue;
-    }
 
+    // Slug longo demais para nome de pasta (matérias antigas com o texto inteiro no slug): a página
+    // fica em /noticia/<id>/, o mesmo endereço que o botão de compartilhar usa para essas matérias
     const metaBlock = generateOpenGraphHtml({ ...article, imageUrl: previewByArticle.get(article.id) || article.imageUrl }, origin);
     const html = buildStaticPage(baseHtml, metaBlock, `window.__INITIAL_ARTICLE_SLUG__ = "${escapeHtml(article.slug)}";`);
-    writeStaticPage(['noticia', 'noticias'], article.slug, html);
+    writeStaticPage(['noticia', 'noticias'], getArticlePathKey(article), html);
+    prerendered[article.id] = `${article.title}\n${article.imageUrl || ''}`;
 
     generatedCount++;
   }
+
+  // Lista das matérias que já têm prévia: o vigia compara com o Supabase e publica o site de novo
+  // quando aparece matéria nova ou editada sem página estática
+  fs.writeFileSync(path.resolve(distDir, 'og-manifest.json'), JSON.stringify(prerendered), 'utf-8');
 
   // 3.b Classificados: uma página por anúncio com a primeira foto, o título e o nome do portal
   const classifieds = await fetchPublishedClassifieds();

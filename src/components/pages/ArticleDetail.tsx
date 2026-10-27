@@ -5,7 +5,7 @@ import { commentsService, newsService } from '../../lib/supabase';
 import { ArticleCard, formatRelativeTime } from '../news/ArticleCard';
 import { AdSlot } from '../news/AdSlot';
 import { getAssetUrl, sanitizeHtml } from '../../lib/assets';
-import { getArticleCanonicalUrl, getWhatsAppShareData, updateClientHeadForArticle } from '../../lib/seo';
+import { getArticleCanonicalUrl, getArticlePathKey, getWhatsAppShareData, updateClientHeadForArticle } from '../../lib/seo';
 
 interface ArticleDetailProps {
   article: Article;
@@ -48,7 +48,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
   }, [article.id]);
 
   const handleShare = async (platform: 'whatsapp' | 'facebook' | 'twitter' | 'copy') => {
-    const canonicalUrl = getArticleCanonicalUrl(article.slug);
+    const canonicalUrl = getArticleCanonicalUrl(getArticlePathKey(article));
     const title = article.title.trim();
 
     if (platform === 'whatsapp') {

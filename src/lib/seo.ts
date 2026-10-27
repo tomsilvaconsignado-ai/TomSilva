@@ -53,6 +53,16 @@ export const getAppBasePath = (): string => {
   return (base === './' || base === '.') ? '/' : (base.endsWith('/') ? base : `${base}/`);
 };
 
+// Limite do nome da pasta da página estática da notícia (sistemas de arquivos aceitam até 255 bytes)
+export const MAX_STATIC_SLUG_BYTES = 200;
+
+/**
+ * Trecho do endereço da notícia: o slug, ou o id quando o slug é longo demais para virar pasta
+ * (há matérias antigas com o texto inteiro no slug). O site abre a matéria pelos dois.
+ */
+export const getArticlePathKey = (article: Pick<Article, 'slug' | 'id'>): string =>
+  new TextEncoder().encode(article.slug || '').length > MAX_STATIC_SLUG_BYTES || !article.slug ? article.id : article.slug;
+
 /**
  * Retorna a URL canônica e permanente de uma notícia
  * Preserva o domínio real e o subdiretório do repositório no GitHub Pages
@@ -123,7 +133,7 @@ export const getAbsoluteImageUrl = (imageUrl?: string, customOrigin?: string, ar
  * Gera texto de compartilhamento formatado para WhatsApp
  */
 export const getWhatsAppShareData = (article: Article, customOrigin?: string) => {
-  const canonicalUrl = getArticleCanonicalUrl(article.slug, customOrigin);
+  const canonicalUrl = getArticleCanonicalUrl(getArticlePathKey(article), customOrigin);
   const title = article.title.trim();
   // Formato ideal para o WhatsApp: Título da notícia + link permanente
   // O WhatsApp faz o scraping da página informada no link para carregar a imagem e resumo
@@ -142,7 +152,7 @@ export const getWhatsAppShareData = (article: Article, customOrigin?: string) =>
  * Gera tags Open Graph, Twitter Cards e Schema.org em formato HTML
  */
 export const generateOpenGraphHtml = (article: Article, origin: string): string => {
-  const canonicalUrl = getArticleCanonicalUrl(article.slug, origin);
+  const canonicalUrl = getArticleCanonicalUrl(getArticlePathKey(article), origin);
   const imageUrl = getAbsoluteImageUrl(article.imageUrl, origin, article.slug || article.id);
   const portalName = 'Folha da Região';
   
@@ -238,7 +248,7 @@ export const updateClientHeadForArticle = (article: Article) => {
   if (typeof document === 'undefined') return;
 
   const origin = window.location.origin;
-  const canonicalUrl = getArticleCanonicalUrl(article.slug, origin);
+  const canonicalUrl = getArticleCanonicalUrl(getArticlePathKey(article), origin);
   const imageUrl = getAbsoluteImageUrl(article.imageUrl, origin, article.slug || article.id);
   const portalName = 'Folha da Região';
   const pageTitle = `${article.title} - ${portalName}`;
