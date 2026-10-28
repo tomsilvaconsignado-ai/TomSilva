@@ -12,4 +12,4 @@ ALTER TABLE public.ads
   CHECK (placement IN (
     'header', 'feed', 'sidebar', 'article', 'footer', 'sidebar_300x900', 'sidebar_300x600',
     'sidebar_300x300_2', 'sidebar_300x300_3'
-  ));
+  )) NOT VALID;

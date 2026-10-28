@@ -23,7 +23,7 @@ BEGIN;
 -- ------------------------------------------------------------------------------
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_status_check;
 ALTER TABLE public.profiles
-  ADD CONSTRAINT profiles_status_check CHECK (status IN ('active', 'suspended', 'blocked', 'inactive'));
+  ADD CONSTRAINT profiles_status_check CHECK (status IN ('active', 'suspended', 'blocked', 'inactive')) NOT VALID;
 
 -- ------------------------------------------------------------------------------
 -- 2. ARTICLES: coluna status (rascunho/publicado) e leitura pública só do publicado
@@ -31,7 +31,7 @@ ALTER TABLE public.profiles
 ALTER TABLE public.articles ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'published';
 ALTER TABLE public.articles DROP CONSTRAINT IF EXISTS articles_status_check;
 ALTER TABLE public.articles
-  ADD CONSTRAINT articles_status_check CHECK (status IN ('published', 'draft'));
+  ADD CONSTRAINT articles_status_check CHECK (status IN ('published', 'draft')) NOT VALID;
 CREATE INDEX IF NOT EXISTS idx_articles_status ON public.articles(status);
 
 DROP POLICY IF EXISTS "Notícias são públicas para leitura" ON public.articles;
@@ -68,12 +68,28 @@ ALTER TABLE public.ads ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME Z
 
 -- O app usa mais espaços do que os três originais
 ALTER TABLE public.ads DROP CONSTRAINT IF EXISTS ads_placement_check;
+-- Anúncios gravados por versões antigas com espaço que o app não conhece mais
+-- (ex.: 'sidebar_300x300') vão para o espaço equivalente pelo tamanho
+UPDATE public.ads SET placement = CASE
+    WHEN width = 300 AND height = 900 THEN 'sidebar_300x900'
+    WHEN width = 300 AND height = 600 THEN 'sidebar_300x600'
+    WHEN placement ILIKE 'sidebar%' OR (width = 300 AND height = 300) THEN 'sidebar'
+    ELSE placement
+  END
+WHERE placement NOT IN (
+  'header', 'feed', 'sidebar', 'article', 'footer', 'sidebar_300x900', 'sidebar_300x600',
+  'sidebar_300x300_2', 'sidebar_300x300_3'
+);
+-- NOT VALID: vale para toda gravação nova, sem barrar a atualização por dado antigo
 ALTER TABLE public.ads
   ADD CONSTRAINT ads_placement_check
-  CHECK (placement IN ('header', 'feed', 'sidebar', 'article', 'footer', 'sidebar_300x900', 'sidebar_300x600'));
+  CHECK (placement IN (
+    'header', 'feed', 'sidebar', 'article', 'footer', 'sidebar_300x900', 'sidebar_300x600',
+    'sidebar_300x300_2', 'sidebar_300x300_3'
+  )) NOT VALID;
 ALTER TABLE public.ads DROP CONSTRAINT IF EXISTS ads_status_check;
 ALTER TABLE public.ads
-  ADD CONSTRAINT ads_status_check CHECK (status IN ('active', 'paused', 'ended'));
+  ADD CONSTRAINT ads_status_check CHECK (status IN ('active', 'paused', 'ended')) NOT VALID;
 CREATE INDEX IF NOT EXISTS idx_ads_display_order ON public.ads(display_order);
 
 -- Métricas de impressão/clique (visitantes anônimos não têm UPDATE em ads)
