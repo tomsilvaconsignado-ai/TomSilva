@@ -8,7 +8,8 @@ import { classifiedsService } from '../../lib/supabase';
 import { formatPrice, getTypeLabel } from './ClassifiedCard';
 import { formatRelativeTime } from '../news/ArticleCard';
 import { ClassifiedReportModal } from './ClassifiedReportModal';
-import { getClassifiedShareData } from '../../lib/seo';
+import { getClassifiedShareData, getClassifiedCanonicalUrl } from '../../lib/seo';
+import { hasShareablePhoto, usePreviewStatus, PREVIEW_PENDING_MESSAGE } from '../../lib/share';
 
 interface ClassifiedDetailProps {
   classified: ClassifiedItem;
@@ -43,7 +44,32 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
 
   // Compartilha o link permanente do anúncio (/classificado/slug). O WhatsApp e o Facebook leem
   // a página desse link e mostram a primeira foto, o título e o nome "Folha da Região".
+  // Só compartilha anúncio publicado e válido, com foto e título, cuja página do link já mostra a prévia completa
+  const isLive = classified.status === 'published' && new Date(classified.expiresAt) > new Date();
+  const shareBlockReason =
+    !isLive ? 'Só anúncios publicados e dentro da validade podem ser compartilhados.'
+    : !classified.title?.trim() ? 'O anúncio precisa de um título para ser compartilhado.'
+    : !(classified.images || []).some(hasShareablePhoto) ? 'Adicione ao menos uma foto ao anúncio para poder compartilhá-lo.'
+    : null;
+  const preview = usePreviewStatus(
+    getClassifiedCanonicalUrl(classified.slug || classified.id),
+    classified.title || '',
+    !shareBlockReason
+  );
+
   const handleShare = async (platform: 'whatsapp' | 'facebook' | 'copy') => {
+    if (shareBlockReason) {
+      alert(shareBlockReason);
+      return;
+    }
+    if (preview.status !== 'ready') {
+      // Confere de novo: o deploy pode ter terminado desde a abertura do anúncio
+      if (!(await preview.recheck())) {
+        alert(PREVIEW_PENDING_MESSAGE);
+        return;
+      }
+    }
+
     const share = getClassifiedShareData(classified);
 
     if (platform === 'whatsapp') {
@@ -309,6 +335,11 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
                 </button>
               </div>
             </div>
+            {(shareBlockReason || preview.status === 'pending') && (
+              <p className="text-[11px] text-amber-700 font-semibold">
+                {shareBlockReason || 'Prévia com foto e título ainda em geração: o compartilhamento será liberado em alguns minutos.'}
+              </p>
+            )}
 
             {/* Botão de Denúncia */}
             <div className="pt-2 text-center border-t border-gray-100">

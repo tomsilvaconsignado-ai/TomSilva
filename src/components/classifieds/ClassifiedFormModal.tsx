@@ -152,6 +152,13 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
     });
   }, [section, isOpen, initialData]);
 
+  // O modal continua montado entre aberturas: limpa o aviso do envio anterior para liberar o próximo
+  useEffect(() => {
+    if (isOpen) {
+      setSuccessMessage(null);
+      setError(null);
+    }
+  }, [isOpen]);
 
   const isJob = section === 'vagas_emprego' || section === 'procuro_emprego';
 
@@ -220,6 +227,8 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Evita publicar em duplicidade com cliques repetidos enquanto salva ou mostra o aviso de sucesso
+    if (loading || successMessage) return;
     setError(null);
 
     if (!title.trim()) {
@@ -954,7 +963,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || Boolean(successMessage)}
               className="px-6 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white rounded-lg text-xs font-black uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-50"
             >
               {loading ? 'Publicando...' : initialData ? 'Salvar Alterações' : 'Publicar Anúncio Agora'}

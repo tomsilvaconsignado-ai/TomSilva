@@ -4,10 +4,15 @@ on:
   push:
     branches:
       - 'https/folhadaregiaonline'
-  # Recompila a cada 10 minutos para gerar as prévias de compartilhamento (Open Graph)
-  # das matérias e dos anúncios dos classificados publicados desde o último deploy
+  # Recompila periodicamente para gerar as prévias de compartilhamento (Open Graph)
+  # das matérias e dos anúncios dos classificados publicados desde o último deploy.
+  # Atenção: schedule e repository_dispatch rodam no branch PADRÃO do repositório, que precisa
+  # ser o https/folhadaregiaonline (o único liberado no ambiente github-pages).
   schedule:
     - cron: '*/10 * * * *'
+  # Deploy imediato ao publicar: POST /repos/{dono}/{repo}/dispatches com {"event_type":"publicacao"}
+  repository_dispatch:
+    types: [publicacao]
   workflow_dispatch:
 
 permissions:
@@ -15,9 +20,10 @@ permissions:
   pages: write
   id-token: write
 
+# Não cancela um deploy em andamento: o próximo fica na fila e já inclui todas as publicações novas
 concurrency:
   group: 'pages'
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:

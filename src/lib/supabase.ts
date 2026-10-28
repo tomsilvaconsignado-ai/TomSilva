@@ -384,11 +384,19 @@ export const mediaService = {
   },
 
   // Envia um data URL ao Storage e devolve a URL pública. URLs comuns são devolvidas sem alteração.
-  async ensureUploaded(url: string | undefined, folder: string): Promise<string | undefined> {
-    if (!url || !url.startsWith('data:') || !supabase) return url;
+  // Com required, a falha no envio vira erro: a foto embutida no banco não aparece na prévia do WhatsApp.
+  async ensureUploaded(url: string | undefined, folder: string, required = false): Promise<string | undefined> {
+    if (!url || !url.startsWith('data:')) return url;
+    if (!supabase) {
+      if (required) throw new Error('Sem conexão com o banco de dados para enviar a foto. Tente de novo.');
+      return url;
+    }
     const blob = dataUrlToBlob(url);
     const ext = blob ? MIME_EXTENSIONS[blob.type] : undefined;
-    if (!blob || !ext) return url;
+    if (!blob || !ext) {
+      if (required) throw new Error('Formato de foto não aceito. Use JPG, PNG, WebP ou GIF.');
+      return url;
+    }
 
     const path = `${folder.replace(/\/+$/, '')}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
     const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, blob, {
@@ -397,6 +405,7 @@ export const mediaService = {
       upsert: false
     });
     if (error) {
+      if (required) throw new Error(translateStorageError(error.message));
       // Mantém o data URL para não perder o arquivo; o registro continua funcionando
       console.warn('Falha ao enviar mídia ao Supabase Storage (mantendo arquivo embutido):', error.message);
       return url;
@@ -404,10 +413,10 @@ export const mediaService = {
     return supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path).data.publicUrl;
   },
 
-  async ensureAllUploaded(urls: string[], folder: string): Promise<string[]> {
+  async ensureAllUploaded(urls: string[], folder: string, required = false): Promise<string[]> {
     const results: string[] = [];
     for (const url of urls) {
-      const uploaded = await this.ensureUploaded(url, folder);
+      const uploaded = await this.ensureUploaded(url, folder, required);
       if (uploaded) results.push(uploaded);
     }
     return results;
@@ -950,7 +959,7 @@ export const newsService = {
   async saveArticle(article: Omit<Article, 'id' | 'createdAt' | 'viewsCount'> & { id?: string }): Promise<Article> {
     const sb = requireSupabase();
     const now = new Date().toISOString();
-    const imageUrl = (await mediaService.ensureUploaded(article.imageUrl, 'articles')) || DEFAULT_ARTICLE_IMAGE;
+    const imageUrl = (await mediaService.ensureUploaded(article.imageUrl, 'articles', true)) || DEFAULT_ARTICLE_IMAGE;
     const videoUrl = await mediaService.ensureUploaded(article.videoUrl, 'articles');
 
     let saved: Article | null = null;
@@ -2187,9 +2196,10 @@ export const classifiedsService = {
 
     const sb = requireSupabase();
     // No máximo 3 imagens, enviadas ao Storage em vez de gravadas em base64
-    const images = await mediaService.ensureAllUploaded((itemData.images || []).slice(0, 3), `classifieds/${user.id}`);
+    const images = await mediaService.ensureAllUploaded((itemData.images || []).slice(0, 3), `classifieds/${user.id}`, true);
     const settings = await this.getSettings();
     const isAdmin = user.role === 'admin';
+    const validityDays = settings.defaultValidityDays || 30;
 
     if (itemData.id) {
       const existing = await this.getClassifiedById(itemData.id);
@@ -2207,9 +2217,19 @@ export const classifiedsService = {
         images,
         updatedAt: new Date().toISOString()
       };
-      // Edição feita pelo anunciante volta para análise quando a aprovação está ativa
-      if (!isAdmin && settings.requireApproval && updated.status === 'published') {
-        updated.status = 'pending';
+      if (!isAdmin) {
+        const wasExpired = existing.status === 'expired' || new Date(existing.expiresAt) < new Date();
+        if (updated.status === 'rejected') {
+          // Anúncio recusado e corrigido pelo anunciante volta para a análise
+          updated.status = 'pending';
+        } else if (wasExpired || (settings.requireApproval && updated.status === 'published')) {
+          // Edição do anunciante volta para análise quando a aprovação está ativa
+          updated.status = settings.requireApproval ? 'pending' : 'published';
+        }
+        // Anúncio vencido que é corrigido ganha nova validade
+        if (wasExpired) {
+          updated.expiresAt = new Date(Date.now() + validityDays * 24 * 3600 * 1000).toISOString();
+        }
       }
 
       const { data, error } = await sb
@@ -2224,7 +2244,6 @@ export const classifiedsService = {
       return mapClassifiedRowToItem(data);
     }
 
-    const validityDays = settings.defaultValidityDays || 30;
     const createItem = (): ClassifiedItem => {
       const { code, slug } = generateClassifiedIdentity(itemData.title || '');
       return {
@@ -2311,13 +2330,24 @@ export const classifiedsService = {
       }
     }
 
-    const sb = requireSupabase();
-    const { error } = await sb.from('classifieds').update({
+    const patch: Record<string, any> = {
       status: newStatus,
       rejection_reason: rejectionReason || null,
       updated_at: new Date().toISOString()
-    }).eq('id', id);
+    };
+    // Aprovação pela equipe: a validade conta a partir de quando o anúncio entra no ar, não do envio
+    if (isStaff && newStatus === 'published' && target.status !== 'paused') {
+      const settings = await this.getSettings();
+      patch.expires_at = new Date(Date.now() + (settings.defaultValidityDays || 30) * 24 * 3600 * 1000).toISOString();
+    }
+
+    const sb = requireSupabase();
+    const { data, error } = await sb.from('classifieds').update(patch).eq('id', id).select('id');
     if (error) throw describeDbError(error, 'alterar o status do anúncio');
+    // O RLS bloqueia sem erro: nenhuma linha alterada significa que a conta não tem permissão
+    if (!data || data.length === 0) {
+      throw new Error('Sem permissão para alterar o status deste anúncio. Entre novamente com uma conta autorizada.');
+    }
 
     safeDispatchEvent(new Event('folha_classifieds_updated'));
     return true;
@@ -2326,7 +2356,8 @@ export const classifiedsService = {
   async renewClassified(id: string, user: UserProfile): Promise<boolean> {
     const target = await this.getClassifiedById(id);
     if (!target) return false;
-    if (target.userId !== user.id && user.role !== 'admin') {
+    const isStaff = user.role === 'admin' || user.role === 'editor';
+    if (target.userId !== user.id && !isStaff) {
       throw new Error('Permissão negada.');
     }
 
@@ -2334,16 +2365,19 @@ export const classifiedsService = {
     const days = settings.defaultValidityDays || 30;
     // Se estava expirado, volta para publicado (ou para análise, se configurado)
     const status: ClassifiedStatus = target.status === 'expired' || new Date(target.expiresAt) < new Date()
-      ? (settings.requireApproval && user.role !== 'admin' ? 'pending' : 'published')
+      ? (settings.requireApproval && !isStaff ? 'pending' : 'published')
       : target.status;
 
     const sb = requireSupabase();
-    const { error } = await sb.from('classifieds').update({
+    const { data, error } = await sb.from('classifieds').update({
       expires_at: new Date(Date.now() + days * 24 * 3600 * 1000).toISOString(),
       status,
       updated_at: new Date().toISOString()
-    }).eq('id', id);
+    }).eq('id', id).select('id');
     if (error) throw describeDbError(error, 'renovar o anúncio');
+    if (!data || data.length === 0) {
+      throw new Error('Sem permissão para renovar este anúncio. Entre novamente com uma conta autorizada.');
+    }
 
     safeDispatchEvent(new Event('folha_classifieds_updated'));
     return true;

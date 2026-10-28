@@ -6,6 +6,7 @@ import { ArticleCard, formatRelativeTime } from '../news/ArticleCard';
 import { AdSlot } from '../news/AdSlot';
 import { getAssetUrl, sanitizeHtml } from '../../lib/assets';
 import { getArticleCanonicalUrl, getArticlePathKey, getWhatsAppShareData, updateClientHeadForArticle } from '../../lib/seo';
+import { hasShareablePhoto, usePreviewStatus, PREVIEW_PENDING_MESSAGE } from '../../lib/share';
 
 interface ArticleDetailProps {
   article: Article;
@@ -47,7 +48,27 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
     commentsService.getComments(article.id).then(setComments);
   }, [article.id]);
 
+  // Só compartilha matéria publicada, com foto e título, cuja página do link já mostra a prévia completa
+  const shareBlockReason =
+    article.status === 'draft' ? 'Esta matéria é um rascunho e ainda não pode ser compartilhada.'
+    : !article.title?.trim() ? 'A matéria precisa de um título para ser compartilhada.'
+    : !hasShareablePhoto(article.imageUrl) ? 'A matéria precisa de uma foto para ser compartilhada.'
+    : null;
+  const preview = usePreviewStatus(getArticleCanonicalUrl(getArticlePathKey(article)), article.title || '', !shareBlockReason);
+
   const handleShare = async (platform: 'whatsapp' | 'facebook' | 'twitter' | 'copy') => {
+    if (shareBlockReason) {
+      alert(shareBlockReason);
+      return;
+    }
+    if (preview.status !== 'ready') {
+      // Confere de novo: o deploy pode ter terminado desde a abertura da matéria
+      if (!(await preview.recheck())) {
+        alert(PREVIEW_PENDING_MESSAGE);
+        return;
+      }
+    }
+
     const canonicalUrl = getArticleCanonicalUrl(getArticlePathKey(article));
     const title = article.title.trim();
 
@@ -278,6 +299,11 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
               {copied ? 'Link copiado com sucesso!' : 'Copiar Link'}
             </button>
           </div>
+          {(shareBlockReason || preview.status === 'pending') && (
+            <p className="w-full text-[11px] text-amber-700 font-semibold">
+              {shareBlockReason || 'Prévia com foto e título ainda em geração: o compartilhamento será liberado em alguns minutos.'}
+            </p>
+          )}
         </div>
 
         {/* Conteúdo Completo da Matéria */}

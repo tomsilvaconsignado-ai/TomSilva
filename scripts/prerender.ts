@@ -12,86 +12,83 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.resolve(rootDir, 'dist');
 
-// Lê as matérias publicadas pela API REST do Supabase com a chave pública (anon)
-async function fetchPublishedArticles(): Promise<Article[]> {
+// Lê todas as linhas de uma consulta da API REST do Supabase, em páginas (o Supabase devolve no máximo
+// 1000 por vez). Falha de consulta vira erro: sem os dados atuais o build não pode publicar o site,
+// senão as páginas das publicações recentes somem e as prévias voltam a sair sem foto e sem título.
+async function fetchAllRows(query: string, label: string): Promise<any[]> {
   const url = (process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).trim().replace(/\/+$/, '');
   const key = (process.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY).trim();
-  try {
-    const resp = await fetch(
-      `${url}/rest/v1/articles?select=id,title,subtitle,slug,content,category,image_url,video_url,is_video,author,views_count,created_at,updated_at,status&status=eq.published&order=created_at.desc`,
-      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
-    );
+  const pageSize = 1000;
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const resp = await fetch(`${url}/rest/v1/${query}&limit=${pageSize}&offset=${offset}`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }
+    });
     if (!resp.ok) {
-      console.warn(`[SSG Pre-render] Supabase respondeu ${resp.status}; usando matérias iniciais.`);
-      return [];
+      throw new Error(`Supabase respondeu ${resp.status} ao listar ${label}: ${await resp.text()}`);
     }
-    const rows: any[] = await resp.json();
-    return rows.map(r => ({
-      id: r.id,
-      title: r.title,
-      subtitle: r.subtitle || undefined,
-      slug: r.slug,
-      content: r.content,
-      category: r.category,
-      imageUrl: r.image_url,
-      videoUrl: r.video_url || undefined,
-      isVideo: Boolean(r.is_video),
-      viewsCount: r.views_count || 0,
-      author: r.author || 'Folha da Região',
-      createdAt: r.created_at,
-      updatedAt: r.updated_at || undefined,
-      status: r.status || 'published'
-    }));
-  } catch (e) {
-    console.warn('[SSG Pre-render] Não foi possível consultar o Supabase; usando matérias iniciais.', e);
-    return [];
+    const page: any[] = await resp.json();
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
   }
+}
+
+// Lê as matérias publicadas pela API REST do Supabase com a chave pública (anon)
+async function fetchPublishedArticles(): Promise<Article[]> {
+  const rows = await fetchAllRows(
+    'articles?select=id,title,subtitle,slug,content,category,image_url,video_url,is_video,author,views_count,created_at,updated_at,status&status=eq.published&order=created_at.desc,id.asc',
+    'as matérias'
+  );
+  return rows.map(r => ({
+    id: r.id,
+    title: r.title,
+    subtitle: r.subtitle || undefined,
+    slug: r.slug,
+    content: r.content,
+    category: r.category,
+    imageUrl: r.image_url,
+    videoUrl: r.video_url || undefined,
+    isVideo: Boolean(r.is_video),
+    viewsCount: r.views_count || 0,
+    author: r.author || 'Folha da Região',
+    createdAt: r.created_at,
+    updatedAt: r.updated_at || undefined,
+    status: r.status || 'published'
+  }));
 }
 
 // Lê os anúncios publicados e ainda válidos dos classificados (a leitura pública é liberada pelo RLS)
 async function fetchPublishedClassifieds(): Promise<ClassifiedItem[]> {
-  const url = (process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL).trim().replace(/\/+$/, '');
-  const key = (process.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY).trim();
-  try {
-    const resp = await fetch(
-      `${url}/rest/v1/classifieds?select=id,code,slug,title,description,section,type,category,price_type,price,city,state,images,status,created_at,updated_at,expires_at&status=eq.published&order=created_at.desc`,
-      { headers: { apikey: key, Authorization: `Bearer ${key}` } }
-    );
-    if (!resp.ok) {
-      console.warn(`[SSG Pre-render] Supabase respondeu ${resp.status} ao listar classificados; nenhum anúncio pré-renderizado.`);
-      return [];
-    }
-    const now = Date.now();
-    const rows: any[] = await resp.json();
-    return rows
-      .filter(r => r.slug && (!r.expires_at || new Date(r.expires_at).getTime() > now))
-      .map(r => ({
-        id: r.id,
-        code: r.code,
-        userId: '',
-        section: r.section,
-        type: r.type,
-        category: r.category || '',
-        title: r.title,
-        slug: r.slug,
-        description: r.description || '',
-        priceType: r.price_type || 'fixed',
-        price: r.price !== null && r.price !== undefined ? Number(r.price) : undefined,
-        city: r.city || '',
-        state: r.state || '',
-        advertiserName: '',
-        phone: '',
-        images: Array.isArray(r.images) ? r.images : [],
-        status: r.status,
-        viewsCount: 0,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at || undefined,
-        expiresAt: r.expires_at
-      }));
-  } catch (e) {
-    console.warn('[SSG Pre-render] Não foi possível consultar os classificados no Supabase.', e);
-    return [];
-  }
+  const rows = await fetchAllRows(
+    'classifieds?select=id,code,slug,title,description,section,type,category,price_type,price,city,state,images,status,created_at,updated_at,expires_at&status=eq.published&order=created_at.desc,id.asc',
+    'os classificados'
+  );
+  const now = Date.now();
+  return rows
+    .filter(r => r.slug && (!r.expires_at || new Date(r.expires_at).getTime() > now))
+    .map(r => ({
+      id: r.id,
+      code: r.code,
+      userId: '',
+      section: r.section,
+      type: r.type,
+      category: r.category || '',
+      title: r.title,
+      slug: r.slug,
+      description: r.description || '',
+      priceType: r.price_type || 'fixed',
+      price: r.price !== null && r.price !== undefined ? Number(r.price) : undefined,
+      city: r.city || '',
+      state: r.state || '',
+      advertiserName: '',
+      phone: '',
+      images: Array.isArray(r.images) ? r.images : [],
+      status: r.status,
+      viewsCount: 0,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at || undefined,
+      expiresAt: r.expires_at
+    }));
 }
 
 // Monta a página estática: metadados próprios no <head> e caminhos de assets a 2 níveis da raiz

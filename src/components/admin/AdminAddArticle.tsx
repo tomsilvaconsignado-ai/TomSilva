@@ -5,7 +5,7 @@ import {
   Heading2, List, Quote, Sparkles, Send, Save, Info
 } from 'lucide-react';
 import { Article, ArticleStatus, UserProfile } from '../../types/database';
-import { newsService } from '../../lib/supabase';
+import { newsService, slugify } from '../../lib/supabase';
 import { INITIAL_CATEGORIES } from '../../data/initialData';
 import { getAssetUrl, sanitizeHtml } from '../../lib/assets';
 import { compressImageFile } from '../../lib/imageCompress';
@@ -49,6 +49,8 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  // Matéria já gravada nesta tela: novos cliques atualizam a mesma matéria em vez de criar outra
+  const savedRef = useRef<{ id: string; slug: string } | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [imageRatioNotice, setImageRatioNotice] = useState<string | null>(null);
 
@@ -130,6 +132,8 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
 
   // Salvar rascunho ou Publicar
   const handleSave = async (targetStatus: ArticleStatus) => {
+    // Evita publicar em duplicidade com cliques repetidos enquanto salva ou mostra o aviso de sucesso
+    if (loading || successNotice) return;
     setError(null);
     setSuccessNotice(null);
 
@@ -156,10 +160,11 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
 
     try {
       const saved = await newsService.saveArticle({
-        id: editingArticle?.id,
+        id: editingArticle?.id || savedRef.current?.id,
         title: title.trim(),
         subtitle: subtitle.trim(),
-        slug: editingArticle?.slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        // Na edição o endereço é mantido para não quebrar links já compartilhados
+        slug: editingArticle?.slug || savedRef.current?.slug || slugify(title.trim()),
         content: content.trim(),
         category,
         imageUrl: imageUrl.trim(),
@@ -171,6 +176,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
         status: targetStatus
       });
 
+      savedRef.current = { id: saved.id, slug: saved.slug };
       setStatus(targetStatus);
       setSuccessNotice(
         targetStatus === 'published' 
@@ -633,7 +639,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
             {/* Ação 1: Salvar Rascunho */}
             <button
               type="button"
-              disabled={loading}
+              disabled={loading || Boolean(successNotice)}
               onClick={() => handleSave('draft')}
               className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2"
             >
@@ -654,7 +660,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
             {/* Ação 3: Publicar Notícia */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || Boolean(successNotice)}
               className="px-7 py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center gap-2"
             >
               {loading ? (
