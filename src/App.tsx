@@ -20,6 +20,7 @@ import { ClassifiedList } from './components/classifieds/ClassifiedList';
 import { ClassifiedDetail } from './components/classifieds/ClassifiedDetail';
 import { ClassifiedFormModal } from './components/classifieds/ClassifiedFormModal';
 import { MyClassifiedsModal } from './components/classifieds/MyClassifiedsModal';
+import { PrintEditionsPage } from './components/print/PrintEditionsPage';
 import { Article, AdItem, CategorySlug, UserProfile, ClassifiedItem, isExtraSidebarSquare } from './types/database';
 import { 
   newsService, adsService, authService, newsletterService,
@@ -39,7 +40,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   
   // Roteamento interno
-  const [viewMode, setViewMode] = useState<'home' | 'article' | 'institutional' | 'admin' | 'classifieds' | 'classified-detail'>('home');
+  const [viewMode, setViewMode] = useState<'home' | 'article' | 'institutional' | 'admin' | 'classifieds' | 'classified-detail' | 'print-editions'>('home');
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [selectedClassified, setSelectedClassified] = useState<ClassifiedItem | null>(null);
   const [currentCategory, setCurrentCategory] = useState<CategorySlug>('todos');
@@ -382,6 +383,8 @@ export default function App() {
     resetPathToBase();
     if (cat === 'classificados') {
       setViewMode('classifieds');
+    } else if (cat === 'midia-impressa') {
+      setViewMode('print-editions');
     } else {
       setViewMode('home');
       setVisibleCount(7);
@@ -569,6 +572,17 @@ export default function App() {
             onOpenCreateModal={handleOpenCreateClassified}
             onOpenMyClassifieds={handleOpenMyClassifieds}
             onSelectClassified={handleSelectClassified}
+          />
+        )}
+
+        {/* VISUALIZAÇÃO: MÍDIA IMPRESSA (EDIÇÕES EM PDF PARA LEITORES CADASTRADOS) */}
+        {viewMode === 'print-editions' && (
+          <PrintEditionsPage
+            currentUser={currentUser}
+            onOpenAuth={(mode) => {
+              setAuthReasonMessage('A Mídia Impressa é exclusiva para leitores cadastrados. Entre ou crie sua conta gratuita para visualizar e baixar as edições do jornal.');
+              handleOpenAuth(mode);
+            }}
           />
         )}
 

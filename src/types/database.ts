@@ -145,7 +145,8 @@ export type CategorySlug =
   | 'policia'
   | 'politica'
   | 'videos'
-  | 'classificados';
+  | 'classificados'
+  | 'midia-impressa';
 
 export interface CategoryItem {
   id: string;
@@ -246,6 +247,21 @@ export interface ClassifiedCategory {
   id: string;
   name: string;
   section: ClassifiedSection;
+}
+
+// Mídia Impressa: edição mensal do jornal em PDF (área exclusiva para leitores cadastrados)
+export interface PrintEdition {
+  id: string;
+  volumeYear: number;     // Ano do jornal (exibido em algarismos romanos, ex.: 27 -> XXVII)
+  editionNumber: number;
+  editionMonth: number;   // 1 a 12
+  editionYear: number;    // Ano de circulação
+  headline: string;       // Manchete principal da edição
+  pdfPath: string;        // Caminho do PDF no bucket privado print-editions
+  fileSize?: number;
+  published: boolean;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ClassifiedItem {

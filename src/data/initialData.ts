@@ -12,6 +12,7 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
   { id: '8', name: 'Política', slug: 'politica' },
   { id: '9', name: 'Vídeos', slug: 'videos' },
   { id: '10', name: 'Classificados', slug: 'classificados' },
+  { id: '11', name: 'Mídia Impressa', slug: 'midia-impressa' },
 ];
 
 export const PROJECT_ARTICLES: Article[] = [
