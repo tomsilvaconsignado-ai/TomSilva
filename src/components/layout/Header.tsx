@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Menu, X, User, Shield, LogOut, ChevronDown, Bell, Tag } from 'lucide-react';
+import { Search, Menu, X, User, Shield, LogOut, ChevronDown, Bell, Tag, Newspaper } from 'lucide-react';
 import { TopBar } from './TopBar';
 import { AdSlot } from '../news/AdSlot';
 import { NotificationBell } from '../notifications/NotificationBell';
@@ -288,6 +288,7 @@ export const Header: React.FC<HeaderProps> = ({
             {INITIAL_CATEGORIES.map((cat) => {
               const isActive = currentCategory === cat.slug;
               const isClassifieds = cat.slug === 'classificados';
+              const isPrint = cat.slug === 'midia-impressa';
               return (
                 <li key={cat.id}>
                   <button
@@ -296,17 +297,27 @@ export const Header: React.FC<HeaderProps> = ({
                       isActive
                         ? isClassifieds
                           ? 'text-amber-600 border-amber-500 font-black'
-                          : 'text-[#0056a4] border-[#0056a4]'
+                          : isPrint
+                            ? 'text-red-700 border-red-600 font-black'
+                            : 'text-[#0056a4] border-[#0056a4]'
                         : isClassifieds
                           ? 'text-amber-600 hover:text-amber-700 border-transparent hover:border-amber-500'
-                          : 'text-gray-800 hover:text-[#0056a4] border-transparent hover:border-[#0056a4]'
+                          : isPrint
+                            ? 'text-red-700 hover:text-red-800 border-transparent hover:border-red-600'
+                            : 'text-gray-800 hover:text-[#0056a4] border-transparent hover:border-[#0056a4]'
                     }`}
                   >
                     {isClassifieds && <Tag className="w-3 h-3 text-amber-500" />}
+                    {isPrint && <Newspaper className="w-3 h-3 text-red-600" />}
                     <span>{cat.name}</span>
                     {isClassifieds && (
                       <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-amber-500 text-white tracking-normal leading-none shadow-xs">
                         NOVO
+                      </span>
+                    )}
+                    {isPrint && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-red-600 text-white tracking-normal leading-none shadow-xs">
+                        PDF
                       </span>
                     )}
                   </button>
@@ -341,6 +352,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="grid grid-cols-2 gap-2 pt-2">
               {INITIAL_CATEGORIES.map((cat) => {
                 const isClassifieds = cat.slug === 'classificados';
+                const isPrint = cat.slug === 'midia-impressa';
                 return (
                   <button
                     key={cat.id}
@@ -350,16 +362,23 @@ export const Header: React.FC<HeaderProps> = ({
                     }}
                     className={`text-left px-3 py-2 text-xs font-black uppercase tracking-wider rounded-lg flex items-center justify-between ${
                       currentCategory === cat.slug
-                        ? isClassifieds ? 'bg-amber-500 text-white' : 'bg-[#0056a4] text-white'
+                        ? isClassifieds ? 'bg-amber-500 text-white' : isPrint ? 'bg-red-600 text-white' : 'bg-[#0056a4] text-white'
                         : isClassifieds
                           ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                          : 'bg-gray-50 text-gray-800 hover:bg-gray-100'
+                          : isPrint
+                            ? 'bg-red-50 text-red-800 border border-red-200'
+                            : 'bg-gray-50 text-gray-800 hover:bg-gray-100'
                     }`}
                   >
                     <span>{cat.name}</span>
                     {isClassifieds && (
                       <span className="text-[8px] bg-amber-600 text-white px-1.5 py-0.5 rounded font-black">
                         NOVO
+                      </span>
+                    )}
+                    {isPrint && (
+                      <span className="text-[8px] bg-red-700 text-white px-1.5 py-0.5 rounded font-black">
+                        PDF
                       </span>
                     )}
                   </button>

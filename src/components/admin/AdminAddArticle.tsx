@@ -25,7 +25,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
 }) => {
   // Categorias disponíveis do portal (excluindo 'Início' e 'Classificados')
   const availableCategories = INITIAL_CATEGORIES
-    .filter(c => c.slug !== 'todos' && c.slug !== 'classificados')
+    .filter(c => c.slug !== 'todos' && c.slug !== 'classificados' && c.slug !== 'midia-impressa')
     .map(c => c.name);
 
   // Estados dos campos

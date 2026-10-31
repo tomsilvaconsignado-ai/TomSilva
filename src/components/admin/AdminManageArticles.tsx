@@ -33,7 +33,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
   const [viewingArticle, setViewingArticle] = useState<Article | null>(null);
 
   const availableCategories = INITIAL_CATEGORIES
-    .filter(c => c.slug !== 'todos' && c.slug !== 'classificados')
+    .filter(c => c.slug !== 'todos' && c.slug !== 'classificados' && c.slug !== 'midia-impressa')
     .map(c => c.name);
 
   // Filtragem de notícias

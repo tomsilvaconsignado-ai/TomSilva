@@ -3,13 +3,14 @@ import {
   ArrowLeft, LayoutDashboard, PlusCircle, FileText, 
   Radio, Tag, Users, Settings, Eye, CheckCircle2, 
   Clock, TrendingUp, Sparkles, AlertCircle, Newspaper, 
-  Megaphone, ShoppingBag, Shield, ExternalLink, ChevronRight
+  Megaphone, ShoppingBag, Shield, ExternalLink, ChevronRight, BookOpen
 } from 'lucide-react';
 import { Article, AdItem, UserProfile } from '../../types/database';
 import { AdminAddArticle } from './AdminAddArticle';
 import { AdminManageArticles } from './AdminManageArticles';
 import { AdminManageAds } from './AdminManageAds';
 import { AdminClassifiedsTab } from './AdminClassifiedsTab';
+import { AdminPrintEditionsTab } from './AdminPrintEditionsTab';
 import { AdminManageUsers } from './AdminManageUsers';
 import { AdminSettings } from './AdminSettings';
 import { AdminLegacyImportBanner } from './AdminLegacyImportBanner';
@@ -29,6 +30,7 @@ export type AdminTab =
   | 'manage_articles'      // Gerenciar Notícias
   | 'manage_ads'           // Publicidade
   | 'manage_classifieds'   // Classificados
+  | 'manage_print'         // Mídia Impressa (edições em PDF)
   | 'manage_users'         // Gerenciar Usuários
   | 'settings';            // Configurações do Portal
 
@@ -149,6 +151,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       badge: 'MÓDULO',
       badgeColor: 'bg-amber-500/20 text-amber-300',
       desc: 'Moderação de anúncios públicos, aprovações, recusas e tratamento de denúncias.'
+    },
+    {
+      id: 'manage_print' as AdminTab,
+      label: 'Mídia Impressa',
+      icon: BookOpen,
+      color: 'text-red-400',
+      activeColor: 'bg-red-600',
+      badge: 'PDF',
+      badgeColor: 'bg-red-500/20 text-red-300',
+      desc: 'Envio do PDF da edição mensal com ano, número, mês e manchete principal para os leitores cadastrados.'
     },
     {
       id: 'manage_users' as AdminTab,
@@ -569,6 +581,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <AdminClassifiedsTab
             currentUser={currentUser}
           />
+        )}
+
+        {/* ====================================================
+            5.1 MÍDIA IMPRESSA (EDIÇÕES MENSAIS EM PDF)
+        ==================================================== */}
+        {activeTab === 'manage_print' && (
+          <AdminPrintEditionsTab />
         )}
 
         {/* ====================================================

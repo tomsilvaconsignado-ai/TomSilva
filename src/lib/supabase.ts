@@ -2,7 +2,7 @@ import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import {
   Article, AdItem, AdPlacement, AdFormat, FormatCarouselSetting, PlacementSetting, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
   ClassifiedItem, ClassifiedCategory, ClassifiedReport, ClassifiedsSettings,
-  ClassifiedSection, ClassifiedType, ClassifiedStatus, PortalSettings,
+  ClassifiedSection, ClassifiedType, ClassifiedStatus, PortalSettings, PrintEdition,
   isExtraSidebarSquare
 } from '../types/database';
 import { INITIAL_ARTICLES, INITIAL_ADS } from '../data/initialData';
@@ -2427,6 +2427,169 @@ export const classifiedsService = {
     const sb = requireSupabase();
     const { error } = await sb.from('classified_reports').update({ status }).eq('id', reportId);
     if (error) throw describeDbError(error, 'atualizar a denúncia');
+  }
+};
+
+// ==========================================
+// MÍDIA IMPRESSA (edições mensais em PDF)
+// Os PDFs ficam no bucket PRIVADO "print-editions": só abrem por link temporário,
+// gerado apenas para leitores com conta ativa (o RLS do Storage decide).
+// ==========================================
+const PRINT_BUCKET = 'print-editions';
+export const PRINT_PDF_MAX_BYTES = 50 * 1024 * 1024;
+const PRINT_LINK_SECONDS = 60 * 30;
+
+export const MONTH_NAMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+export const toRoman = (value: number): string => {
+  let n = Math.floor(value);
+  if (!Number.isFinite(n) || n < 1 || n > 3999) return '';
+  const table: [number, string][] = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'],
+    [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']
+  ];
+  let out = '';
+  for (const [num, sym] of table) {
+    while (n >= num) { out += sym; n -= num; }
+  }
+  return out;
+};
+
+// "Ano XXVII · Nº 443 · Outubro de 2026"
+export const formatPrintEditionLabel = (e: Pick<PrintEdition, 'volumeYear' | 'editionNumber' | 'editionMonth' | 'editionYear'>): string =>
+  `Ano ${toRoman(e.volumeYear)} · Nº ${e.editionNumber} · ${MONTH_NAMES[e.editionMonth - 1] || ''} de ${e.editionYear}`;
+
+// Nome do arquivo baixado: Folha-da-Regiao-Ano-XXVII-N443-Outubro-2026.pdf
+export const printEditionFileName = (e: PrintEdition): string => {
+  const month = (MONTH_NAMES[e.editionMonth - 1] || '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return `Folha-da-Regiao-Ano-${toRoman(e.volumeYear)}-N${e.editionNumber}-${month}-${e.editionYear}.pdf`;
+};
+
+export const formatFileSize = (bytes?: number): string => {
+  if (!bytes) return '';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
+};
+
+const mapPrintEditionRow = (row: any): PrintEdition => ({
+  id: row.id,
+  volumeYear: row.volume_year,
+  editionNumber: row.edition_number,
+  editionMonth: row.edition_month,
+  editionYear: row.edition_year,
+  headline: row.headline || '',
+  pdfPath: row.pdf_path,
+  fileSize: row.file_size ?? undefined,
+  published: row.published !== false,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at || undefined
+});
+
+export type PrintEditionInput = Pick<PrintEdition, 'volumeYear' | 'editionNumber' | 'editionMonth' | 'editionYear' | 'headline' | 'published'>;
+
+const isPdfFile = (file: File): boolean =>
+  (file.type || '').toLowerCase() === 'application/pdf' || /\.pdf$/i.test(file.name);
+
+const translatePrintError = (message: string): string => {
+  const m = message.toLowerCase();
+  if (m.includes('bucket not found') || m.includes('relation') || m.includes('print_editions')) {
+    return 'A Mídia Impressa ainda não foi ativada no banco. Execute o arquivo supabase/ATUALIZAR_BANCO.sql no SQL Editor do Supabase.';
+  }
+  if (m.includes('object not found') || m.includes('not found') || m.includes('row-level security') || m.includes('unauthorized')) {
+    return 'Não foi possível abrir esta edição. Entre com sua conta ativa do portal e tente de novo.';
+  }
+  return translateStorageError(message);
+};
+
+export const printEditionsService = {
+  // Visitantes e leitores recebem só as publicadas; a equipe recebe também os rascunhos (RLS)
+  async getEditions(): Promise<PrintEdition[]> {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('print_editions')
+      .select('*')
+      .order('edition_year', { ascending: false })
+      .order('edition_month', { ascending: false })
+      .order('edition_number', { ascending: false });
+    if (error) throw new Error(translatePrintError(error.message));
+    return (data || []).map(mapPrintEditionRow);
+  },
+
+  // Cadastra ou edita a edição. Na edição, o PDF só é trocado se um arquivo novo for enviado.
+  async saveEdition(input: PrintEditionInput, file: File | null, current?: PrintEdition | null): Promise<PrintEdition> {
+    const sb = requireSupabase();
+    const headline = input.headline.trim();
+    if (!current && !file) throw new Error('Selecione o arquivo PDF da edição.');
+    if (headline.length < 3) throw new Error('Informe o título da manchete principal da edição.');
+    if (!toRoman(input.volumeYear)) throw new Error('Informe o ano do jornal com um número entre 1 e 3999.');
+    if (!(input.editionNumber > 0)) throw new Error('Informe o número da edição.');
+
+    let uploadedPath: string | null = null;
+    if (file) {
+      if (!isPdfFile(file)) throw new Error('O arquivo precisa ser um PDF.');
+      if (file.size > PRINT_PDF_MAX_BYTES) {
+        throw new Error(`O PDF tem ${formatFileSize(file.size)} e o limite é 50 MB. Exporte o arquivo com compressão para web e envie de novo.`);
+      }
+      uploadedPath = `${input.editionYear}/edicao-${input.editionNumber}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.pdf`;
+      const { error: upErr } = await sb.storage.from(PRINT_BUCKET).upload(uploadedPath, file, {
+        contentType: 'application/pdf',
+        cacheControl: '3600',
+        upsert: false
+      });
+      if (upErr) throw new Error(translatePrintError(upErr.message));
+    }
+
+    const row: Record<string, any> = {
+      volume_year: input.volumeYear,
+      edition_number: input.editionNumber,
+      edition_month: input.editionMonth,
+      edition_year: input.editionYear,
+      headline,
+      published: input.published,
+      updated_at: new Date().toISOString()
+    };
+    if (uploadedPath && file) {
+      row.pdf_path = uploadedPath;
+      row.file_size = file.size;
+    }
+
+    const query = current
+      ? sb.from('print_editions').update(row).eq('id', current.id).select().single()
+      : sb.from('print_editions').insert([row]).select().single();
+    const { data, error } = await query;
+    if (error) {
+      // Não deixa PDF órfão no armazenamento quando o registro não foi gravado
+      if (uploadedPath) await sb.storage.from(PRINT_BUCKET).remove([uploadedPath]);
+      if (error.code === '23505') throw new Error(`Já existe uma edição cadastrada com o número ${input.editionNumber}.`);
+      if (error.code === '42P01' || error.code === 'PGRST205') throw new Error(translatePrintError('print_editions'));
+      throw describeDbError(error, 'salvar a edição impressa');
+    }
+
+    // PDF substituído: remove o arquivo antigo
+    if (uploadedPath && current?.pdfPath && current.pdfPath !== uploadedPath) {
+      await sb.storage.from(PRINT_BUCKET).remove([current.pdfPath]);
+    }
+    return mapPrintEditionRow(data);
+  },
+
+  async deleteEdition(edition: PrintEdition): Promise<void> {
+    const sb = requireSupabase();
+    const { error } = await sb.from('print_editions').delete().eq('id', edition.id);
+    if (error) throw describeDbError(error, 'excluir a edição impressa');
+    if (edition.pdfPath) await sb.storage.from(PRINT_BUCKET).remove([edition.pdfPath]);
+  },
+
+  // Link temporário do PDF. Com download, o navegador salva o arquivo com nome legível.
+  async getEditionUrl(edition: PrintEdition, download = false): Promise<string> {
+    const sb = requireSupabase();
+    const { data, error } = await sb.storage
+      .from(PRINT_BUCKET)
+      .createSignedUrl(edition.pdfPath, PRINT_LINK_SECONDS, download ? { download: printEditionFileName(edition) } : undefined);
+    if (error || !data?.signedUrl) throw new Error(translatePrintError(error?.message || 'object not found'));
+    return data.signedUrl;
   }
 };
 

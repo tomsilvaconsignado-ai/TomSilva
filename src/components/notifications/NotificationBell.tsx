@@ -105,9 +105,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     }
   };
 
-  // Categorias disponíveis para preferências (exceto 'Início')
+  // Categorias disponíveis para preferências (exceto 'Início' e 'Mídia Impressa', que não tem notícias)
   const availableCategories = INITIAL_CATEGORIES
-    .filter(c => c.slug !== 'todos')
+    .filter(c => c.slug !== 'todos' && c.slug !== 'midia-impressa')
     .map(c => c.name);
 
   return (
