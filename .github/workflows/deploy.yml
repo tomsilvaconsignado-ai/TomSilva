@@ -39,9 +39,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          # reaproveita os pacotes baixados entre um deploy e outro (deploy mais rápido)
+          cache: npm
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
 
       - name: Build project
         env:

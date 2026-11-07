@@ -52,9 +52,24 @@ export const usePreviewStatus = (url: string, expectedTitle: string, enabled: bo
     recheck();
   }, [recheck]);
 
+  // Enquanto a prévia não fica pronta, confere de novo sozinho (a cada 15 s, por até 15 min):
+  // o botão de compartilhar libera assim que o site publicar a página, sem precisar recarregar
+  useEffect(() => {
+    if (!enabled || status !== 'pending') return;
+    let tentativas = 0;
+    let ativo = true;
+    const timer = setInterval(async () => {
+      tentativas += 1;
+      if (tentativas > 60) { clearInterval(timer); return; }
+      const ready = await checkPreviewPage(url, expectedTitle);
+      if (ready && ativo) { setStatus('ready'); clearInterval(timer); }
+    }, 15000);
+    return () => { ativo = false; clearInterval(timer); };
+  }, [status, enabled, url, expectedTitle]);
+
   return { status, recheck };
 };
 
 export const PREVIEW_PENDING_MESSAGE =
   'A prévia desta publicação (foto, título e link do portal) ainda está sendo gerada. ' +
-  'O compartilhamento é liberado assim que ela ficar pronta; tente novamente em alguns minutos.';
+  'Ela fica pronta cerca de 2 minutos depois de publicar, e o botão de compartilhar é liberado sozinho.';
