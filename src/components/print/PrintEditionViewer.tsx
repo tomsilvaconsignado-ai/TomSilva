@@ -206,7 +206,7 @@ export const PrintEditionViewer: React.FC<PrintEditionViewerProps> = ({ edition,
             <Newspaper className="w-4.5 h-4.5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-red-700">
+            <p className="text-[10px] sm:text-[12px] font-black uppercase tracking-widest text-red-700">
               {formatPrintEditionLabel(edition)}
             </p>
             <h2 className="text-sm sm:text-base font-black text-gray-900 leading-snug line-clamp-2">
@@ -217,7 +217,7 @@ export const PrintEditionViewer: React.FC<PrintEditionViewerProps> = ({ edition,
             <button
               onClick={() => onDownload(edition)}
               disabled={downloading}
-              className="px-3 py-2 bg-[#0056a4] hover:bg-[#004482] disabled:opacity-60 text-white rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-3 py-2 bg-marca hover:bg-marca-escuro disabled:opacity-60 text-white rounded-xl text-[12px] font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors"
               title="Baixar o PDF no aparelho"
             >
               {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
@@ -245,7 +245,7 @@ export const PrintEditionViewer: React.FC<PrintEditionViewerProps> = ({ edition,
             <div className="flex flex-wrap justify-center gap-2 pt-1">
               <button
                 onClick={() => onDownload(edition)}
-                className="px-4 py-2 bg-[#0056a4] text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-marca text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" /> Baixar PDF
               </button>
@@ -281,7 +281,7 @@ export const PrintEditionViewer: React.FC<PrintEditionViewerProps> = ({ edition,
       {doc && !error && (
         <div className="bg-gray-900 border-t border-gray-800 text-white">
           <div className="container mx-auto px-4 py-2 flex items-center justify-between gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-300">
+            <span className="text-[12px] font-bold uppercase tracking-wider text-gray-300">
               Página {currentPage} de {doc.numPages}
             </span>
             <div className="flex items-center gap-1.5">
@@ -294,7 +294,7 @@ export const PrintEditionViewer: React.FC<PrintEditionViewerProps> = ({ edition,
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
-              <span className="text-[11px] font-black w-12 text-center">{Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%</span>
+              <span className="text-[12px] font-black w-12 text-center">{Math.round(ZOOM_LEVELS[zoomIndex] * 100)}%</span>
               <button
                 onClick={() => setZoomIndex(i => Math.min(ZOOM_LEVELS.length - 1, i + 1))}
                 disabled={zoomIndex === ZOOM_LEVELS.length - 1}

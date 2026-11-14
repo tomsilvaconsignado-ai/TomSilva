@@ -117,13 +117,13 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
       <div className="flex justify-between items-center mb-6 pb-3 border-b border-gray-100">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-gray-600 hover:text-[#0056a4] transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-gray-600 hover:text-marca transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar para Classificados
         </button>
 
-        <span className="text-[11px] font-bold text-gray-400">
+        <span className="text-[12px] font-bold text-gray-500">
           Código do Anúncio: <strong className="text-gray-900 font-mono">#{classified.code}</strong>
         </span>
       </div>
@@ -173,7 +173,7 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
                     className={`w-20 h-16 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
-                      activeImageIndex === idx ? 'border-[#0056a4] ring-2 ring-[#0056a4]/20' : 'border-gray-200 opacity-70 hover:opacity-100'
+                      activeImageIndex === idx ? 'border-marca ring-2 ring-marca/20' : 'border-gray-200 opacity-70 hover:opacity-100'
                     }`}
                   >
                     <img src={img} alt={`Miniatura ${idx + 1}`} className="w-full h-full object-cover" />
@@ -185,7 +185,7 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
 
           {/* Descrição Completa */}
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-            <h3 className="text-base font-black uppercase tracking-tight text-gray-900 border-l-4 border-[#0056a4] pl-3">
+            <h3 className="text-base font-black uppercase tracking-tight text-gray-900 border-l-4 border-marca pl-3">
               Descrição do Anúncio
             </h3>
             <p className="text-sm md:text-base text-gray-700 leading-relaxed whitespace-pre-line">
@@ -203,25 +203,25 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 {classified.jobRole && (
                   <div className="p-3 bg-gray-50 rounded-lg">
-                    <span className="font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Cargo / Função</span>
+                    <span className="font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Cargo / Função</span>
                     <strong className="text-gray-900 text-sm">{classified.jobRole}</strong>
                   </div>
                 )}
                 {classified.jobArea && (
                   <div className="p-3 bg-gray-50 rounded-lg">
-                    <span className="font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Área Profissional</span>
+                    <span className="font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Área Profissional</span>
                     <strong className="text-gray-900 text-sm">{classified.jobArea}</strong>
                   </div>
                 )}
                 {classified.contractType && (
                   <div className="p-3 bg-gray-50 rounded-lg">
-                    <span className="font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Contratação</span>
+                    <span className="font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Contratação</span>
                     <strong className="text-gray-900 text-sm">{classified.contractType}</strong>
                   </div>
                 )}
                 {classified.workload && (
                   <div className="p-3 bg-gray-50 rounded-lg">
-                    <span className="font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Jornada</span>
+                    <span className="font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Jornada</span>
                     <strong className="text-gray-900 text-sm">{classified.workload}</strong>
                   </div>
                 )}
@@ -265,10 +265,10 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
 
             {/* Preço ou Valor */}
             <div className="py-3 border-y border-gray-100">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
                 {isJob ? 'Remuneração / Proposta' : 'Valor do Anúncio'}
               </span>
-              <span className="text-3xl font-black text-[#0056a4] tracking-tight mt-0.5 block">
+              <span className="text-3xl font-black text-marca tracking-tight mt-0.5 block">
                 {formatPrice(classified)}
               </span>
             </div>
@@ -276,22 +276,22 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
             {/* Localização e Data */}
             <div className="space-y-2 text-xs text-gray-600">
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-[#0056a4]" />
+                <MapPin className="w-4 h-4 text-marca" />
                 <span>{classified.city} - {classified.state}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#0056a4]" />
+                <Calendar className="w-4 h-4 text-marca" />
                 <span>Publicado em {formattedDate} ({formatRelativeTime(classified.createdAt)})</span>
               </div>
               <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-[#0056a4]" />
+                <Eye className="w-4 h-4 text-marca" />
                 <span>{classified.viewsCount || 0} visualizações</span>
               </div>
             </div>
 
             {/* Bloco do Anunciante */}
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Anunciado por</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">Anunciado por</p>
               <p className="font-bold text-gray-900 text-sm">{classified.advertiserName}</p>
               <p className="text-xs text-gray-500 font-mono">Contato: {classified.phone}</p>
             </div>
@@ -309,8 +309,8 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
 
             {/* Compartilhamento */}
             <div className="pt-2 flex items-center justify-between text-xs">
-              <span className="font-bold text-gray-600 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                <Share2 className="w-3.5 h-3.5 text-[#0056a4]" /> Compartilhar:
+              <span className="font-bold text-gray-600 uppercase tracking-wider text-[12px] flex items-center gap-1.5">
+                <Share2 className="w-3.5 h-3.5 text-marca" /> Compartilhar:
               </span>
               <div className="flex gap-2">
                 <button
@@ -336,7 +336,7 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
               </div>
             </div>
             {(shareBlockReason || preview.status === 'pending') && (
-              <p className="text-[11px] text-amber-700 font-semibold">
+              <p className="text-[12px] text-amber-700 font-semibold">
                 {shareBlockReason || 'Prévia com foto e título ainda em geração: o compartilhamento será liberado em alguns minutos.'}
               </p>
             )}
@@ -345,7 +345,7 @@ export const ClassifiedDetail: React.FC<ClassifiedDetailProps> = ({ classified, 
             <div className="pt-2 text-center border-t border-gray-100">
               <button
                 onClick={() => setIsReportOpen(true)}
-                className="text-[11px] font-bold text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1 mx-auto cursor-pointer"
+                className="text-[12px] font-bold text-gray-500 hover:text-red-600 transition-colors flex items-center gap-1 mx-auto cursor-pointer"
               >
                 <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
                 Denunciar anúncio suspeito ou abusivo

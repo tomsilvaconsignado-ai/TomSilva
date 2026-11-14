@@ -115,7 +115,7 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
       <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl border border-gray-100 relative">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-1 rounded-full cursor-pointer"
+          className="absolute top-5 right-5 text-gray-500 hover:text-gray-700 p-1 rounded-full cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -135,7 +135,7 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
               onClose();
               onOpenCreateModal();
             }}
-            className="px-4 py-2 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-lg transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-lg transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Novo Anúncio
@@ -143,13 +143,13 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
         </div>
 
         {loading ? (
-          <div className="py-12 text-center text-gray-400">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#0056a4]" />
+          <div className="py-12 text-center text-gray-500">
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-marca" />
             <p className="text-xs font-bold">Carregando seus anúncios...</p>
           </div>
         ) : items.length === 0 ? (
           <div className="py-12 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-blue-50 text-[#0056a4] flex items-center justify-center mx-auto">
+            <div className="w-16 h-16 rounded-full bg-blue-50 text-marca flex items-center justify-center mx-auto">
               <Plus className="w-8 h-8" />
             </div>
             <div>
@@ -163,7 +163,7 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
                 onClose();
                 onOpenCreateModal();
               }}
-              className="px-6 py-2.5 bg-[#0056a4] text-white font-black uppercase tracking-wider text-xs rounded-lg shadow-md cursor-pointer"
+              className="px-6 py-2.5 bg-marca text-white font-black uppercase tracking-wider text-xs rounded-lg shadow-md cursor-pointer"
             >
               Publicar Meu Primeiro Anúncio
             </button>
@@ -173,7 +173,7 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
             {items.map((item) => (
               <div
                 key={item.id}
-                className="bg-white border border-gray-100 rounded-xl p-4 shadow-xs hover:border-[#0056a4]/30 transition-all flex flex-col md:flex-row gap-4 justify-between items-start md:items-center"
+                className="bg-white border border-gray-100 rounded-xl p-4 shadow-xs hover:border-marca/30 transition-all flex flex-col md:flex-row gap-4 justify-between items-start md:items-center"
               >
                 <div className="flex gap-4 items-center">
                   <img
@@ -184,10 +184,10 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
                   <div>
                     <div className="flex flex-wrap items-center gap-2 mb-1">
                       {getStatusBadge(item.status, item.rejectionReason)}
-                      <span className="text-[10px] font-bold text-gray-400">
+                      <span className="text-[10px] font-bold text-gray-500">
                         #{item.code}
                       </span>
-                      <span className="text-[10px] font-bold text-gray-400">
+                      <span className="text-[10px] font-bold text-gray-500">
                         • {item.category}
                       </span>
                     </div>
@@ -197,22 +197,22 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
                         onClose();
                         onViewClassified(item);
                       }}
-                      className="text-sm font-bold text-gray-900 hover:text-[#0056a4] cursor-pointer line-clamp-1"
+                      className="text-sm font-bold text-gray-900 hover:text-marca cursor-pointer line-clamp-1"
                     >
                       {item.title}
                     </h4>
 
-                    <div className="flex flex-wrap items-center gap-3 mt-1 text-[11px] text-gray-500">
-                      <span className="font-bold text-[#0056a4]">{formatPrice(item)}</span>
+                    <div className="flex flex-wrap items-center gap-3 mt-1 text-[12px] text-gray-500">
+                      <span className="font-bold text-marca">{formatPrice(item)}</span>
                       <span>• {item.city}-{item.state}</span>
                       <span>• {formatRelativeTime(item.createdAt)}</span>
                       <span className="flex items-center gap-1 font-bold">
-                        <Eye className="w-3 h-3 text-[#0056a4]" /> {item.viewsCount || 0} views
+                        <Eye className="w-3 h-3 text-marca" /> {item.viewsCount || 0} views
                       </span>
                     </div>
 
                     {item.status === 'rejected' && item.rejectionReason && (
-                      <p className="text-[11px] text-red-600 font-bold mt-1 bg-red-50 p-1.5 rounded">
+                      <p className="text-[12px] text-red-600 font-bold mt-1 bg-red-50 p-1.5 rounded">
                         Motivo da recusa: {item.rejectionReason}
                       </p>
                     )}
@@ -236,7 +236,7 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
                   {(item.status === 'published' || item.status === 'paused') && (
                     <button
                       onClick={() => handleTogglePause(item)}
-                      className="p-2 text-gray-600 hover:text-[#0056a4] hover:bg-gray-100 rounded-lg cursor-pointer"
+                      className="p-2 text-gray-600 hover:text-marca hover:bg-gray-100 rounded-lg cursor-pointer"
                       title={item.status === 'paused' ? 'Reativar Anúncio' : 'Pausar Anúncio'}
                     >
                       {item.status === 'paused' ? (
@@ -253,7 +253,7 @@ export const MyClassifiedsModal: React.FC<MyClassifiedsModalProps> = ({
                       onClose();
                       onEditClassified(item);
                     }}
-                    className="p-2 text-gray-600 hover:text-[#0056a4] hover:bg-gray-100 rounded-lg cursor-pointer"
+                    className="p-2 text-gray-600 hover:text-marca hover:bg-gray-100 rounded-lg cursor-pointer"
                     title="Editar Anúncio"
                   >
                     <Edit2 className="w-4 h-4" />

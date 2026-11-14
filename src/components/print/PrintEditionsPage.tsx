@@ -89,12 +89,12 @@ export const PrintEditionsPage: React.FC<PrintEditionsPageProps> = ({ currentUse
   const renderActions = (edition: PrintEdition, large = false) => {
     const locked = !currentUser;
     const isDownloading = downloadingId === edition.id;
-    const size = large ? 'px-5 py-3 text-xs' : 'px-3 py-2 text-[11px]';
+    const size = large ? 'px-5 py-3 text-xs' : 'px-3 py-2 text-[12px]';
     return (
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => runAction(edition, 'view')}
-          className={`${size} bg-[#0056a4] hover:bg-[#004482] text-white rounded-xl font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs`}
+          className={`${size} bg-marca hover:bg-marca-escuro text-white rounded-xl font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs`}
         >
           {locked ? <Lock className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           Visualizar
@@ -122,7 +122,7 @@ export const PrintEditionsPage: React.FC<PrintEditionsPageProps> = ({ currentUse
           Folha da Região
         </p>
       </div>
-      <div className="flex justify-between gap-2 border-b border-gray-900 py-1 font-sans text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-gray-700">
+      <div className="flex justify-between gap-2 border-b border-gray-900 py-1 font-sans text-[10px] sm:text-[10px] font-black uppercase tracking-widest text-gray-700">
         <span>Ano {toRoman(edition.volumeYear)}</span>
         <span>Nº {edition.editionNumber}</span>
         <span>{MONTH_NAMES[edition.editionMonth - 1]} de {edition.editionYear}</span>
@@ -192,7 +192,7 @@ export const PrintEditionsPage: React.FC<PrintEditionsPageProps> = ({ currentUse
           <div className="flex gap-2 shrink-0">
             <button
               onClick={() => onOpenAuth('login')}
-              className="px-4 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 bg-marca hover:bg-marca-escuro text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
             >
               <LogIn className="w-3.5 h-3.5" /> Entrar
             </button>
@@ -243,7 +243,7 @@ export const PrintEditionsPage: React.FC<PrintEditionsPageProps> = ({ currentUse
               </span>
               <p className="text-xs font-black uppercase tracking-widest text-red-700">{formatPrintEditionLabel(latest)}</p>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Manchete principal</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">Manchete principal</p>
                 <h2 className="text-xl sm:text-2xl font-black text-gray-900 leading-snug">{latest.headline}</h2>
               </div>
               {renderActions(latest, true)}

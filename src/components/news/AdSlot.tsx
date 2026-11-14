@@ -355,18 +355,18 @@ export const AdSlot: React.FC<AdSlotProps> = ({
     >
       {/* Topo do anúncio: Identificação e Indicador discreto */}
       <div className="flex items-center justify-between gap-2 mb-1.5 px-0.5">
-        <span className="text-[8px] font-black uppercase tracking-[0.18em] text-gray-400 truncate max-w-[200px]">
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-500 truncate max-w-[200px]">
           Publicidade • {currentAd.sponsorName}
         </span>
 
         {isCarouselActive && (
-          <div className="flex items-center gap-1.5 text-[8px] text-gray-400 font-bold shrink-0">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold shrink-0">
             {isHovered ? (
-              <span className="text-[#0056a4] flex items-center gap-0.5 text-[7.5px] uppercase font-black tracking-wider">
+              <span className="text-marca flex items-center gap-0.5 text-[10px] uppercase font-black tracking-wider">
                 <Pause className="w-2.5 h-2.5 inline" /> Pausado
               </span>
             ) : (
-              <span className="text-gray-400 tracking-wider font-mono">
+              <span className="text-gray-500 tracking-wider font-mono">
                 {currentIndex + 1}/{totalEligible}
               </span>
             )}
@@ -376,7 +376,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({
 
       {/* Container do Slide com Dimensões Exatas e Transição Suave */}
       <div 
-        className="relative overflow-hidden rounded-xl bg-gray-100 border border-gray-200/80 shadow-xs transition-all hover:border-[#0056a4]/40 hover:shadow-md"
+        className="relative overflow-hidden rounded-xl bg-gray-100 border border-gray-200/80 shadow-xs transition-all hover:border-marca/40 hover:shadow-md"
         style={determinedFormat ? containerDimensionsStyle : undefined}
       >
         <a
@@ -401,7 +401,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({
           >
             {mediaError ? (
               /* Fallback resiliente caso a mídia falhe */
-              <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-slate-900 to-[#0056a4] text-white">
+              <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-slate-900 to-marca text-white">
                 <span className="text-[10px] font-black uppercase tracking-widest text-blue-200 mb-2">
                   {formatLabel}
                 </span>
@@ -411,7 +411,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({
                 <span className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold inline-flex items-center gap-1">
                   Saiba mais <ExternalLink className="w-3 h-3" />
                 </span>
-                <span className="text-[9px] text-gray-300 mt-4 opacity-75">
+                <span className="text-[10px] text-gray-300 mt-4 opacity-75">
                   {currentAd.sponsorName}
                 </span>
               </div>

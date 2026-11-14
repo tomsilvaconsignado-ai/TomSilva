@@ -62,7 +62,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="pt-2">
             <button
               onClick={onBackToPortal}
-              className="w-full py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+              className="w-full py-3 bg-marca hover:bg-marca-escuro text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
             >
               Voltar para o Portal
             </button>
@@ -205,11 +205,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <span className="text-base font-black tracking-tight text-white uppercase font-sans">
                   FOLHA DA REGIÃO
                 </span>
-                <span className="px-2 py-0.5 bg-[#0056a4] text-white text-[9px] font-black uppercase tracking-widest rounded-md shadow-xs">
+                <span className="px-2 py-0.5 bg-marca text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-xs">
                   PAINEL ADMIN
                 </span>
               </div>
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[12px] text-gray-400">
                 Logado: <strong className="text-gray-200">{currentUser.fullName}</strong> ({currentUser.email})
               </p>
             </div>
@@ -229,7 +229,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onClick={onBackToPortal}
               className="px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer border border-gray-700 hover:border-gray-600"
             >
-              <Eye className="w-3.5 h-3.5 text-[#0056a4]" />
+              <Eye className="w-3.5 h-3.5 text-marca" />
               Ver Portal ao Vivo
             </button>
           </div>
@@ -263,7 +263,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
                 <span>{tab.label}</span>
                 {tab.badge && (
-                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
                     tab.badgeColor || 'bg-gray-700 text-gray-300 border-gray-600'
                   }`}>
                     {tab.badge}
@@ -292,7 +292,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {currentTabMeta.label}
                 </h2>
               </div>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[12px] text-gray-500">
                 {currentTabMeta.desc}
               </p>
             </div>
@@ -321,7 +321,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {activeTab === 'overview' && (
           <div className="space-y-8 animate-in fade-in duration-200">
             {/* Banner de Apresentação e Boas-Vindas */}
-            <div className="bg-gradient-to-r from-gray-900 via-[#0056a4] to-gray-900 rounded-2xl p-6 md:p-8 text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="bg-gradient-to-r from-gray-900 via-marca to-gray-900 rounded-2xl p-6 md:p-8 text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
               <div>
                 <span className="px-3 py-1 bg-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-full inline-block mb-2">
                   Gestão Central do Portal
@@ -361,7 +361,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <h3 className="font-black text-sm uppercase text-gray-900 tracking-wider">
                   Principais Módulos de Gestão
                 </h3>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-500">
                   Acesse com um clique as quatro áreas fundamentais do portal:
                 </p>
               </div>
@@ -476,27 +476,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* Painel de Indicadores Gerais */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
-                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Notícias Publicadas</p>
+                <p className="text-xs font-black uppercase tracking-wider text-gray-500">Notícias Publicadas</p>
                 <p className="text-2xl font-black text-emerald-600 mt-1">{publishedArticles}</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">Visíveis na capa e editorias</p>
+                <p className="text-[12px] text-gray-500 mt-0.5">Visíveis na capa e editorias</p>
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
-                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Rascunhos Salvos</p>
+                <p className="text-xs font-black uppercase tracking-wider text-gray-500">Rascunhos Salvos</p>
                 <p className="text-2xl font-black text-amber-600 mt-1">{draftArticles}</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">Em redação ou revisão</p>
+                <p className="text-[12px] text-gray-500 mt-0.5">Em redação ou revisão</p>
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
-                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Total de Leituras</p>
-                <p className="text-2xl font-black text-[#0056a4] mt-1">{totalViews}</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">Visualizações registradas</p>
+                <p className="text-xs font-black uppercase tracking-wider text-gray-500">Total de Leituras</p>
+                <p className="text-2xl font-black text-marca mt-1">{totalViews}</p>
+                <p className="text-[12px] text-gray-500 mt-0.5">Visualizações registradas</p>
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
-                <p className="text-xs font-black uppercase tracking-wider text-gray-400">Banners no Ar</p>
+                <p className="text-xs font-black uppercase tracking-wider text-gray-500">Banners no Ar</p>
                 <p className="text-2xl font-black text-purple-600 mt-1">{activeAds}</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">Campanhas publicitárias ativas</p>
+                <p className="text-[12px] text-gray-500 mt-0.5">Campanhas publicitárias ativas</p>
               </div>
             </div>
 
@@ -508,7 +508,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </h3>
                 <button
                   onClick={() => setActiveTab('manage_articles')}
-                  className="text-xs font-bold text-[#0056a4] hover:underline cursor-pointer"
+                  className="text-xs font-bold text-marca hover:underline cursor-pointer"
                 >
                   Ver Todas as Notícias &rarr;
                 </button>
@@ -521,7 +521,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <img src={art.imageUrl} alt="" className="w-12 h-10 rounded-lg object-cover shrink-0 bg-gray-100 border border-gray-200" />
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-gray-900 truncate">{art.title}</p>
-                        <p className="text-[10px] text-gray-400">
+                        <p className="text-[10px] text-gray-500">
                           {art.category} • {new Date(art.createdAt).toLocaleDateString('pt-BR')} • {art.viewsCount || 0} visualizações
                         </p>
                       </div>
@@ -529,7 +529,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     <button
                       onClick={() => handleStartEditArticle(art)}
-                      className="px-3.5 py-1.5 bg-gray-100 hover:bg-[#0056a4] hover:text-white text-gray-700 text-xs font-bold rounded-lg transition-colors cursor-pointer shrink-0"
+                      className="px-3.5 py-1.5 bg-gray-100 hover:bg-marca hover:text-white text-gray-700 text-xs font-bold rounded-lg transition-colors cursor-pointer shrink-0"
                     >
                       Editar
                     </button>

@@ -7,7 +7,7 @@ import {
 import { Article, ArticleStatus, UserProfile } from '../../types/database';
 import { newsService, slugify } from '../../lib/supabase';
 import { INITIAL_CATEGORIES } from '../../data/initialData';
-import { getAssetUrl, sanitizeHtml } from '../../lib/assets';
+import { getAssetUrl, formatarMateria, sanitizeHtml } from '../../lib/assets';
 import { compressImageFile } from '../../lib/imageCompress';
 
 interface AdminAddArticleProps {
@@ -224,7 +224,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
             onClick={() => setIsPreviewOpen(true)}
             className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
           >
-            <Eye className="w-4 h-4 text-[#0056a4]" />
+            <Eye className="w-4 h-4 text-marca" />
             Visualizar Notícia
           </button>
           <button
@@ -261,14 +261,14 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
         ======================================================= */}
         <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xs space-y-6">
           <div className="flex items-center gap-2.5 border-b border-gray-100 pb-3">
-            <span className="w-7 h-7 rounded-lg bg-[#0056a4] text-white flex items-center justify-center font-black text-xs">
+            <span className="w-7 h-7 rounded-lg bg-marca text-white flex items-center justify-center font-black text-xs">
               1
             </span>
             <div>
               <h3 className="font-black text-base text-gray-900 uppercase tracking-tight">
                 Etapa 1 — Conteúdo da Notícia
               </h3>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 Informações principais da matéria que serão apresentadas aos leitores.
               </p>
             </div>
@@ -285,9 +285,9 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Digite um título claro, chamativo e informativo"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none transition-all"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-marca focus:bg-white outline-none transition-all"
             />
-            <p className="text-[11px] text-gray-400 mt-1">
+            <p className="text-[12px] text-gray-500 mt-1">
               Dica: Títulos com 60 a 90 caracteres costumam ter melhor leitura e engajamento.
             </p>
           </div>
@@ -302,7 +302,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
               value={subtitle}
               onChange={(e) => setSubtitle(e.target.value)}
               placeholder="Complemente o título com informações adicionais que contextualizam a matéria"
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none transition-all resize-y"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-marca focus:bg-white outline-none transition-all resize-y"
             />
           </div>
 
@@ -315,7 +315,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none transition-all cursor-pointer"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-marca focus:bg-white outline-none transition-all cursor-pointer"
               >
                 {availableCategories.map((cat) => (
                   <option key={cat} value={cat}>
@@ -323,7 +323,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-gray-400 mt-1">
+              <p className="text-[12px] text-gray-500 mt-1">
                 A notícia será listada na editoria selecionada do portal.
               </p>
             </div>
@@ -337,7 +337,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
                 placeholder="Ex: Redação Folha da Região / Agência Brasil"
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none transition-all"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-marca focus:bg-white outline-none transition-all"
               />
             </div>
           </div>
@@ -353,7 +353,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                   setIsHero(e.target.checked);
                   if (e.target.checked) setIsSecondary(false);
                 }}
-                className="rounded text-[#0056a4] focus:ring-[#0056a4]"
+                className="rounded text-marca focus:ring-marca"
               />
               <span>Manchete Principal (Super Destaque)</span>
             </label>
@@ -366,7 +366,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                   setIsSecondary(e.target.checked);
                   if (e.target.checked) setIsHero(false);
                 }}
-                className="rounded text-[#0056a4] focus:ring-[#0056a4]"
+                className="rounded text-marca focus:ring-marca"
               />
               <span>Destaque Secundário (Topo Lateral)</span>
             </label>
@@ -383,7 +383,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                 <button
                   type="button"
                   onClick={() => insertFormatting('<p>', '</p>')}
-                  className="px-2 py-1 hover:bg-white rounded text-[11px] font-bold text-gray-700 transition-colors"
+                  className="px-2 py-1 hover:bg-white rounded text-[12px] font-bold text-gray-700 transition-colors"
                   title="Parágrafo"
                 >
                   &para; Parágrafo
@@ -438,7 +438,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Digite o texto da notícia. Você pode utilizar parágrafos simples ou formatação HTML básica."
-              className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm font-sans focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none transition-all leading-relaxed"
+              className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm font-sans focus:ring-2 focus:ring-marca focus:bg-white outline-none transition-all leading-relaxed"
             />
           </div>
 
@@ -449,7 +449,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                 type="checkbox"
                 checked={isVideo}
                 onChange={(e) => setIsVideo(e.target.checked)}
-                className="rounded text-[#0056a4] focus:ring-[#0056a4]"
+                className="rounded text-marca focus:ring-marca"
               />
               <span>Esta notícia possui vídeo incorporado (YouTube / MP4)</span>
             </label>
@@ -459,7 +459,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
                 placeholder="https://www.youtube.com/watch?v=..."
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-marca focus:bg-white outline-none"
               />
             )}
           </div>
@@ -470,14 +470,14 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
         ======================================================= */}
         <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xs space-y-6">
           <div className="flex items-center gap-2.5 border-b border-gray-100 pb-3">
-            <span className="w-7 h-7 rounded-lg bg-[#0056a4] text-white flex items-center justify-center font-black text-xs">
+            <span className="w-7 h-7 rounded-lg bg-marca text-white flex items-center justify-center font-black text-xs">
               2
             </span>
             <div>
               <h3 className="font-black text-base text-gray-900 uppercase tracking-tight">
                 Etapa 2 — Imagem da Notícia
               </h3>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 Selecione a fotografia principal que ilustrará a matéria na capa e no artigo.
               </p>
             </div>
@@ -502,7 +502,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                   />
                   <label
                     htmlFor="article-image-upload"
-                    className="px-5 py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                    className="px-5 py-3 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                   >
                     <Upload className="w-4 h-4" />
                     Selecionar Imagem do Computador
@@ -523,7 +523,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
 
               {/* Opção alternativa: Link de Imagem */}
               <div>
-                <span className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                <span className="block text-[12px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                   Ou digite a URL da Imagem:
                 </span>
                 <input
@@ -531,7 +531,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
                   placeholder="https://exemplo.com/foto-noticia.jpg"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-marca focus:bg-white outline-none"
                 />
               </div>
 
@@ -565,10 +565,10 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="aspect-video w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400 p-6 text-center">
+                <div className="aspect-video w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-500 p-6 text-center">
                   <ImageIcon className="w-10 h-10 mb-2 text-gray-300" />
                   <p className="text-xs font-bold text-gray-600">Nenhuma imagem selecionada ainda</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">
+                  <p className="text-[12px] text-gray-500 mt-0.5">
                     Envie uma foto para pré-visualizar aqui antes de publicar
                   </p>
                 </div>
@@ -577,7 +577,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
               {/* Notificação amigável de proporção */}
               {imageRatioNotice && (
                 <div className="p-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs flex items-center gap-2">
-                  <Info className="w-4 h-4 text-[#0056a4] shrink-0" />
+                  <Info className="w-4 h-4 text-marca shrink-0" />
                   <span>{imageRatioNotice}</span>
                 </div>
               )}
@@ -586,7 +586,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
             {/* Painel de Instruções Claras (5 colunas) */}
             <div className="lg:col-span-5 bg-gray-50 p-5 rounded-2xl border border-gray-100 space-y-3">
               <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-2">
-                <Info className="w-4 h-4 text-[#0056a4]" />
+                <Info className="w-4 h-4 text-marca" />
                 Instruções para Imagens
               </h4>
 
@@ -613,7 +613,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                 </li>
               </ul>
 
-              <div className="pt-2 border-t border-gray-200 text-[11px] text-gray-500">
+              <div className="pt-2 border-t border-gray-200 text-[12px] text-gray-500">
                 Não é necessário calcular dimensões técnicas em pixels; nosso portal adapta automaticamente o corte para celular e computador.
               </div>
             </div>
@@ -651,7 +651,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
             <button
               type="button"
               onClick={() => setIsPreviewOpen(true)}
-              className="px-5 py-3 bg-blue-50 hover:bg-blue-100 text-[#0056a4] text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2"
+              className="px-5 py-3 bg-blue-50 hover:bg-blue-100 text-marca text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2"
             >
               <Eye className="w-4 h-4" />
               Visualizar Notícia
@@ -661,7 +661,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
             <button
               type="submit"
               disabled={loading || Boolean(successNotice)}
-              className="px-7 py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center gap-2"
+              className="px-7 py-3 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center gap-2"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -709,7 +709,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
 
             <div className="p-6 md:p-10 overflow-y-auto space-y-6">
               <div className="space-y-3">
-                <span className="inline-block px-3 py-1 bg-[#0056a4] text-white text-[10px] font-black uppercase tracking-widest rounded">
+                <span className="inline-block px-3 py-1 bg-marca text-white text-[10px] font-black uppercase tracking-widest rounded">
                   {category}
                 </span>
                 <h1 className="text-2xl md:text-4xl font-black text-gray-900 leading-tight">
@@ -720,7 +720,7 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
                     {subtitle}
                   </p>
                 )}
-                <div className="flex items-center gap-2 text-xs text-gray-400 pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-2 text-xs text-gray-500 pt-2 border-t border-gray-100">
                   <span>Por <strong>{author}</strong></span>
                   <span>•</span>
                   <span>Publicado em {new Date().toLocaleDateString('pt-BR')}</span>
@@ -738,8 +738,8 @@ export const AdminAddArticle: React.FC<AdminAddArticleProps> = ({
               )}
 
               <div 
-                className="prose prose-lg max-w-none text-gray-800 leading-relaxed space-y-4"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
+                className="materia-texto text-base md:text-lg"
+                dangerouslySetInnerHTML={{ __html: formatarMateria(content) }}
               />
             </div>
           </div>

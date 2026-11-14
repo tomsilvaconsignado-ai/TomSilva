@@ -599,7 +599,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
             <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">
               Gerenciamento de Publicidade & Carrosséis
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0056a4] text-[10px] font-black uppercase tracking-wider border border-blue-100">
+            <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-marca text-[10px] font-black uppercase tracking-wider border border-blue-100">
               Formatos Independentes
             </span>
           </div>
@@ -612,7 +612,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
           <div className="flex items-center gap-2">
             <button
               onClick={() => openCreateForm()}
-              className="px-5 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Novo Anúncio em {currentSpaceDef.title}
@@ -665,16 +665,16 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
               onClick={() => { setActiveSpace(spaceDef.id); setActiveView('list'); }}
               className={`p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col justify-between ${
                 isSelected
-                  ? 'border-[#0056a4] bg-blue-50/70 shadow-sm ring-1 ring-[#0056a4]/20'
+                  ? 'border-marca bg-blue-50/70 shadow-sm ring-1 ring-marca/20'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50'
               }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1">
-                  <span className={`text-[9px] font-black uppercase tracking-wider ${isSelected ? 'text-[#0056a4]' : 'text-gray-400'}`}>
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${isSelected ? 'text-marca' : 'text-gray-500'}`}>
                     {spaceDef.badge}
                   </span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-white border border-gray-200 text-gray-700">
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white border border-gray-200 text-gray-700">
                     {activeFmt}
                   </span>
                 </div>
@@ -690,7 +690,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                 <span className="text-gray-700">
                   {spaceActiveCount} de {spaceAds.length} ativos
                 </span>
-                <span className="text-[#0056a4] font-mono">
+                <span className="text-marca font-mono">
                   ⏱ {spaceDef.id === 'sidebar_300x300' ? (formatSettings['300x300']?.durationSeconds || 5) : spaceDef.id === 'sidebar_300x900' ? (formatSettings['300x900']?.durationSeconds || 8) : (placementSettings[spaceDef.placement]?.defaultDurationSeconds || 5)}s
                 </span>
               </div>
@@ -715,16 +715,16 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
             <div className="border-b border-gray-100 pb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h3 className="font-black text-base text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                  <Layout className="w-5 h-5 text-[#0056a4]" />
+                  <Layout className="w-5 h-5 text-marca" />
                   {editingAd ? `Editar Anúncio — ${currentSpaceDef.title}` : `Novo Anúncio — ${currentSpaceDef.title}`}
                 </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-gray-500 mt-0.5">
                   Este espaço aceita estritamente: <strong>{currentSpaceDef.compatibleFormats.map(f => f.replace('x', '×') + ' px').join(' ou ')}</strong>.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-blue-50 text-[#0056a4] border border-blue-200 font-mono">
+                <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-blue-50 text-marca border border-blue-200 font-mono">
                   Espaço: {currentSpaceDef.title}
                 </span>
               </div>
@@ -761,16 +761,16 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                       onClick={() => setFormFormat(fmt)}
                       className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
                         isSelected
-                          ? 'border-[#0056a4] bg-blue-50/60 shadow-xs font-bold text-gray-900 ring-1 ring-[#0056a4]/30'
+                          ? 'border-marca bg-blue-50/60 shadow-xs font-bold text-gray-900 ring-1 ring-marca/30'
                           : 'border-gray-200 bg-white hover:border-gray-300 text-gray-600'
                       }`}
                     >
-                      <div className="p-1 rounded bg-white border border-gray-200 text-[#0056a4] shrink-0">
+                      <div className="p-1 rounded bg-white border border-gray-200 text-marca shrink-0">
                         {fmt === '300x600' ? <RectangleVertical className="w-5 h-5" /> : fmt === '300x300' ? <Square className="w-5 h-5" /> : <Layout className="w-5 h-5" />}
                       </div>
                       <div className="flex-1">
                         <div className="text-xs font-black uppercase text-gray-900">{label}</div>
-                        <div className="text-[11px] text-gray-500 mt-0.5">{desc}</div>
+                        <div className="text-[12px] text-gray-500 mt-0.5">{desc}</div>
                       </div>
                     </div>
                   );
@@ -790,7 +790,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   value={sponsorName}
                   onChange={(e) => setSponsorName(e.target.value)}
                   placeholder="Ex: Hospital Primavera, Vidraçaria Manancial, Unit"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca focus:bg-white outline-none"
                 />
               </div>
 
@@ -804,7 +804,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex: Campanha Especial 2026 - Slide 1"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca focus:bg-white outline-none"
                 />
               </div>
 
@@ -818,7 +818,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   value={linkUrl}
                   onChange={(e) => setLinkUrl(e.target.value)}
                   placeholder="https://instagram.com/anunciante ou https://site.com.br"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca focus:bg-white outline-none"
                 />
               </div>
 
@@ -831,7 +831,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   value={campaignName}
                   onChange={(e) => setCampaignName(e.target.value)}
                   placeholder="Ex: Institucional Sergipe, Vestibular 2026"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca focus:bg-white outline-none"
                 />
               </div>
             </div>
@@ -854,27 +854,27 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                     tabIndex={0}
                     onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !uploading) { e.preventDefault(); fileInputRef.current?.click(); } }}
                     className={`rounded-2xl border-2 border-dashed p-5 text-center transition-all ${
-                      uploading ? 'cursor-wait border-[#0056a4]/40 bg-blue-50/40'
-                      : isDragging ? 'cursor-copy border-[#0056a4] bg-blue-50'
-                      : 'cursor-pointer border-gray-300 bg-gray-50 hover:border-[#0056a4]/60 hover:bg-blue-50/30'
+                      uploading ? 'cursor-wait border-marca/40 bg-blue-50/40'
+                      : isDragging ? 'cursor-copy border-marca bg-blue-50'
+                      : 'cursor-pointer border-gray-300 bg-gray-50 hover:border-marca/60 hover:bg-blue-50/30'
                     }`}
                   >
                     {uploading ? (
-                      <div className="flex flex-col items-center gap-2 text-[#0056a4]">
+                      <div className="flex flex-col items-center gap-2 text-marca">
                         <RefreshCw className="w-6 h-6 animate-spin" />
                         <span className="text-xs font-black uppercase tracking-wider">Enviando arquivo...</span>
-                        <span className="text-[11px] text-gray-500">Vídeos maiores podem levar alguns segundos.</span>
+                        <span className="text-[12px] text-gray-500">Vídeos maiores podem levar alguns segundos.</span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-1.5">
-                        <Upload className="w-6 h-6 text-[#0056a4]" />
+                        <Upload className="w-6 h-6 text-marca" />
                         <span className="text-xs font-black text-gray-800">
                           {isDragging ? 'Solte o arquivo aqui' : 'Enviar arquivo do computador'}
                         </span>
-                        <span className="text-[11px] text-gray-500">
+                        <span className="text-[12px] text-gray-500">
                           Clique ou arraste • Imagem JPG, PNG, WebP ou GIF animado (até {Math.round(MEDIA_UPLOAD_LIMITS.imageBytes / 1024 / 1024)} MB) • Vídeo MP4 ou WebM (até {Math.round(MEDIA_UPLOAD_LIMITS.videoBytes / 1024 / 1024)} MB)
                         </span>
-                        <span className="text-[11px] font-bold text-[#0056a4]">
+                        <span className="text-[12px] font-bold text-marca">
                           Tamanho ideal para este espaço: {expectedDims.w} × {expectedDims.h} px
                         </span>
                       </div>
@@ -889,7 +889,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   </div>
 
                   {uploadError && (
-                    <div role="alert" className="p-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-[11px] font-bold flex items-start gap-2">
+                    <div role="alert" className="p-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-[12px] font-bold flex items-start gap-2">
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
                       <span>{uploadError}</span>
                     </div>
@@ -897,7 +897,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
 
                   {/* Dados do arquivo enviado */}
                   {mediaInfo && !uploading && mediaUrl && (
-                    <div className={`p-3 rounded-xl border text-[11px] flex items-start gap-2 ${ratioMismatch ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
+                    <div className={`p-3 rounded-xl border text-[12px] flex items-start gap-2 ${ratioMismatch ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
                       {ratioMismatch ? <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> : <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />}
                       <div className="space-y-0.5">
                         <div className="font-bold break-all">
@@ -939,7 +939,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 mb-1">
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">
                       Ou informe a URL direta da imagem, GIF ou vídeo:
                     </label>
                     <input
@@ -948,12 +948,12 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                       onChange={(e) => handleMediaUrlInput(e.target.value)}
                       disabled={uploading}
                       placeholder="https://exemplo.com/arte-publicitaria.jpg"
-                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none disabled:opacity-60"
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-marca focus:bg-white outline-none disabled:opacity-60"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 mb-1">
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">
                       Texto Alternativo (Acessibilidade e SEO):
                     </label>
                     <input
@@ -961,14 +961,14 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                       value={altText}
                       onChange={(e) => setAltText(e.target.value)}
                       placeholder="Ex: Anúncio publicitário de patrocinador em Sergipe"
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-marca focus:bg-white outline-none"
                     />
                   </div>
                 </div>
 
                 {/* PRÉVIA DA ARTE DENTRO DO FORMULÁRIO */}
                 <div className="lg:col-span-4 bg-gray-50 p-3 rounded-xl border border-gray-200 flex flex-col items-center justify-center text-center">
-                  <span className="text-[10px] font-black uppercase text-gray-400 mb-2">
+                  <span className="text-[10px] font-black uppercase text-gray-500 mb-2">
                     Prévia da Arte ({formFormat.replace('x', '×')} px)
                   </span>
                   {previewSrc ? (
@@ -985,13 +985,13 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                       )}
                       {uploading && (
                         <div className="absolute inset-0 bg-white/60 flex items-center justify-center">
-                          <RefreshCw className="w-5 h-5 text-[#0056a4] animate-spin" />
+                          <RefreshCw className="w-5 h-5 text-marca animate-spin" />
                         </div>
                       )}
                     </div>
                   ) : (
                     <div 
-                      className="w-full max-w-[240px] rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 text-xs p-4"
+                      className="w-full max-w-[240px] rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500 text-xs p-4"
                       style={{
                         aspectRatio: formFormat === '970x90' ? '970 / 90' : formFormat === '728x90' ? '728 / 90' : formFormat === '300x600' ? '1 / 2' : '1 / 1'
                       }}
@@ -1054,7 +1054,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   id="openInNewTab"
                   checked={openInNewTab}
                   onChange={(e) => setOpenInNewTab(e.target.checked)}
-                  className="w-4 h-4 text-[#0056a4] rounded cursor-pointer"
+                  className="w-4 h-4 text-marca rounded cursor-pointer"
                 />
                 <label htmlFor="openInNewTab" className="text-xs font-bold text-gray-700 cursor-pointer">
                   Abrir link em nova aba
@@ -1074,7 +1074,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
               <button
                 type="submit"
                 disabled={loading || uploading}
-                className="px-6 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
+                className="px-6 py-2.5 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
               >
                 {loading ? 'Salvando...' : uploading ? 'Aguardando envio da arte...' : editingAd ? 'Salvar Alterações' : 'Cadastrar Anúncio no Carrossel'}
               </button>
@@ -1092,7 +1092,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
             {/* CABEÇALHO DO ESPAÇO */}
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0056a4] flex items-center justify-center font-black">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-marca flex items-center justify-center font-black">
                   {activeSpace === 'sidebar_300x900' ? (
                     <RectangleVertical className="w-5 h-5" />
                   ) : activeSpace === 'sidebar_300x300' || isExtraSidebarSquare(activeSpace) ? (
@@ -1142,7 +1142,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                 <button
                   type="button"
                   onClick={() => openCreateForm()}
-                  className="px-4 py-2 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   Adicionar Anúncio
@@ -1157,7 +1157,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   <span className="block text-xs font-black uppercase text-gray-800 tracking-wider">
                     Formato de Exibição deste Espaço:
                   </span>
-                  <span className="text-[11px] text-gray-500">
+                  <span className="text-[12px] text-gray-500">
                     Selecione qual dimensão horizontal deve ser veiculada neste espaço no portal público:
                   </span>
                 </div>
@@ -1168,7 +1168,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                     onClick={() => handleSelectSpaceFormat('728x90')}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${
                       currentActiveFormat === '728x90'
-                        ? 'bg-[#0056a4] text-white border-[#0056a4] shadow-xs'
+                        ? 'bg-marca text-white border-marca shadow-xs'
                         : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -1181,7 +1181,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                     onClick={() => handleSelectSpaceFormat('970x90')}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer border flex items-center gap-1.5 ${
                       currentActiveFormat === '970x90'
-                        ? 'bg-[#0056a4] text-white border-[#0056a4] shadow-xs'
+                        ? 'bg-marca text-white border-marca shadow-xs'
                         : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -1195,12 +1195,12 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
             {/* TEMPORIZADOR INDEPENDENTE DESTE ESPAÇO */}
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-[#0056a4] shrink-0" />
+                <Clock className="w-5 h-5 text-marca shrink-0" />
                 <div>
                   <span className="block text-xs font-black uppercase text-gray-800 tracking-wider">
                     Temporizador Independente deste Carrossel:
                   </span>
-                  <span className="text-[11px] text-gray-500">
+                  <span className="text-[12px] text-gray-500">
                     Tempo de permanência de cada anúncio antes da transição automática no portal.
                   </span>
                 </div>
@@ -1218,7 +1218,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                       }}
                       className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer border ${
                         currentDurationSeconds === sec
-                          ? 'bg-[#0056a4] text-white border-[#0056a4] shadow-xs'
+                          ? 'bg-marca text-white border-marca shadow-xs'
                           : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100'
                       }`}
                     >
@@ -1234,7 +1234,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                     max={60}
                     value={customTimerValue}
                     onChange={(e) => setCustomTimerValue(Number(e.target.value) || 5)}
-                    className="w-16 px-2.5 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold font-mono text-center outline-none focus:border-[#0056a4]"
+                    className="w-16 px-2.5 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold font-mono text-center outline-none focus:border-marca"
                   />
                   <span className="text-xs font-bold text-gray-500">segundos</span>
                   <button
@@ -1256,7 +1256,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   <span className="text-xs font-black uppercase text-gray-700 tracking-wider">
                     Slides Cadastrados no Carrossel ({targetAds.length})
                   </span>
-                  <span className="text-[11px] text-gray-400">
+                  <span className="text-[12px] text-gray-500">
                     Use as setas para reordenar a sequência
                   </span>
                 </div>
@@ -1267,13 +1267,13 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                     <h4 className="font-bold text-gray-700 text-sm">
                       Nenhum anúncio cadastrado para "{currentSpaceDef.title}"
                     </h4>
-                    <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                    <p className="text-xs text-gray-500 max-w-sm mx-auto">
                       Formatos aceitos: {currentSpaceDef.compatibleFormats.map(f => f.replace('x', '×') + ' px').join(' ou ')}.
                     </p>
                     <button
                       type="button"
                       onClick={() => openCreateForm()}
-                      className="px-4 py-2 bg-[#0056a4] text-white text-xs font-bold rounded-xl cursor-pointer"
+                      className="px-4 py-2 bg-marca text-white text-xs font-bold rounded-xl cursor-pointer"
                     >
                       Adicionar Primeiro Anúncio
                     </button>
@@ -1337,26 +1337,26 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                                 <h4 className="font-black text-xs text-gray-900 truncate">
                                   {ad.sponsorName}
                                 </h4>
-                                <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+                                <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold uppercase ${
                                   isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-200 text-gray-600'
                                 }`}>
                                   {isActive ? 'Ativo' : 'Pausado'}
                                 </span>
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-blue-50 text-[#0056a4]">
+                                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-blue-50 text-marca">
                                   {(ad.adFormat || currentActiveFormat).replace('x', '×')}
                                 </span>
                               </div>
-                              <p className="text-[11px] text-gray-500 truncate">{ad.title}</p>
+                              <p className="text-[12px] text-gray-500 truncate">{ad.title}</p>
                               <a
                                 href={ad.linkUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[10px] text-[#0056a4] hover:underline flex items-center gap-1 truncate"
+                                className="text-[10px] text-marca hover:underline flex items-center gap-1 truncate"
                               >
                                 <ExternalLink className="w-2.5 h-2.5 inline shrink-0" />
                                 {ad.linkUrl}
                               </a>
-                              <div className="flex items-center gap-3 text-[10px] text-gray-400 font-mono pt-0.5">
+                              <div className="flex items-center gap-3 text-[10px] text-gray-500 font-mono pt-0.5">
                                 <span>👁 {ad.impressionsCount || 0} views</span>
                                 <span>👆 {ad.clicksCount || 0} cliques</span>
                               </div>
@@ -1407,7 +1407,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
               <div className="lg:col-span-5 bg-gray-50/70 p-5 rounded-2xl border border-gray-200 flex flex-col items-center">
                 <div className="w-full flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
                   <div className="flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-[#0056a4]" />
+                    <Eye className="w-4 h-4 text-marca" />
                     <span className="text-xs font-black uppercase text-gray-800 tracking-wider">
                       Prévia do Carrossel ({currentActiveFormat.replace('x', ' × ')} px)
                     </span>
@@ -1419,7 +1419,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                       type="button"
                       onClick={() => setPreviewDevice('desktop')}
                       className={`p-1.5 rounded transition-all cursor-pointer ${
-                        previewDevice === 'desktop' ? 'bg-[#0056a4] text-white' : 'text-gray-500 hover:text-gray-800'
+                        previewDevice === 'desktop' ? 'bg-marca text-white' : 'text-gray-500 hover:text-gray-800'
                       }`}
                       title="Visualização em Computador (Desktop)"
                     >
@@ -1429,7 +1429,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                       type="button"
                       onClick={() => setPreviewDevice('mobile')}
                       className={`p-1.5 rounded transition-all cursor-pointer ${
-                        previewDevice === 'mobile' ? 'bg-[#0056a4] text-white' : 'text-gray-500 hover:text-gray-800'
+                        previewDevice === 'mobile' ? 'bg-marca text-white' : 'text-gray-500 hover:text-gray-800'
                       }`}
                       title="Visualização em Celular (Mobile)"
                     >
@@ -1438,7 +1438,7 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
                   </div>
                 </div>
 
-                <div className="text-[10px] text-gray-400 mb-3 text-center">
+                <div className="text-[10px] text-gray-500 mb-3 text-center">
                   Alternando automaticamente a cada <strong className="text-gray-700 font-bold">{currentDurationSeconds}s</strong>
                 </div>
 

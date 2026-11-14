@@ -84,10 +84,10 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center gap-3 border-l border-gray-100 pl-5">
               <button
                 onClick={onOpenAdmin}
-                className="hover:text-[#0056a4] transition-colors font-bold uppercase tracking-widest flex items-center gap-1 cursor-pointer"
+                className="hover:text-marca transition-colors font-bold uppercase tracking-widest flex items-center gap-1 cursor-pointer"
                 title="Acesso exclusivo para administradores e editores"
               >
-                <Shield className="w-3 h-3 text-[#0056a4]" />
+                <Shield className="w-3 h-3 text-marca" />
                 Acesso Restrito
               </button>
             </div>
@@ -102,7 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
                   href={portalSettings.facebookUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center text-white cursor-pointer hover:bg-[#0056a4] transition-all shadow-sm"
+                  className="w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center text-white cursor-pointer hover:bg-marca transition-all shadow-sm"
                   title="Facebook"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
@@ -115,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
                   href={portalSettings.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center text-white cursor-pointer hover:bg-[#0056a4] transition-all shadow-sm"
+                  className="w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center text-white cursor-pointer hover:bg-marca transition-all shadow-sm"
                   title="Instagram"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-xl py-2 z-50 text-left text-xs animate-in fade-in">
                       <div className="px-3 py-1.5 border-b border-gray-50">
                         <p className="font-bold text-gray-900 truncate">{currentUser.fullName}</p>
-                        <p className="text-[10px] text-gray-400 capitalize">{currentUser.role === 'admin' ? 'Administrador' : currentUser.role === 'editor' ? 'Jornalista' : 'Leitor VIP'}</p>
+                        <p className="text-[10px] text-gray-500 capitalize">{currentUser.role === 'admin' ? 'Administrador' : currentUser.role === 'editor' ? 'Jornalista' : 'Leitor VIP'}</p>
                       </div>
 
                       {(currentUser.role === 'admin' || currentUser.role === 'editor') && (
@@ -162,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
                           onClick={() => { setUserDropdownOpen(false); onOpenAdmin(); }}
                           className="w-full text-left px-3 py-2 text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
                         >
-                          <Shield className="w-3.5 h-3.5 text-[#0056a4]" />
+                          <Shield className="w-3.5 h-3.5 text-marca" />
                           Painel de Controle
                         </button>
                       )}
@@ -192,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-2 pl-3 border-l border-gray-100">
                 <button
                   onClick={() => onOpenAuth('login')}
-                  className="text-[10px] font-black uppercase tracking-wider text-[#0056a4] hover:underline cursor-pointer"
+                  className="text-[10px] font-black uppercase tracking-wider text-marca hover:underline cursor-pointer"
                 >
                   Entrar
                 </button>
@@ -251,9 +251,9 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-3">
             <form
               onSubmit={handleSearchSubmit}
-              className="hidden md:flex items-center bg-gray-50 border border-gray-100 rounded-lg px-4 py-2 w-44 lg:w-60 focus-within:ring-2 focus-within:ring-[#0056a4]/10 focus-within:bg-white transition-all"
+              className="hidden md:flex items-center bg-gray-50 border border-gray-100 rounded-lg px-4 py-2 w-44 lg:w-60 focus-within:ring-2 focus-within:ring-marca/10 focus-within:bg-white transition-all"
             >
-              <Search className="w-4 h-4 text-gray-400 mr-2.5 shrink-0" />
+              <Search className="w-4 h-4 text-gray-500 mr-2.5 shrink-0" />
               <input
                 type="text"
                 placeholder="Pesquisar..."
@@ -274,7 +274,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               onClick={() => onOpenAuth('login')}
-              className="md:hidden p-2 text-gray-700 hover:text-[#0056a4]"
+              className="md:hidden p-2 text-gray-700 hover:text-marca"
               title="Minha Conta"
             >
               <User className="w-5 h-5" />
@@ -299,24 +299,24 @@ export const Header: React.FC<HeaderProps> = ({
                           ? 'text-amber-600 border-amber-500 font-black'
                           : isPrint
                             ? 'text-red-700 border-red-600 font-black'
-                            : 'text-[#0056a4] border-[#0056a4]'
+                            : 'text-marca border-marca'
                         : isClassifieds
                           ? 'text-amber-600 hover:text-amber-700 border-transparent hover:border-amber-500'
                           : isPrint
                             ? 'text-red-700 hover:text-red-800 border-transparent hover:border-red-600'
-                            : 'text-gray-800 hover:text-[#0056a4] border-transparent hover:border-[#0056a4]'
+                            : 'text-gray-800 hover:text-marca border-transparent hover:border-marca'
                     }`}
                   >
                     {isClassifieds && <Tag className="w-3 h-3 text-amber-500" />}
                     {isPrint && <Newspaper className="w-3 h-3 text-red-600" />}
                     <span>{cat.name}</span>
                     {isClassifieds && (
-                      <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-amber-500 text-white tracking-normal leading-none shadow-xs">
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white tracking-normal leading-none shadow-xs">
                         NOVO
                       </span>
                     )}
                     {isPrint && (
-                      <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black bg-red-600 text-white tracking-normal leading-none shadow-xs">
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-red-600 text-white tracking-normal leading-none shadow-xs">
                         PDF
                       </span>
                     )}
@@ -336,7 +336,7 @@ export const Header: React.FC<HeaderProps> = ({
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-100 bg-white space-y-4 animate-in slide-in-from-top-2 duration-200">
             <form onSubmit={handleSearchSubmit} className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-              <Search className="w-4 h-4 text-gray-400 mr-2" />
+              <Search className="w-4 h-4 text-gray-500 mr-2" />
               <input
                 type="text"
                 placeholder="Buscar notícias..."
@@ -362,7 +362,7 @@ export const Header: React.FC<HeaderProps> = ({
                     }}
                     className={`text-left px-3 py-2 text-xs font-black uppercase tracking-wider rounded-lg flex items-center justify-between ${
                       currentCategory === cat.slug
-                        ? isClassifieds ? 'bg-amber-500 text-white' : isPrint ? 'bg-red-600 text-white' : 'bg-[#0056a4] text-white'
+                        ? isClassifieds ? 'bg-amber-500 text-white' : isPrint ? 'bg-red-600 text-white' : 'bg-marca text-white'
                         : isClassifieds
                           ? 'bg-amber-50 text-amber-800 border border-amber-200'
                           : isPrint
@@ -372,12 +372,12 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <span>{cat.name}</span>
                     {isClassifieds && (
-                      <span className="text-[8px] bg-amber-600 text-white px-1.5 py-0.5 rounded font-black">
+                      <span className="text-[10px] bg-amber-600 text-white px-1.5 py-0.5 rounded font-black">
                         NOVO
                       </span>
                     )}
                     {isPrint && (
-                      <span className="text-[8px] bg-red-700 text-white px-1.5 py-0.5 rounded font-black">
+                      <span className="text-[10px] bg-red-700 text-white px-1.5 py-0.5 rounded font-black">
                         PDF
                       </span>
                     )}
@@ -406,7 +406,7 @@ export const Header: React.FC<HeaderProps> = ({
                     }}
                     className="w-full py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
                   >
-                    <Shield className="w-3.5 h-3.5 text-[#0056a4]" />
+                    <Shield className="w-3.5 h-3.5 text-marca" />
                     Painel Administrativo
                   </button>
                 )}
@@ -428,7 +428,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="flex gap-4 w-full">
                   <button
                     onClick={() => { onOpenAuth('login'); setMobileMenuOpen(false); }}
-                    className="flex-1 py-2 bg-[#0056a4] text-white rounded text-center uppercase tracking-wider text-[10px]"
+                    className="flex-1 py-2 bg-marca text-white rounded text-center uppercase tracking-wider text-[10px]"
                   >
                     Entrar
                   </button>

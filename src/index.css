@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+@theme {
+  /* Public Sans hospedada no próprio site. Antes era baixada do Google mas nunca aplicada:
+     o site aparecia na fonte do sistema. */
+  --font-sans: 'Public Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Azul da Folha */
+  --color-marca: #0056a4;
+  --color-marca-escuro: #004482;
+}
+
 @layer theme {
   :root {
     --color-primary: #0056a4;
@@ -7,6 +16,47 @@
     --color-accent: #cc0000;
   }
 }
+
+/* Títulos: quebra de linha equilibrada (sem palavra sozinha na última linha) */
+:where(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+/* Texto da matéria: linhas de leitura confortável, parágrafos espaçados, intertítulos, citações,
+   listas e links no azul da Folha */
+.materia-texto {
+  max-width: 68ch;
+  color: var(--color-gray-800);
+  line-height: 1.75;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+.materia-texto > * + * { margin-top: 1.1em; }
+.materia-texto h2, .materia-texto h3 {
+  margin-top: 1.6em;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--color-gray-900);
+  letter-spacing: -0.01em;
+}
+.materia-texto h2 { font-size: 1.3em; }
+.materia-texto h3 { font-size: 1.12em; }
+.materia-texto strong, .materia-texto b { font-weight: 700; color: var(--color-gray-900); }
+.materia-texto a { color: var(--color-marca); text-decoration: underline; text-underline-offset: 3px; }
+.materia-texto a:hover { color: var(--color-marca-escuro); }
+.materia-texto blockquote {
+  border-left: 4px solid var(--color-marca);
+  padding: 0.25em 0 0.25em 1em;
+  font-style: italic;
+  color: var(--color-gray-700);
+}
+.materia-texto ul, .materia-texto ol { padding-left: 1.4em; }
+.materia-texto ul { list-style: disc; }
+.materia-texto ol { list-style: decimal; }
+.materia-texto li + li { margin-top: 0.35em; }
+.materia-texto li::marker { color: var(--color-marca); }
+.materia-texto img, .materia-texto video, .materia-texto iframe { max-width: 100%; height: auto; border-radius: 0.75rem; }
+.materia-texto hr { border-color: var(--color-gray-200); }
 
 @keyframes marquee {
   0% {

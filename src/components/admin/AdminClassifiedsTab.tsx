@@ -164,7 +164,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
       {/* Cards de Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
-          <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Total de Anúncios</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">Total de Anúncios</p>
           <p className="text-2xl font-black text-gray-900 mt-1">{items.length}</p>
         </div>
 
@@ -174,7 +174,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
-          <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Publicados Ativos</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-gray-500">Publicados Ativos</p>
           <p className="text-2xl font-black text-emerald-600 mt-1">{publishedCount}</p>
         </div>
 
@@ -189,7 +189,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
         <button
           onClick={() => setSubTab('ads')}
           className={`px-3 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-            subTab === 'ads' ? 'bg-[#0056a4] text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100'
+            subTab === 'ads' ? 'bg-marca text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
         >
           Anúncios ({items.length})
@@ -198,7 +198,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
         <button
           onClick={() => setSubTab('categories')}
           className={`px-3 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-            subTab === 'categories' ? 'bg-[#0056a4] text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100'
+            subTab === 'categories' ? 'bg-marca text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
         >
           Categorias ({categories.length})
@@ -207,7 +207,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
         <button
           onClick={() => setSubTab('reports')}
           className={`px-3 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-            subTab === 'reports' ? 'bg-[#0056a4] text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100'
+            subTab === 'reports' ? 'bg-marca text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
         >
           <ShieldAlert className="w-3.5 h-3.5 text-red-500" />
@@ -217,7 +217,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
         <button
           onClick={() => setSubTab('settings')}
           className={`px-3 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-            subTab === 'settings' ? 'bg-[#0056a4] text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100'
+            subTab === 'settings' ? 'bg-marca text-white shadow-xs' : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
         >
           Configurações de Validade & Aprovação
@@ -251,7 +251,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
             </div>
 
             <div className="relative w-64">
-              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3" />
+              <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-3" />
               <input
                 type="text"
                 placeholder="Filtrar por título, código..."
@@ -280,7 +280,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
                 <tbody className="divide-y divide-gray-100">
                   {filteredItems.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-gray-400 italic">
+                      <td colSpan={7} className="py-8 text-center text-gray-500 italic">
                         Nenhum anúncio encontrado para este filtro.
                       </td>
                     </tr>
@@ -302,7 +302,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
 
                         <td className="py-3 px-4 max-w-xs">
                           <p className="font-bold text-gray-900 line-clamp-1">{item.title}</p>
-                          <p className="text-[10px] text-gray-400 truncate">
+                          <p className="text-[10px] text-gray-500 truncate">
                             {item.advertiserName} ({item.city}-{item.state}) • Tel: {item.phone}
                           </p>
                         </td>
@@ -311,12 +311,12 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
                           <span className="text-[10px] font-bold text-gray-600 block">
                             {item.category}
                           </span>
-                          <span className="text-[9px] uppercase font-bold text-gray-400">
+                          <span className="text-[10px] uppercase font-bold text-gray-500">
                             {item.section}
                           </span>
                         </td>
 
-                        <td className="py-3 px-4 font-bold text-[#0056a4]">
+                        <td className="py-3 px-4 font-bold text-marca">
                           {formatPrice(item)}
                         </td>
 
@@ -326,7 +326,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
 
                         <td className="py-3 px-4 text-[10px] text-gray-500">
                           <p>{formatRelativeTime(item.createdAt)}</p>
-                          <p className="text-[9px] text-gray-400">
+                          <p className="text-[10px] text-gray-500">
                             Expira: {new Date(item.expiresAt).toLocaleDateString('pt-BR')}
                           </p>
                         </td>
@@ -383,7 +383,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
                           {/* Deletar */}
                           <button
                             onClick={() => handleDelete(item.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer"
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer"
                             title="Excluir Anúncio"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -402,7 +402,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
       {/* SUB-ABA 2: CATEGORIAS */}
       {subTab === 'categories' && (
         <div className="bg-white p-6 rounded-2xl border border-gray-100 space-y-6">
-          <h3 className="text-base font-black uppercase tracking-tight text-gray-900 border-l-4 border-[#0056a4] pl-3">
+          <h3 className="text-base font-black uppercase tracking-tight text-gray-900 border-l-4 border-marca pl-3">
             Gerenciador de Categorias de Classificados
           </h3>
 
@@ -438,7 +438,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
 
             <button
               type="submit"
-              className="px-5 py-2 bg-[#0056a4] hover:bg-[#004482] text-white font-black uppercase tracking-wider text-xs rounded-lg transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+              className="px-5 py-2 bg-marca hover:bg-marca-escuro text-white font-black uppercase tracking-wider text-xs rounded-lg transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
               Adicionar
@@ -459,7 +459,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
                       <span className="font-bold text-gray-800">{cat.name}</span>
                       <button
                         onClick={() => handleDeleteCategory(cat.id)}
-                        className="text-gray-400 hover:text-red-600 cursor-pointer"
+                        className="text-gray-500 hover:text-red-600 cursor-pointer"
                         title="Remover Categoria"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -481,7 +481,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
           </h3>
 
           {reports.length === 0 ? (
-            <p className="text-xs text-gray-400 italic py-6 text-center">
+            <p className="text-xs text-gray-500 italic py-6 text-center">
               Nenhuma denúncia registrada até o momento.
             </p>
           ) : (
@@ -494,7 +494,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
                         {rep.reason}
                       </span>
                       <strong className="text-xs text-gray-900">Anúncio: {rep.classifiedTitle}</strong>
-                      <span className="text-[10px] text-gray-400">({formatRelativeTime(rep.createdAt)})</span>
+                      <span className="text-[10px] text-gray-500">({formatRelativeTime(rep.createdAt)})</span>
                     </div>
                     <p className="text-xs text-gray-700 bg-white p-2.5 rounded border border-gray-200">
                       "{rep.details}"
@@ -523,7 +523,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
                         </button>
                       </>
                     ) : (
-                      <span className="text-xs font-bold text-gray-400 uppercase">
+                      <span className="text-xs font-bold text-gray-500 uppercase">
                         {rep.status === 'resolved' ? 'Resolvido' : 'Descartado'}
                       </span>
                     )}
@@ -538,7 +538,7 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
       {/* SUB-ABA 4: CONFIGURAÇÕES */}
       {subTab === 'settings' && (
         <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 space-y-6 max-w-xl">
-          <h3 className="text-base font-black uppercase tracking-tight text-gray-900 border-l-4 border-[#0056a4] pl-3">
+          <h3 className="text-base font-black uppercase tracking-tight text-gray-900 border-l-4 border-marca pl-3">
             Configurações do Módulo Classificados
           </h3>
 
@@ -549,11 +549,11 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
                   type="checkbox"
                   checked={settings.requireApproval}
                   onChange={(e) => setSettings({ ...settings, requireApproval: e.target.checked })}
-                  className="w-4 h-4 text-[#0056a4] rounded cursor-pointer"
+                  className="w-4 h-4 text-marca rounded cursor-pointer"
                 />
                 <div>
                   <strong className="text-xs text-gray-900 block">Aprovação Prévia Obrigatória (Recomendado)</strong>
-                  <span className="text-[11px] text-gray-500 block leading-tight">
+                  <span className="text-[12px] text-gray-500 block leading-tight">
                     Quando ativado, novos anúncios de usuários ficam como "Pendentes de Aprovação" até um administrador aprovar.
                   </span>
                 </div>
@@ -570,16 +570,16 @@ export const AdminClassifiedsTab: React.FC<AdminClassifiedsTabProps> = ({ curren
                 max="365"
                 value={settings.defaultValidityDays}
                 onChange={(e) => setSettings({ ...settings, defaultValidityDays: parseInt(e.target.value) || 30 })}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#0056a4]"
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-marca"
               />
-              <p className="text-[10px] text-gray-400 mt-1">
+              <p className="text-[10px] text-gray-500 mt-1">
                 Ao vencer esse prazo, o anúncio expira automaticamente e sai das pesquisas públicas.
               </p>
             </div>
 
             <button
               type="submit"
-              className="px-6 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white font-black uppercase tracking-wider text-xs rounded-lg transition-all shadow-md cursor-pointer"
+              className="px-6 py-2.5 bg-marca hover:bg-marca-escuro text-white font-black uppercase tracking-wider text-xs rounded-lg transition-all shadow-md cursor-pointer"
             >
               Salvar Configurações
             </button>

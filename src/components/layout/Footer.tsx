@@ -68,7 +68,7 @@ export const Footer: React.FC<FooterProps> = ({
                   }}
                 />
               </div>
-              <p className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase group-hover:text-[#0056a4] transition-colors">
+              <p className="text-[10px] font-black tracking-[0.2em] text-gray-500 uppercase group-hover:text-marca transition-colors">
                 {settings.tagline}
               </p>
             </button>
@@ -76,7 +76,7 @@ export const Footer: React.FC<FooterProps> = ({
               {settings.footerPresentation || settings.shortInstitutionalText}
             </p>
             {settings.responsibleCompany && (
-              <p className="text-[11px] text-gray-400 font-medium">
+              <p className="text-[12px] text-gray-500 font-medium">
                 {settings.responsibleCompany}
               </p>
             )}
@@ -84,14 +84,14 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Coluna 2: Institucional */}
           <div className="space-y-6">
-            <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 border-l-4 border-[#0056a4] pl-3">
+            <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 border-l-4 border-marca pl-3">
               Institucional
             </h4>
             <ul className="space-y-3">
               <li>
                 <button
                   onClick={() => onOpenInstitutional('sobre-nos')}
-                  className="text-gray-500 hover:text-[#0056a4] text-sm font-bold transition-colors cursor-pointer"
+                  className="text-gray-500 hover:text-marca text-sm font-bold transition-colors cursor-pointer"
                 >
                   Sobre Nós
                 </button>
@@ -99,7 +99,7 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenInstitutional('expediente')}
-                  className="text-gray-500 hover:text-[#0056a4] text-sm font-bold transition-colors cursor-pointer"
+                  className="text-gray-500 hover:text-marca text-sm font-bold transition-colors cursor-pointer"
                 >
                   Expediente
                 </button>
@@ -107,7 +107,7 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenInstitutional('privacidade')}
-                  className="text-gray-500 hover:text-[#0056a4] text-sm font-bold transition-colors cursor-pointer"
+                  className="text-gray-500 hover:text-marca text-sm font-bold transition-colors cursor-pointer"
                 >
                   Privacidade
                 </button>
@@ -119,7 +119,7 @@ export const Footer: React.FC<FooterProps> = ({
                     className="text-amber-600 hover:text-amber-700 text-sm font-black transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     <span>Classificados</span>
-                    <span className="px-1.5 py-0.2 bg-amber-500 text-white text-[8px] font-black rounded uppercase">
+                    <span className="px-1.5 py-0.2 bg-amber-500 text-white text-[10px] font-black rounded uppercase">
                       NOVO
                     </span>
                   </button>
@@ -128,7 +128,7 @@ export const Footer: React.FC<FooterProps> = ({
               <li>
                 <button
                   onClick={() => onOpenInstitutional('anuncie-conosco')}
-                  className="text-gray-500 hover:text-[#0056a4] text-sm font-bold transition-colors cursor-pointer"
+                  className="text-gray-500 hover:text-marca text-sm font-bold transition-colors cursor-pointer"
                 >
                   Anuncie Conosco
                 </button>
@@ -138,16 +138,16 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Coluna 3: Contato & Canais */}
           <div className="space-y-6">
-            <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 border-l-4 border-[#0056a4] pl-3">
+            <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 border-l-4 border-marca pl-3">
               Contato
             </h4>
             <ul className="space-y-4">
               {/* E-mail */}
               {settings.showContactEmail && settings.contactEmail && (
                 <li className="flex items-start gap-3 group">
-                  <Mail className="w-4 h-4 text-[#0056a4] mt-0.5 shrink-0" />
+                  <Mail className="w-4 h-4 text-marca mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">E-mail</p>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">E-mail</p>
                     <a href={`mailto:${settings.contactEmail}`} className="text-gray-900 font-bold text-sm hover:underline">
                       {settings.contactEmail}
                     </a>
@@ -158,9 +158,9 @@ export const Footer: React.FC<FooterProps> = ({
               {/* Telefone */}
               {settings.showContactPhone && settings.contactPhone && (
                 <li className="flex items-start gap-3 group">
-                  <Phone className="w-4 h-4 text-[#0056a4] mt-0.5 shrink-0" />
+                  <Phone className="w-4 h-4 text-marca mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Telefone</p>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">Telefone</p>
                     <a href={phoneTelLink} className="text-gray-900 font-bold text-sm hover:underline">
                       {settings.contactPhone}
                     </a>
@@ -177,7 +177,7 @@ export const Footer: React.FC<FooterProps> = ({
                     </svg>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">WhatsApp</p>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">WhatsApp</p>
                     <a 
                       href={settings.whatsappLink || `https://wa.me/55${settings.whatsappNumber.replace(/\D/g, '')}`} 
                       target="_blank" 
@@ -201,7 +201,7 @@ export const Footer: React.FC<FooterProps> = ({
                     </svg>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Instagram</p>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">Instagram</p>
                     <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-gray-900 font-bold text-sm hover:underline">
                       @{settings.instagramUrl.split('.com/')[1]?.replace(/\/$/, '') || 'folhadaregiaose'}
                     </a>
@@ -212,9 +212,9 @@ export const Footer: React.FC<FooterProps> = ({
               {/* Endereço */}
               {settings.showCommercialAddress && settings.commercialAddress && (
                 <li className="flex items-start gap-3 group">
-                  <MapPin className="w-4 h-4 text-[#0056a4] mt-0.5 shrink-0" />
+                  <MapPin className="w-4 h-4 text-marca mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Endereço</p>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">Endereço</p>
                     <p className="text-gray-900 font-bold text-sm leading-tight">
                       {settings.commercialAddress} {settings.city && `- ${settings.city}`} {settings.state && settings.state}
                     </p>
@@ -225,9 +225,9 @@ export const Footer: React.FC<FooterProps> = ({
               {/* Horário */}
               {settings.showOpeningHours && settings.openingHours && (
                 <li className="flex items-start gap-3 group">
-                  <Clock className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                  <Clock className="w-4 h-4 text-gray-500 mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Atendimento</p>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">Atendimento</p>
                     <p className="text-gray-700 font-medium text-xs">
                       {settings.openingHours}
                     </p>
@@ -239,7 +239,7 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Coluna 4: Newsletter */}
           <div className="space-y-6">
-            <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 border-l-4 border-[#0056a4] pl-3">
+            <h4 className="text-xs font-black uppercase tracking-widest text-gray-900 border-l-4 border-marca pl-3">
               Newsletter
             </h4>
             <p className="text-gray-500 text-sm font-medium">
@@ -258,12 +258,12 @@ export const Footer: React.FC<FooterProps> = ({
                   placeholder="Seu e-mail"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#0056a4]/10 outline-none font-medium"
+                  className="flex-1 bg-gray-50 border border-gray-100 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-marca/10 outline-none font-medium"
                 />
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-[#0056a4] text-white p-2.5 rounded-lg hover:bg-[#004482] transition-all shadow-md cursor-pointer disabled:opacity-50"
+                  className="bg-marca text-white p-2.5 rounded-lg hover:bg-marca-escuro transition-all shadow-md cursor-pointer disabled:opacity-50"
                   aria-label="Inscrever-se"
                 >
                   <Send className="w-4 h-4" />
@@ -280,15 +280,15 @@ export const Footer: React.FC<FooterProps> = ({
 
         {/* Rodapé Bottom */}
         <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest text-center md:text-left">
+          <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest text-center md:text-left">
             © {settings.referenceYear || new Date().getFullYear()} {settings.copyrightText || `${settings.officialName}. Todos os direitos reservados.`}
           </p>
           <div className="flex items-center gap-6">
             <button
               onClick={onOpenAdmin}
-              className="text-gray-400 hover:text-gray-900 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 cursor-pointer"
+              className="text-gray-500 hover:text-gray-900 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 cursor-pointer"
             >
-              <Shield className="w-3 h-3 text-[#0056a4]" />
+              <Shield className="w-3 h-3 text-marca" />
               Área Administrativa
             </button>
           </div>

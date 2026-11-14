@@ -50,7 +50,7 @@ export const ClassifiedCard: React.FC<ClassifiedCardProps> = ({ classified, onSe
   return (
     <div
       onClick={() => onSelect(classified)}
-      className="group bg-white rounded-xl border border-gray-100 overflow-hidden shadow-xs hover:shadow-xl hover:border-[#0056a4]/30 transition-all duration-300 flex flex-col cursor-pointer"
+      className="group bg-white rounded-xl border border-gray-100 overflow-hidden shadow-xs hover:shadow-xl hover:border-marca/30 transition-all duration-300 flex flex-col cursor-pointer"
     >
       {/* Imagem com Badges */}
       <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
@@ -84,7 +84,7 @@ export const ClassifiedCard: React.FC<ClassifiedCardProps> = ({ classified, onSe
         {/* Preço ou Cargo */}
         {isJob ? (
           <div className="mb-1">
-            <p className="text-base font-black text-[#0056a4] flex items-center gap-1">
+            <p className="text-base font-black text-marca flex items-center gap-1">
               <Briefcase className="w-4 h-4 shrink-0" />
               {classified.jobRole || classified.title}
             </p>
@@ -95,13 +95,13 @@ export const ClassifiedCard: React.FC<ClassifiedCardProps> = ({ classified, onSe
             )}
           </div>
         ) : (
-          <p className="text-lg font-black text-[#0056a4] tracking-tight mb-1">
+          <p className="text-lg font-black text-marca tracking-tight mb-1">
             {formatPrice(classified)}
           </p>
         )}
 
         {/* Título */}
-        <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#0056a4] transition-colors line-clamp-2 leading-snug">
+        <h3 className="text-sm font-bold text-gray-900 group-hover:text-marca transition-colors line-clamp-2 leading-snug">
           {classified.title}
         </h3>
 
@@ -111,9 +111,9 @@ export const ClassifiedCard: React.FC<ClassifiedCardProps> = ({ classified, onSe
         </p>
 
         {/* Localização e Data */}
-        <div className="mt-auto pt-3 border-t border-gray-50 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+        <div className="mt-auto pt-3 border-t border-gray-50 flex items-center justify-between text-[10px] font-bold text-gray-500 uppercase tracking-wider">
           <span className="flex items-center gap-1 text-gray-600 truncate max-w-[140px]">
-            <MapPin className="w-3 h-3 text-[#0056a4] shrink-0" />
+            <MapPin className="w-3 h-3 text-marca shrink-0" />
             {classified.city} - {classified.state}
           </span>
 

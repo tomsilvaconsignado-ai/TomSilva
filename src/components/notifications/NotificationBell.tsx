@@ -115,13 +115,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       {/* Botão Sino com Badge */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-700 hover:text-[#0056a4] hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+        className="relative p-2 text-gray-700 hover:text-marca hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
         title="Notificações de novas matérias"
         aria-label="Notificações"
       >
         <Bell className="w-4 h-4 md:w-4.5 md:h-4.5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[9px] font-black text-white ring-2 ring-white animate-pulse">
+          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white ring-2 ring-white animate-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -133,12 +133,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           {/* Header do Dropdown */}
           <div className="bg-gray-900 text-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Bell className="w-4 h-4 text-[#0056a4]" />
+              <Bell className="w-4 h-4 text-marca" />
               <h3 className="text-xs font-black uppercase tracking-wider">
                 Notificações
               </h3>
               {unreadCount > 0 && (
-                <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-bold rounded-full">
+                <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-bold rounded-full">
                   {unreadCount} nova(s)
                 </span>
               )}
@@ -147,7 +147,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setIsOpen(false); setIsPreferencesOpen(true); }}
-                className="p-1 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                className="p-1 text-gray-500 hover:text-white transition-colors cursor-pointer"
                 title="Configurar Categorias de Interesse"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -156,7 +156,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
-                  className="text-[10px] text-gray-400 hover:text-white font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                  className="text-[10px] text-gray-500 hover:text-white font-bold flex items-center gap-1 cursor-pointer transition-colors"
                   title="Marcar todas como lidas"
                 >
                   <CheckCheck className="w-3.5 h-3.5" />
@@ -167,14 +167,14 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           </div>
 
           {/* Categorias ativas do usuário */}
-          <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-[11px]">
+          <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-[12px]">
             <div className="flex items-center gap-1 text-gray-500 truncate max-w-[220px]">
               <span className="font-bold text-gray-700">Seus Interesses:</span>
               <span className="truncate">{selectedInterests.join(', ')}</span>
             </div>
             <button
               onClick={() => { setIsOpen(false); setIsPreferencesOpen(true); }}
-              className="text-[#0056a4] hover:underline font-bold shrink-0 text-[10px] uppercase cursor-pointer"
+              className="text-marca hover:underline font-bold shrink-0 text-[10px] uppercase cursor-pointer"
             >
               Ajustar
             </button>
@@ -183,10 +183,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           {/* Lista de Alertas */}
           <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
             {notifications.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
+              <div className="p-8 text-center text-gray-500">
                 <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
                 <p className="text-xs font-bold text-gray-600">Nenhum alerta no momento</p>
-                <p className="text-[11px] text-gray-400 mt-1">
+                <p className="text-[12px] text-gray-500 mt-1">
                   Você será avisado sempre que sair uma nova matéria em suas categorias de interesse.
                 </p>
               </div>
@@ -206,17 +206,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                       className="w-12 h-12 rounded-lg object-cover bg-gray-100 shrink-0"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-[#0056a4] text-white flex items-center justify-center shrink-0 font-black text-xs">
+                    <div className="w-10 h-10 rounded-lg bg-marca text-white flex items-center justify-center shrink-0 font-black text-xs">
                       FR
                     </div>
                   )}
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="px-1.5 py-0.5 bg-blue-100 text-[#0056a4] text-[9px] font-black uppercase tracking-wider rounded">
+                      <span className="px-1.5 py-0.5 bg-blue-100 text-marca text-[10px] font-black uppercase tracking-wider rounded">
                         {notif.category}
                       </span>
-                      <span className="text-[9px] text-gray-400 font-bold">
+                      <span className="text-[10px] text-gray-500 font-bold">
                         {formatRelativeTime(notif.createdAt)}
                       </span>
                     </div>
@@ -227,7 +227,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                   </div>
 
                   {!notif.read && (
-                    <span className="w-2 h-2 rounded-full bg-[#0056a4] mt-1 shrink-0"></span>
+                    <span className="w-2 h-2 rounded-full bg-marca mt-1 shrink-0"></span>
                   )}
                 </div>
               ))
@@ -238,7 +238,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           <div className="p-2.5 bg-gray-50 border-t border-gray-100 text-center">
             <button
               onClick={() => { setIsOpen(false); setIsPreferencesOpen(true); }}
-              className="text-[10px] font-black uppercase tracking-wider text-gray-600 hover:text-[#0056a4] transition-colors cursor-pointer"
+              className="text-[10px] font-black uppercase tracking-wider text-gray-600 hover:text-marca transition-colors cursor-pointer"
             >
               Personalizar Categorias de Notificação →
             </button>
@@ -252,13 +252,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 relative">
             <button
               onClick={() => setIsPreferencesOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-1 rounded-full cursor-pointer"
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 p-1 rounded-full cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-2 mb-1">
-              <SlidersHorizontal className="w-5 h-5 text-[#0056a4]" />
+              <SlidersHorizontal className="w-5 h-5 text-marca" />
               <h3 className="text-base font-black uppercase tracking-tight text-gray-900">
                 Suas Categorias de Interesse
               </h3>
@@ -277,13 +277,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                     onClick={() => handleToggleInterest(cat)}
                     className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                       isChecked
-                        ? 'border-[#0056a4] bg-blue-50/70 text-[#0056a4] font-black'
+                        ? 'border-marca bg-blue-50/70 text-marca font-black'
                         : 'border-gray-200 bg-gray-50 text-gray-700 font-bold hover:bg-gray-100'
                     }`}
                   >
                     <span className="text-xs uppercase tracking-wider">{cat}</span>
                     {isChecked ? (
-                      <span className="w-4 h-4 rounded-full bg-[#0056a4] text-white flex items-center justify-center text-[10px]">
+                      <span className="w-4 h-4 rounded-full bg-marca text-white flex items-center justify-center text-[10px]">
                         ✓
                       </span>
                     ) : (
@@ -295,8 +295,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
             </div>
 
             <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-2 mb-5">
-              <Sparkles className="w-4 h-4 text-[#0056a4] shrink-0 mt-0.5" />
-              <p className="text-[11px] text-[#0056a4] leading-relaxed">
+              <Sparkles className="w-4 h-4 text-marca shrink-0 mt-0.5" />
+              <p className="text-[12px] text-marca leading-relaxed">
                 As notificações aparecerão no topo do portal sempre que você estiver logado com sua conta da Folha da Região.
               </p>
             </div>
@@ -313,7 +313,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                 type="button"
                 disabled={savingInterests}
                 onClick={handleSavePreferences}
-                className="px-5 py-2 bg-[#0056a4] hover:bg-[#004482] text-white font-black uppercase tracking-wider text-xs rounded-lg shadow-md transition-all cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 bg-marca hover:bg-marca-escuro text-white font-black uppercase tracking-wider text-xs rounded-lg shadow-md transition-all cursor-pointer disabled:opacity-50"
               >
                 {savingInterests ? 'Salvando...' : 'Salvar Preferências'}
               </button>
@@ -325,18 +325,18 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       {/* Toast Flutuante em Tempo Real */}
       {toastNotification && (
         <div className="fixed bottom-6 right-6 z-[100] max-w-sm bg-gray-900 text-white rounded-2xl p-4 shadow-2xl border border-gray-800 flex gap-3 items-start animate-in slide-in-from-bottom-4 duration-300">
-          <div className="w-10 h-10 rounded-xl bg-[#0056a4] text-white flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-marca text-white flex items-center justify-center shrink-0">
             <Bell className="w-5 h-5 text-yellow-300 animate-bounce" />
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#0056a4] bg-blue-950 px-2 py-0.5 rounded">
+              <span className="text-[10px] font-black uppercase tracking-widest text-marca bg-blue-950 px-2 py-0.5 rounded">
                 Alerta • {toastNotification.category}
               </span>
               <button
                 onClick={() => setToastNotification(null)}
-                className="text-gray-400 hover:text-white p-0.5"
+                className="text-gray-500 hover:text-white p-0.5"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

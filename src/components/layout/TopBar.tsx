@@ -4,7 +4,7 @@ export const TopBar: React.FC = () => {
   return (
     <div className="w-full bg-gray-900 text-white py-1 md:py-1.5 overflow-hidden">
       <div className="relative w-full overflow-hidden">
-        <div className="animate-marquee items-center gap-4 md:gap-8 text-[9px] md:text-xs font-bold tracking-widest uppercase py-0.5">
+        <div className="animate-marquee items-center gap-4 md:gap-8 text-[10px] md:text-xs font-bold tracking-widest uppercase py-0.5">
           {/* Bloco 1 */}
           <div className="flex items-center gap-4 md:gap-8 shrink-0">
             <div className="flex items-center gap-4 md:gap-8">

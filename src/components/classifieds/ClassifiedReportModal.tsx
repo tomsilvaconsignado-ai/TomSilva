@@ -55,7 +55,7 @@ export const ClassifiedReportModal: React.FC<ClassifiedReportModalProps> = ({
       <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-1 rounded-full cursor-pointer"
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 p-1 rounded-full cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -113,7 +113,7 @@ export const ClassifiedReportModal: React.FC<ClassifiedReportModalProps> = ({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                   Seu Nome (Opcional)
                 </label>
                 <input
@@ -126,7 +126,7 @@ export const ClassifiedReportModal: React.FC<ClassifiedReportModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                   Seu E-mail (Opcional)
                 </label>
                 <input

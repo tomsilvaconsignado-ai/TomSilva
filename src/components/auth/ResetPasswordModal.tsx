@@ -110,7 +110,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
           aria-label="Fechar"
         >
           <X className="w-5 h-5" />
@@ -141,7 +141,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
                   onClose();
                   onSuccessGoToLogin();
                 }}
-                className="w-full py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer"
+                className="w-full py-3 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer"
               >
                 Solicitar Novo Link de Redefinição
               </button>
@@ -174,7 +174,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
                   onClose();
                   onSuccessGoToLogin();
                 }}
-                className="w-full py-3.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>Fazer Login com a Nova Senha</span>
                 <ArrowRight className="w-4 h-4" />
@@ -188,10 +188,10 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
           <div className="space-y-4">
             <div className="text-left">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0056a4] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-marca flex items-center justify-center">
                   <KeyRound className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-[#0056a4]">
+                <span className="text-[10px] font-black uppercase tracking-widest text-marca">
                   Folha da Região • Segurança
                 </span>
               </div>
@@ -217,19 +217,19 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
                   Nova Senha *
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                  <Lock className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Mínimo 6 caracteres"
-                    className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none transition-all"
+                    className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-marca focus:bg-white outline-none transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-600 cursor-pointer"
                     title={showPassword ? 'Ocultar' : 'Visualizar'}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -243,19 +243,19 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
                   Confirmar Nova Senha *
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                  <Lock className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repita a nova senha"
-                    className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none transition-all"
+                    className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-marca focus:bg-white outline-none transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-600 cursor-pointer"
                     title={showConfirmPassword ? 'Ocultar' : 'Visualizar'}
                   >
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -264,25 +264,25 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
               </div>
 
               {/* Checklist Visual de Requisitos de Segurança */}
-              <div className="p-3 bg-gray-50 border border-gray-150 rounded-xl text-[11px] space-y-1.5">
+              <div className="p-3 bg-gray-50 border border-gray-150 rounded-xl text-[12px] space-y-1.5">
                 <p className="font-bold text-gray-600 mb-1">Requisitos de segurança:</p>
                 
                 <div className={`flex items-center gap-1.5 ${hasMinLength ? 'text-emerald-700 font-semibold' : 'text-gray-500'}`}>
-                  <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] ${hasMinLength ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                  <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] ${hasMinLength ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
                     ✓
                   </span>
                   <span>Mínimo de 6 caracteres</span>
                 </div>
 
                 <div className={`flex items-center gap-1.5 ${hasLetter && hasNumber ? 'text-emerald-700 font-semibold' : 'text-gray-500'}`}>
-                  <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] ${hasLetter && hasNumber ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                  <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] ${hasLetter && hasNumber ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
                     ✓
                   </span>
                   <span>Combinação de letras e números</span>
                 </div>
 
                 <div className={`flex items-center gap-1.5 ${passwordsMatch ? 'text-emerald-700 font-semibold' : 'text-gray-500'}`}>
-                  <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] ${passwordsMatch ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                  <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] ${passwordsMatch ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
                     ✓
                   </span>
                   <span>As senhas digitadas conferem</span>
@@ -293,7 +293,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
               <button
                 type="submit"
                 disabled={loading || !isFormValid}
-                className="w-full py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

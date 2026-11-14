@@ -376,7 +376,7 @@ export const AdminSettings: React.FC = () => {
             <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">
               Configurações do Portal
             </h2>
-            <span className="px-2 py-0.5 bg-blue-50 text-[#0056a4] text-[10px] font-black uppercase tracking-wider rounded-md border border-blue-200">
+            <span className="px-2 py-0.5 bg-blue-50 text-marca text-[10px] font-black uppercase tracking-wider rounded-md border border-blue-200">
               Personalização
             </span>
           </div>
@@ -400,7 +400,7 @@ export const AdminSettings: React.FC = () => {
             type="button"
             onClick={() => handleSave()}
             disabled={isSaving}
-            className="px-5 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="px-5 py-2.5 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {isSaving ? 'Salvando...' : 'Salvar Alterações'}
@@ -435,13 +435,13 @@ export const AdminSettings: React.FC = () => {
               onClick={() => setActiveSection(sec.id)}
               className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                 isSelected
-                  ? 'bg-[#0056a4] text-white border-[#0056a4] shadow-md shadow-blue-500/10'
+                  ? 'bg-marca text-white border-marca shadow-md shadow-blue-500/10'
                   : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-100 hover:border-gray-200'
               }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-[#0056a4]'
+                  isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-marca'
                 }`}>
                   <Icon className="w-4 h-4" />
                 </div>
@@ -451,7 +451,7 @@ export const AdminSettings: React.FC = () => {
                 <p className={`font-black text-xs uppercase tracking-tight ${isSelected ? 'text-white' : 'text-gray-900'}`}>
                   {sec.label}
                 </p>
-                <p className={`text-[10px] mt-0.5 line-clamp-1 ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>
+                <p className={`text-[10px] mt-0.5 line-clamp-1 ${isSelected ? 'text-blue-100' : 'text-gray-500'}`}>
                   {sec.hint}
                 </p>
               </div>
@@ -468,13 +468,13 @@ export const AdminSettings: React.FC = () => {
         {activeSection === 'identity' && (
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xs space-y-6">
             <div className="border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2 text-[#0056a4]">
+              <div className="flex items-center gap-2 text-marca">
                 <Sparkles className="w-5 h-5" />
                 <h3 className="font-black text-base text-gray-900 uppercase tracking-tight">
                   Identidade Visual e Slogan Principal
                 </h3>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Configure os títulos, slogan principal e mensagens de posicionamento que identificam o portal para o leitor.
               </p>
             </div>
@@ -482,8 +482,8 @@ export const AdminSettings: React.FC = () => {
             {/* Prévia ao vivo da Identidade e Logomarca */}
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/80 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                  <Eye className="w-3.5 h-3.5 text-[#0056a4]" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5 text-marca" />
                   Prévia em Tempo Real (Cabeçalho Público)
                 </span>
                 <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
@@ -505,13 +505,13 @@ export const AdminSettings: React.FC = () => {
                     }}
                   />
                   {settings.logoBadgeText && (
-                    <span className="px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-black uppercase tracking-widest rounded">
+                    <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded">
                       {settings.logoBadgeText}
                     </span>
                   )}
                 </div>
                 <div className="text-center md:text-right">
-                  <p className="text-[10px] font-black tracking-[0.22em] text-gray-400 uppercase">
+                  <p className="text-[10px] font-black tracking-[0.22em] text-gray-500 uppercase">
                     {settings.tagline || 'A NOTÍCIA ONDE VOCÊ ESTIVER'}
                   </p>
                   <p className="text-xs text-gray-600 mt-1 italic">
@@ -525,7 +525,7 @@ export const AdminSettings: React.FC = () => {
             <div className="p-5 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 rounded-2xl border border-blue-100 space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-[#0056a4]" />
+                  <ImageIcon className="w-4 h-4 text-marca" />
                   <h4 className="text-xs font-black text-gray-900 uppercase tracking-tight">
                     Logomarca Oficial do Cabeçalho
                   </h4>
@@ -552,7 +552,7 @@ export const AdminSettings: React.FC = () => {
                   />
                   <label
                     htmlFor="logo-upload-input"
-                    className="px-4 py-2.5 bg-[#0056a4] hover:bg-[#004382] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="px-4 py-2.5 bg-marca hover:bg-marca-escuro text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     Enviar Arquivo do Computador/Celular
@@ -572,8 +572,8 @@ export const AdminSettings: React.FC = () => {
 
                 {/* Opção para anexar link direto do GitHub ou URL de imagem */}
                 <div className="pt-2 border-t border-blue-100/80">
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
-                    <LinkIcon className="w-3 h-3 text-[#0056a4]" />
+                  <label className="block text-[12px] font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <LinkIcon className="w-3 h-3 text-marca" />
                     Ou informe o link da imagem anexada no GitHub / URL da Web:
                   </label>
                   <div className="flex flex-col sm:flex-row items-stretch gap-2">
@@ -582,7 +582,7 @@ export const AdminSettings: React.FC = () => {
                       value={logoUrlInput}
                       onChange={(e) => setLogoUrlInput(e.target.value)}
                       placeholder="Ex: https://raw.githubusercontent.com/usuario/repo/main/logo.png ou link do GitHub"
-                      className="flex-1 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4]/10 focus:border-[#0056a4] outline-none"
+                      className="flex-1 px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca/10 focus:border-marca outline-none"
                     />
                     <button
                       type="button"
@@ -593,13 +593,13 @@ export const AdminSettings: React.FC = () => {
                       Aplicar Link
                     </button>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">
+                  <p className="text-[10px] text-gray-500 mt-1">
                     Links do tipo <code className="bg-white/60 px-1 py-0.5 rounded text-gray-600">github.com/.../blob/...</code> são convertidos automaticamente para exibição direta.
                   </p>
                 </div>
               </div>
 
-              <span className="text-[10px] text-gray-400 block pt-1">
+              <span className="text-[10px] text-gray-500 block pt-1">
                 Formatos recomendados: PNG transparente, SVG ou JPEG de alta resolução (máx. 5MB). A imagem é redimensionada proporcionalmente sem distorções.
               </span>
             </div>
@@ -615,9 +615,9 @@ export const AdminSettings: React.FC = () => {
                   value={settings.officialName}
                   onChange={(e) => setSettings({ ...settings, officialName: e.target.value })}
                   placeholder="Ex: Folha da Região"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4]/10 focus:border-[#0056a4] outline-none"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca/10 focus:border-marca outline-none"
                 />
-                <span className="text-[10px] text-gray-400 block mt-1">
+                <span className="text-[10px] text-gray-500 block mt-1">
                   Aparece no topo da página, no logotipo textual, rodapé e nos e-mails do sistema.
                 </span>
               </div>
@@ -633,7 +633,7 @@ export const AdminSettings: React.FC = () => {
                   placeholder="Ex: ONLINE"
                   className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold uppercase text-red-600 focus:ring-2 focus:ring-red-500/10 focus:border-red-500 outline-none"
                 />
-                <span className="text-[10px] text-gray-400 block mt-1">
+                <span className="text-[10px] text-gray-500 block mt-1">
                   Pequeno selo em destaque ao lado da logomarca (Ex: ONLINE, SERGIPE, DIGITAL).
                 </span>
               </div>
@@ -648,9 +648,9 @@ export const AdminSettings: React.FC = () => {
                   value={settings.tagline}
                   onChange={(e) => setSettings({ ...settings, tagline: e.target.value })}
                   placeholder="Ex: A NOTÍCIA ONDE VOCÊ ESTIVER"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-900 focus:ring-2 focus:ring-[#0056a4]/10 focus:border-[#0056a4] outline-none"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-900 focus:ring-2 focus:ring-marca/10 focus:border-marca outline-none"
                 />
-                <span className="text-[10px] text-gray-400 block mt-1">
+                <span className="text-[10px] text-gray-500 block mt-1">
                   Subtítulo exibido logo abaixo do logotipo no cabeçalho e também no rodapé do portal.
                 </span>
               </div>
@@ -664,9 +664,9 @@ export const AdminSettings: React.FC = () => {
                   value={settings.presentationPhrase}
                   onChange={(e) => setSettings({ ...settings, presentationPhrase: e.target.value })}
                   placeholder="Ex: Jornalismo independente, ágil e com credibilidade em Sergipe"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4]/10 focus:border-[#0056a4] outline-none"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca/10 focus:border-marca outline-none"
                 />
-                <span className="text-[10px] text-gray-400 block mt-1">
+                <span className="text-[10px] text-gray-500 block mt-1">
                   Utilizada na introdução de páginas públicas, newsletters e meta tags de compartilhamento.
                 </span>
               </div>
@@ -680,9 +680,9 @@ export const AdminSettings: React.FC = () => {
                   value={settings.shortInstitutionalText}
                   onChange={(e) => setSettings({ ...settings, shortInstitutionalText: e.target.value })}
                   placeholder="Ex: O portal Folha da Região é comprometido com a verdade e a informação de qualidade..."
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4]/10 focus:border-[#0056a4] outline-none resize-none"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca/10 focus:border-marca outline-none resize-none"
                 />
-                <span className="text-[10px] text-gray-400 block mt-1">
+                <span className="text-[10px] text-gray-500 block mt-1">
                   Exibido na primeira coluna do rodapé e na página de apresentação resumida.
                 </span>
               </div>
@@ -696,9 +696,9 @@ export const AdminSettings: React.FC = () => {
                   value={settings.portalDescription}
                   onChange={(e) => setSettings({ ...settings, portalDescription: e.target.value })}
                   placeholder="Ex: Portal de notícias e classificados de Estância e de todo o estado de Sergipe."
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4]/10 focus:border-[#0056a4] outline-none"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca/10 focus:border-marca outline-none"
                 />
-                <span className="text-[10px] text-gray-400 block mt-1">
+                <span className="text-[10px] text-gray-500 block mt-1">
                   Descrição oficial para mecanismos de busca e cartões sociais de compartilhamento.
                 </span>
               </div>
@@ -712,13 +712,13 @@ export const AdminSettings: React.FC = () => {
         {activeSection === 'contacts' && (
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xs space-y-6">
             <div className="border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2 text-[#0056a4]">
+              <div className="flex items-center gap-2 text-marca">
                 <Phone className="w-5 h-5" />
                 <h3 className="font-black text-base text-gray-900 uppercase tracking-tight">
                   Contatos e Canais de Atendimento
                 </h3>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Configure os canais pelos quais leitores e anunciantes podem entrar em contato com o portal.
               </p>
             </div>
@@ -728,7 +728,7 @@ export const AdminSettings: React.FC = () => {
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-[#0056a4]" />
+                    <Phone className="w-4 h-4 text-marca" />
                     <span className="font-bold text-xs text-gray-900">Telefone Institucional</span>
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-bold">
@@ -736,7 +736,7 @@ export const AdminSettings: React.FC = () => {
                       type="checkbox"
                       checked={settings.showContactPhone}
                       onChange={(e) => setSettings({ ...settings, showContactPhone: e.target.checked })}
-                      className="rounded text-[#0056a4] focus:ring-[#0056a4]"
+                      className="rounded text-marca focus:ring-marca"
                     />
                     <span className="text-gray-600">Exibir publicamente no site</span>
                   </label>
@@ -746,9 +746,9 @@ export const AdminSettings: React.FC = () => {
                   value={settings.contactPhone}
                   onChange={(e) => setSettings({ ...settings, contactPhone: e.target.value })}
                   placeholder="(79) 99977-6199"
-                  className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4]/10 focus:border-[#0056a4] outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca/10 focus:border-marca outline-none"
                 />
-                <span className="text-[10px] text-gray-400 block">
+                <span className="text-[10px] text-gray-500 block">
                   Onde aparece: Lista de contatos no rodapé e na página de Expediente.
                 </span>
               </div>
@@ -814,7 +814,7 @@ export const AdminSettings: React.FC = () => {
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-[#0056a4]" />
+                    <Mail className="w-4 h-4 text-marca" />
                     <span className="font-bold text-xs text-gray-900">E-mail Institucional</span>
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-bold">
@@ -822,7 +822,7 @@ export const AdminSettings: React.FC = () => {
                       type="checkbox"
                       checked={settings.showContactEmail}
                       onChange={(e) => setSettings({ ...settings, showContactEmail: e.target.checked })}
-                      className="rounded text-[#0056a4] focus:ring-[#0056a4]"
+                      className="rounded text-marca focus:ring-marca"
                     />
                     <span className="text-gray-600">Exibir publicamente no site</span>
                   </label>
@@ -832,9 +832,9 @@ export const AdminSettings: React.FC = () => {
                   value={settings.contactEmail}
                   onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })}
                   placeholder="itallomarketing@gmail.com"
-                  className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4]/10 focus:border-[#0056a4] outline-none"
+                  className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca/10 focus:border-marca outline-none"
                 />
-                <span className="text-[10px] text-gray-400 block">
+                <span className="text-[10px] text-gray-500 block">
                   Onde aparece: Rodapé, página de Expediente e formulário comercial de Anuncie Conosco.
                 </span>
               </div>
@@ -843,7 +843,7 @@ export const AdminSettings: React.FC = () => {
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-[#0056a4]" />
+                    <MapPin className="w-4 h-4 text-marca" />
                     <span className="font-bold text-xs text-gray-900">Endereço Comercial e Sede</span>
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer text-xs font-bold">
@@ -851,7 +851,7 @@ export const AdminSettings: React.FC = () => {
                       type="checkbox"
                       checked={settings.showCommercialAddress}
                       onChange={(e) => setSettings({ ...settings, showCommercialAddress: e.target.checked })}
-                      className="rounded text-[#0056a4] focus:ring-[#0056a4]"
+                      className="rounded text-marca focus:ring-marca"
                     />
                     <span className="text-gray-600">Exibir publicamente no site</span>
                   </label>
@@ -896,7 +896,7 @@ export const AdminSettings: React.FC = () => {
                 <div className="pt-2 border-t border-gray-200/60">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
-                      <Clock className="w-3.5 h-3.5 text-[#0056a4]" />
+                      <Clock className="w-3.5 h-3.5 text-marca" />
                       <span>Horário de Atendimento</span>
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer text-xs font-bold">
@@ -904,7 +904,7 @@ export const AdminSettings: React.FC = () => {
                         type="checkbox"
                         checked={settings.showOpeningHours}
                         onChange={(e) => setSettings({ ...settings, showOpeningHours: e.target.checked })}
-                        className="rounded text-[#0056a4] focus:ring-[#0056a4]"
+                        className="rounded text-marca focus:ring-marca"
                       />
                       <span className="text-gray-500">Exibir</span>
                     </label>
@@ -928,13 +928,13 @@ export const AdminSettings: React.FC = () => {
         {activeSection === 'footer' && (
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xs space-y-6">
             <div className="border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2 text-[#0056a4]">
+              <div className="flex items-center gap-2 text-marca">
                 <Building2 className="w-5 h-5" />
                 <h3 className="font-black text-base text-gray-900 uppercase tracking-tight">
                   Informações Institucionais do Rodapé
                 </h3>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Personalize os textos institucionais que aparecem na parte inferior do portal em todas as páginas públicas.
               </p>
             </div>
@@ -949,9 +949,9 @@ export const AdminSettings: React.FC = () => {
                   value={settings.footerPresentation}
                   onChange={(e) => setSettings({ ...settings, footerPresentation: e.target.value })}
                   placeholder="Ex: O portal Folha da Região é comprometido com a verdade e a informação de qualidade..."
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium resize-none outline-none focus:border-[#0056a4]"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium resize-none outline-none focus:border-marca"
                 />
-                <span className="text-[10px] text-gray-400 block mt-1">
+                <span className="text-[10px] text-gray-500 block mt-1">
                   Texto curto explicativo posicionado logo abaixo do logotipo na primeira coluna do rodapé.
                 </span>
               </div>
@@ -965,7 +965,7 @@ export const AdminSettings: React.FC = () => {
                   value={settings.footerAboutText}
                   onChange={(e) => setSettings({ ...settings, footerAboutText: e.target.value })}
                   placeholder="Ex: Cobertura em tempo real dos 75 municípios sergipanos..."
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-[#0056a4]"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-marca"
                 />
               </div>
 
@@ -978,9 +978,9 @@ export const AdminSettings: React.FC = () => {
                   value={settings.copyrightText}
                   onChange={(e) => setSettings({ ...settings, copyrightText: e.target.value })}
                   placeholder="Ex: Folha da Região Sergipe. Todos os direitos reservados."
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-[#0056a4]"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-marca"
                 />
-                <span className="text-[10px] text-gray-400 block mt-1">
+                <span className="text-[10px] text-gray-500 block mt-1">
                   Aparece no rodapé inferior antecedido pelo símbolo de copyright.
                 </span>
               </div>
@@ -994,7 +994,7 @@ export const AdminSettings: React.FC = () => {
                   value={settings.referenceYear}
                   onChange={(e) => setSettings({ ...settings, referenceYear: e.target.value })}
                   placeholder="Ex: 2026"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-center outline-none focus:border-[#0056a4]"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-center outline-none focus:border-marca"
                 />
               </div>
 
@@ -1007,7 +1007,7 @@ export const AdminSettings: React.FC = () => {
                   value={settings.responsibleCompany}
                   onChange={(e) => setSettings({ ...settings, responsibleCompany: e.target.value })}
                   placeholder="Ex: Folha da Região Comunicação & Publicidade LTDA"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-[#0056a4]"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-marca"
                 />
               </div>
 
@@ -1020,7 +1020,7 @@ export const AdminSettings: React.FC = () => {
                   value={settings.additionalFooterInfo}
                   onChange={(e) => setSettings({ ...settings, additionalFooterInfo: e.target.value })}
                   placeholder="Ex: Fundado em Estância - Sergipe"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-[#0056a4]"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-marca"
                 />
               </div>
             </div>
@@ -1033,13 +1033,13 @@ export const AdminSettings: React.FC = () => {
         {activeSection === 'social' && (
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xs space-y-6">
             <div className="border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2 text-[#0056a4]">
+              <div className="flex items-center gap-2 text-marca">
                 <Share2 className="w-5 h-5" />
                 <h3 className="font-black text-base text-gray-900 uppercase tracking-tight">
                   Redes Sociais Oficiais
                 </h3>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Configure os perfis nas redes sociais exibidos no cabeçalho e rodapé do portal.
               </p>
             </div>
@@ -1057,7 +1057,7 @@ export const AdminSettings: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-xs text-gray-900">Instagram Oficial</p>
-                    <p className="text-[10px] text-gray-400">Exibido no topo e nos contatos do rodapé</p>
+                    <p className="text-[10px] text-gray-500">Exibido no topo e nos contatos do rodapé</p>
                   </div>
                 </div>
 
@@ -1074,9 +1074,9 @@ export const AdminSettings: React.FC = () => {
                       type="checkbox"
                       checked={settings.showInstagram}
                       onChange={(e) => setSettings({ ...settings, showInstagram: e.target.checked })}
-                      className="rounded text-[#0056a4]"
+                      className="rounded text-marca"
                     />
-                    <span className="text-gray-600 text-[11px]">Exibir</span>
+                    <span className="text-gray-600 text-[12px]">Exibir</span>
                   </label>
                 </div>
               </div>
@@ -1091,7 +1091,7 @@ export const AdminSettings: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-xs text-gray-900">Facebook Oficial</p>
-                    <p className="text-[10px] text-gray-400">Página oficial de notícias</p>
+                    <p className="text-[10px] text-gray-500">Página oficial de notícias</p>
                   </div>
                 </div>
 
@@ -1108,9 +1108,9 @@ export const AdminSettings: React.FC = () => {
                       type="checkbox"
                       checked={settings.showFacebook}
                       onChange={(e) => setSettings({ ...settings, showFacebook: e.target.checked })}
-                      className="rounded text-[#0056a4]"
+                      className="rounded text-marca"
                     />
-                    <span className="text-gray-600 text-[11px]">Exibir</span>
+                    <span className="text-gray-600 text-[12px]">Exibir</span>
                   </label>
                 </div>
               </div>
@@ -1125,7 +1125,7 @@ export const AdminSettings: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <p className="font-bold text-xs text-gray-900">Canal no YouTube</p>
-                    <p className="text-[10px] text-gray-400">Vídeos e transmissões</p>
+                    <p className="text-[10px] text-gray-500">Vídeos e transmissões</p>
                   </div>
                 </div>
 
@@ -1142,9 +1142,9 @@ export const AdminSettings: React.FC = () => {
                       type="checkbox"
                       checked={Boolean(settings.showYoutube)}
                       onChange={(e) => setSettings({ ...settings, showYoutube: e.target.checked })}
-                      className="rounded text-[#0056a4]"
+                      className="rounded text-marca"
                     />
-                    <span className="text-gray-600 text-[11px]">Exibir</span>
+                    <span className="text-gray-600 text-[12px]">Exibir</span>
                   </label>
                 </div>
               </div>
@@ -1158,13 +1158,13 @@ export const AdminSettings: React.FC = () => {
         {activeSection === 'institutional' && (
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-gray-100 shadow-xs space-y-6">
             <div className="border-b border-gray-100 pb-4">
-              <div className="flex items-center gap-2 text-[#0056a4]">
+              <div className="flex items-center gap-2 text-marca">
                 <FileText className="w-5 h-5" />
                 <h3 className="font-black text-base text-gray-900 uppercase tracking-tight">
                   Páginas Institucionais do Portal
                 </h3>
               </div>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 mt-1">
                 Edite os textos completos das páginas acessíveis no menu do rodapé: Sobre Nós, Expediente e Privacidade.
               </p>
             </div>
@@ -1176,7 +1176,7 @@ export const AdminSettings: React.FC = () => {
                 onClick={() => setActiveInstSubTab('sobreNos')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeInstSubTab === 'sobreNos'
-                    ? 'bg-[#0056a4] text-white shadow-xs'
+                    ? 'bg-marca text-white shadow-xs'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -1187,7 +1187,7 @@ export const AdminSettings: React.FC = () => {
                 onClick={() => setActiveInstSubTab('expediente')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeInstSubTab === 'expediente'
-                    ? 'bg-[#0056a4] text-white shadow-xs'
+                    ? 'bg-marca text-white shadow-xs'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -1198,7 +1198,7 @@ export const AdminSettings: React.FC = () => {
                 onClick={() => setActiveInstSubTab('privacidade')}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeInstSubTab === 'privacidade'
-                    ? 'bg-[#0056a4] text-white shadow-xs'
+                    ? 'bg-marca text-white shadow-xs'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -1253,7 +1253,7 @@ export const AdminSettings: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-[#0056a4] uppercase mb-1">
+                    <label className="block text-xs font-bold text-marca uppercase mb-1">
                       Missão
                     </label>
                     <textarea
@@ -1528,7 +1528,7 @@ export const AdminSettings: React.FC = () => {
             <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-6 rounded-2xl border border-blue-900 shadow-md">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-[#0056a4] flex items-center justify-center shrink-0 shadow-md">
+                  <div className="w-12 h-12 rounded-xl bg-marca flex items-center justify-center shrink-0 shadow-md">
                     <Mail className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -1572,7 +1572,7 @@ export const AdminSettings: React.FC = () => {
             {/* Configuração da URL de Produção do Site para E-mails */}
             <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-xs space-y-3">
               <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                <Globe className="w-4 h-4 text-[#0056a4]" />
+                <Globe className="w-4 h-4 text-marca" />
                 <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
                   URL Pública do Site (GitHub Pages / Domínio Próprio)
                 </h4>
@@ -1588,7 +1588,7 @@ export const AdminSettings: React.FC = () => {
                     setProdSiteUrl(e.target.value);
                   }}
                   placeholder="Ex: https://tomsilvaconsignado.github.io/folhadaregiao/ ou https://folhadaregiaonline.com.br"
-                  className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-[#0056a4]"
+                  className="flex-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold outline-none focus:ring-2 focus:ring-marca"
                 />
                 <button
                   type="button"
@@ -1600,12 +1600,12 @@ export const AdminSettings: React.FC = () => {
                     setProductionSiteUrl(prodSiteUrl);
                     setNotice({ message: `URL de produção salva: ${prodSiteUrl.trim()}`, type: 'success' });
                   }}
-                  className="px-5 py-2.5 bg-[#0056a4] text-white text-xs font-bold rounded-xl hover:bg-[#004482] transition cursor-pointer shrink-0 shadow-xs"
+                  className="px-5 py-2.5 bg-marca text-white text-xs font-bold rounded-xl hover:bg-marca-escuro transition cursor-pointer shrink-0 shadow-xs"
                 >
                   Salvar URL
                 </button>
               </div>
-              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed">
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[12px] text-amber-900 leading-relaxed">
                 <strong>Configuração no Supabase Dashboard:</strong> Em <em>Authentication &gt; URL Configuration</em>, altere o <strong>Site URL</strong> para a URL do seu GitHub Pages / domínio (remova qualquer URL contendo <code>.run.app</code>) e adicione <code>https://*.github.io/**</code> nas <strong>Redirect URLs</strong>.
               </div>
             </div>
@@ -1614,7 +1614,7 @@ export const AdminSettings: React.FC = () => {
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
-                  <AtSign className="w-4 h-4 text-[#0056a4]" />
+                  <AtSign className="w-4 h-4 text-marca" />
                   <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
                     1. Identidade do Remetente Oficial
                   </h4>
@@ -1636,7 +1636,7 @@ export const AdminSettings: React.FC = () => {
                         enabled: e.target.checked
                       }
                     })}
-                    className="w-4 h-4 rounded text-[#0056a4] focus:ring-[#0056a4] cursor-pointer"
+                    className="w-4 h-4 rounded text-marca focus:ring-marca cursor-pointer"
                   />
                 </label>
               </div>
@@ -1659,7 +1659,7 @@ export const AdminSettings: React.FC = () => {
                     placeholder="Ex: Folha da Região"
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Nome que aparece na caixa de entrada do leitor.</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Nome que aparece na caixa de entrada do leitor.</p>
                 </div>
 
                 <div>
@@ -1679,7 +1679,7 @@ export const AdminSettings: React.FC = () => {
                     placeholder="contato@folhadaregiaoonline.com.br"
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">E-mail corporativo do portal ou da redação.</p>
+                  <p className="text-[10px] text-gray-500 mt-1">E-mail corporativo do portal ou da redação.</p>
                 </div>
 
                 <div>
@@ -1699,7 +1699,7 @@ export const AdminSettings: React.FC = () => {
                     placeholder="itallomarketing@gmail.com"
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Para onde irão as respostas dos leitores.</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Para onde irão as respostas dos leitores.</p>
                 </div>
               </div>
             </div>
@@ -1708,12 +1708,12 @@ export const AdminSettings: React.FC = () => {
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
-                  <Server className="w-4 h-4 text-[#0056a4]" />
+                  <Server className="w-4 h-4 text-marca" />
                   <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
                     2. Servidor de Envio (SMTP)
                   </h4>
                 </div>
-                <span className="text-[11px] text-gray-400">
+                <span className="text-[12px] text-gray-500">
                   Preencha os dados do seu provedor de e-mail corporativo
                 </span>
               </div>
@@ -1727,35 +1727,35 @@ export const AdminSettings: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => applySmtpPreset('titan')}
-                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-marca hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <span>Titan Mail (Hostinger)</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => applySmtpPreset('gmail')}
-                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-marca hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <span>Google Workspace / Gmail</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => applySmtpPreset('cpanel')}
-                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-marca hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <span>cPanel / Webmail / Locaweb</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => applySmtpPreset('resend')}
-                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-marca hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <span>Resend (API/SMTP)</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => applySmtpPreset('sendgrid')}
-                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-[#0056a4] hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-blue-50 hover:text-marca hover:border-blue-300 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <span>SendGrid</span>
                   </button>
@@ -1781,7 +1781,7 @@ export const AdminSettings: React.FC = () => {
                     placeholder="Ex: smtp.titan.email ou smtp.gmail.com"
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Endereço do host fornecido pela sua hospedagem.</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Endereço do host fornecido pela sua hospedagem.</p>
                 </div>
 
                 <div>
@@ -1801,7 +1801,7 @@ export const AdminSettings: React.FC = () => {
                     placeholder="465 ou 587"
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Comum: 465 (SSL) ou 587 (TLS/STARTTLS).</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Comum: 465 (SSL) ou 587 (TLS/STARTTLS).</p>
                 </div>
 
                 <div>
@@ -1822,7 +1822,7 @@ export const AdminSettings: React.FC = () => {
                     <option value="ssl">SSL / Criptografado (Porta 465)</option>
                     <option value="tls">STARTTLS / TLS (Porta 587 / 25)</option>
                   </select>
-                  <p className="text-[10px] text-gray-400 mt-1">Protocolo de segurança da conexão.</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Protocolo de segurança da conexão.</p>
                 </div>
 
                 <div className="lg:col-span-2">
@@ -1842,7 +1842,7 @@ export const AdminSettings: React.FC = () => {
                     placeholder="Ex: contato@folhadaregiaoonline.com.br"
                     className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Geralmente o mesmo que seu e-mail corporativo.</p>
+                  <p className="text-[10px] text-gray-500 mt-1">Geralmente o mesmo que seu e-mail corporativo.</p>
                 </div>
 
                 <div className="lg:col-span-2">
@@ -1866,13 +1866,13 @@ export const AdminSettings: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowSmtpPassword(!showSmtpPassword)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700 cursor-pointer"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 cursor-pointer"
                       title={showSmtpPassword ? 'Ocultar senha' : 'Ver senha'}
                     >
                       {showSmtpPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">
+                  <p className="text-[10px] text-gray-500 mt-1">
                     No Gmail ou Google Workspace, gere uma <strong>Senha de Aplicativo</strong> nas configurações de segurança do Google.
                   </p>
                 </div>
@@ -1882,7 +1882,7 @@ export const AdminSettings: React.FC = () => {
             {/* Teste de Conexão e Envio */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-4">
               <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                <Send className="w-4 h-4 text-[#0056a4]" />
+                <Send className="w-4 h-4 text-marca" />
                 <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
                   3. Testar Conexão e Envio de E-mail
                 </h4>
@@ -1905,7 +1905,7 @@ export const AdminSettings: React.FC = () => {
                   type="button"
                   onClick={handleTestSmtp}
                   disabled={isTestingSmtp}
-                  className="px-5 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+                  className="px-5 py-2.5 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
                 >
                   {isTestingSmtp ? (
                     <>
@@ -1945,7 +1945,7 @@ export const AdminSettings: React.FC = () => {
             {/* Envio de Comunicado / Mensagem Oficial aos Usuários */}
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-xs space-y-4">
               <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                <MessageSquare className="w-4 h-4 text-[#0056a4]" />
+                <MessageSquare className="w-4 h-4 text-marca" />
                 <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight">
                   4. Disparar Comunicado ou Notificação Oficial por E-mail
                 </h4>
@@ -1964,7 +1964,7 @@ export const AdminSettings: React.FC = () => {
                       name="broadcastTarget"
                       checked={broadcastTarget === 'all'}
                       onChange={() => setBroadcastTarget('all')}
-                      className="w-4 h-4 text-[#0056a4] cursor-pointer"
+                      className="w-4 h-4 text-marca cursor-pointer"
                     />
                     <span>Enviar para Todos os Usuários Cadastrados</span>
                   </label>
@@ -1975,7 +1975,7 @@ export const AdminSettings: React.FC = () => {
                       name="broadcastTarget"
                       checked={broadcastTarget === 'custom'}
                       onChange={() => setBroadcastTarget('custom')}
-                      className="w-4 h-4 text-[#0056a4] cursor-pointer"
+                      className="w-4 h-4 text-marca cursor-pointer"
                     />
                     <span>Enviar para um E-mail Específico</span>
                   </label>
@@ -2023,7 +2023,7 @@ export const AdminSettings: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-[11px] text-gray-400">
+                  <span className="text-[12px] text-gray-500">
                     O e-mail será enviado com o remetente oficial: {settings.emailConfig?.fromEmail || 'contato@folhadaregiaoonline.com.br'}
                   </span>
 
@@ -2073,7 +2073,7 @@ export const AdminSettings: React.FC = () => {
                 <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
                   <div>
                     <span className="font-black text-slate-900 block mb-1">🔑 Recuperação de Senha</span>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[12px] text-slate-500">
                       Disparo automático ao usuário clicar em "Esqueci minha senha" com link de uso único e validade de 1 hora.
                     </p>
                   </div>
@@ -2083,7 +2083,7 @@ export const AdminSettings: React.FC = () => {
                 <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
                   <div>
                     <span className="font-black text-slate-900 block mb-1">✉️ Confirmação de Cadastro</span>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[12px] text-slate-500">
                       Envia link de validação para ativação da conta e liberação de publicação de classificados e comentários.
                     </p>
                   </div>
@@ -2093,7 +2093,7 @@ export const AdminSettings: React.FC = () => {
                 <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
                   <div>
                     <span className="font-black text-slate-900 block mb-1">🛡️ Alerta de Segurança</span>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[12px] text-slate-500">
                       Notificação instantânea enviada sempre que uma senha for redefinida ou atualizada na conta.
                     </p>
                   </div>
@@ -2103,7 +2103,7 @@ export const AdminSettings: React.FC = () => {
                 <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
                   <div>
                     <span className="font-black text-slate-900 block mb-1">📬 Caixa de Auditoria</span>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[12px] text-slate-500">
                       Histórico permanente de todas as mensagens e códigos enviados para controle e depuração.
                     </p>
                   </div>
@@ -2127,7 +2127,7 @@ export const AdminSettings: React.FC = () => {
           <button
             type="submit"
             disabled={isSaving}
-            className="px-6 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            className="px-6 py-2.5 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {isSaving ? 'Gravando Alterações...' : 'Salvar Todas as Configurações'}

@@ -88,7 +88,7 @@ export const EmailConfirmationModal: React.FC<EmailConfirmationModalProps> = ({
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
           aria-label="Fechar"
         >
           <X className="w-5 h-5" />
@@ -96,7 +96,7 @@ export const EmailConfirmationModal: React.FC<EmailConfirmationModalProps> = ({
 
         {loading ? (
           <div className="py-8 space-y-4">
-            <div className="w-16 h-16 border-4 border-[#0056a4] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-16 h-16 border-4 border-marca border-t-transparent rounded-full animate-spin mx-auto"></div>
             <h3 className="text-lg font-black uppercase text-gray-900 tracking-tight">
               Validando Confirmação de E-mail
             </h3>
@@ -128,7 +128,7 @@ export const EmailConfirmationModal: React.FC<EmailConfirmationModalProps> = ({
                   onClose();
                   onGoToLogin();
                 }}
-                className="w-full py-3.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>Acessar Minha Conta / Fazer Login</span>
                 <ArrowRight className="w-4 h-4" />
@@ -163,19 +163,19 @@ export const EmailConfirmationModal: React.FC<EmailConfirmationModalProps> = ({
               
               <form onSubmit={handleResend} className="space-y-3">
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+                  <Mail className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
                   <input
                     type="email"
                     required
                     value={resendEmail}
                     onChange={(e) => setResendEmail(e.target.value)}
                     placeholder="Digite seu e-mail cadastrado"
-                    className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                    className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-marca outline-none"
                   />
                 </div>
 
                 {resendStatus && (
-                  <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-relaxed">
+                  <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[12px] text-blue-900 leading-relaxed">
                     {resendStatus}
                   </div>
                 )}

@@ -306,7 +306,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
         <div className="bg-white rounded-2xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-gray-100 relative text-center animate-in zoom-in-95 duration-200">
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
+            className="absolute top-5 right-5 text-gray-500 hover:text-gray-700 p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -338,7 +338,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
 
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl mb-6 text-xs text-gray-600 text-left space-y-1">
             <p className="font-bold text-gray-800">Como solicitar revisão da decisão?</p>
-            <p>Entre em contato com nossa equipe pelo e-mail <a href="mailto:itallomarketing@gmail.com" className="text-[#0056a4] font-bold underline">itallomarketing@gmail.com</a> ou pelo WhatsApp oficial do portal.</p>
+            <p>Entre em contato com nossa equipe pelo e-mail <a href="mailto:itallomarketing@gmail.com" className="text-marca font-bold underline">itallomarketing@gmail.com</a> ou pelo WhatsApp oficial do portal.</p>
           </div>
 
           <button
@@ -364,16 +364,16 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
         <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl border border-gray-100 relative animate-in zoom-in-95 duration-200">
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
+            className="absolute top-5 right-5 text-gray-500 hover:text-gray-700 p-1.5 rounded-full cursor-pointer hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
 
           <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-blue-50 text-[#0056a4] rounded-2xl flex items-center justify-center mx-auto mb-3 border border-blue-200 shadow-xs">
+            <div className="w-14 h-14 bg-blue-50 text-marca rounded-2xl flex items-center justify-center mx-auto mb-3 border border-blue-200 shadow-xs">
               <ShieldCheck className="w-7 h-7" />
             </div>
-            <span className="px-3 py-1 rounded-full bg-blue-100 text-[#0056a4] text-[10px] font-black uppercase tracking-wider inline-block mb-2">
+            <span className="px-3 py-1 rounded-full bg-blue-100 text-marca text-[10px] font-black uppercase tracking-wider inline-block mb-2">
               Segurança dos Classificados
             </span>
             <h3 className="text-xl font-black uppercase tracking-tight text-gray-900">
@@ -403,7 +403,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                     name="modal_prof_account_type"
                     checked={profAccountType === 'pf'}
                     onChange={() => setProfAccountType('pf')}
-                    className="text-[#0056a4]"
+                    className="text-marca"
                   />
                   Pessoa Física (CPF)
                 </label>
@@ -413,7 +413,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                     name="modal_prof_account_type"
                     checked={profAccountType === 'pj'}
                     onChange={() => setProfAccountType('pj')}
-                    className="text-[#0056a4]"
+                    className="text-marca"
                   />
                   Pessoa Jurídica (CNPJ)
                 </label>
@@ -433,7 +433,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                   else setProfCompanyName(e.target.value);
                 }}
                 placeholder={profAccountType === 'pf' ? 'Seu nome completo' : 'Razão Social da empresa'}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-marca outline-none"
               />
             </div>
 
@@ -449,7 +449,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                   value={profCpf}
                   onChange={(e) => setProfCpf(e.target.value)}
                   placeholder="000.000.000-00"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-marca outline-none"
                 />
               </div>
             ) : (
@@ -465,7 +465,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                     value={profCnpj}
                     onChange={(e) => setProfCnpj(e.target.value)}
                     placeholder="00.000.000/0000-00"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-marca outline-none"
                   />
                 </div>
                 <div>
@@ -478,7 +478,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                     value={profLegalRep}
                     onChange={(e) => setProfLegalRep(e.target.value)}
                     placeholder="Nome do responsável legal"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-marca outline-none"
                   />
                 </div>
               </>
@@ -495,7 +495,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                   value={profPhone}
                   onChange={(e) => setProfPhone(e.target.value)}
                   placeholder="(79) 99999-9999"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-marca outline-none"
                 />
               </div>
               <div>
@@ -508,7 +508,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                   value={profCity}
                   onChange={(e) => setProfCity(e.target.value)}
                   placeholder="Estância"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-[#0056a4] outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs focus:ring-2 focus:ring-marca outline-none"
                 />
               </div>
             </div>
@@ -519,7 +519,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                 required
                 checked={profTermsAccepted}
                 onChange={(e) => setProfTermsAccepted(e.target.checked)}
-                className="mt-0.5 rounded text-[#0056a4]"
+                className="mt-0.5 rounded text-marca"
               />
               <span>
                 Li e concordo com os <strong>Termos de Uso</strong> e as <strong>Políticas de Publicação de Anúncios</strong> do portal Folha da Região.
@@ -529,7 +529,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
             <button
               type="submit"
               disabled={profileSaving}
-              className="w-full py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-4"
+              className="w-full py-3 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 mt-4"
             >
               {profileSaving ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -549,13 +549,13 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl border border-gray-100 relative">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 p-1 rounded-full cursor-pointer"
+          className="absolute top-5 right-5 text-gray-500 hover:text-gray-700 p-1 rounded-full cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="mb-6">
-          <span className="px-2.5 py-0.5 rounded bg-blue-50 text-[#0056a4] text-[10px] font-black uppercase tracking-wider">
+          <span className="px-2.5 py-0.5 rounded bg-blue-50 text-marca text-[10px] font-black uppercase tracking-wider">
             Classificados Folha da Região
           </span>
           <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-gray-900 mt-1">
@@ -592,7 +592,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                 onClick={() => handleSectionChange('produtos_servicos')}
                 className={`p-3 rounded-xl border text-xs font-black uppercase tracking-wider text-center transition-all cursor-pointer ${
                   section === 'produtos_servicos'
-                    ? 'border-[#0056a4] bg-[#0056a4] text-white shadow-sm'
+                    ? 'border-marca bg-marca text-white shadow-sm'
                     : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -632,7 +632,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as any)}
-                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4]"
+                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-marca"
               >
                 {section === 'produtos_servicos' && (
                   <>
@@ -658,7 +658,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4]"
+                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-marca"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.name}>
@@ -680,20 +680,20 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={isJob ? 'Ex: Vaga para Vendedor com Experiência' : 'Ex: Smartphone Samsung Galaxy S23 256GB Impecável'}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4]"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-marca"
             />
           </div>
 
           {/* 4. Campos Específicos para Emprego / Vagas */}
           {isJob && (
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
-              <p className="text-xs font-black uppercase tracking-wider text-[#0056a4] flex items-center gap-1.5">
+              <p className="text-xs font-black uppercase tracking-wider text-marca flex items-center gap-1.5">
                 <Briefcase className="w-4 h-4" /> Detalhes da Oportunidade de Trabalho
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+                  <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                     Cargo / Função
                   </label>
                   <input
@@ -706,7 +706,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+                  <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                     Área Profissional
                   </label>
                   <input
@@ -719,7 +719,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+                  <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                     Tipo de Contratação
                   </label>
                   <select
@@ -736,7 +736,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+                  <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                     Jornada de Trabalho
                   </label>
                   <select
@@ -753,7 +753,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+                <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                   Requisitos ou Experiência Exigida
                 </label>
                 <input
@@ -796,7 +796,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="0,00"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4]"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-marca"
                 />
               </div>
             )}
@@ -813,7 +813,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descreva detalhes, estado de conservação, formas de entrega, horário de atendimento..."
-              className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4] resize-none"
+              className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-marca resize-none"
             />
           </div>
 
@@ -883,16 +883,16 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
             <div className="flex justify-between items-center">
               <div>
                 <label className="block text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <Camera className="w-4 h-4 text-[#0056a4]" />
+                  <Camera className="w-4 h-4 text-marca" />
                   Fotografias do Anúncio ({images.length} de 3 permitidas)
                 </label>
-                <p className="text-[11px] text-gray-500">
+                <p className="text-[12px] text-gray-500">
                   Fotos nítidas aumentam em 4x o interesse dos compradores.
                 </p>
               </div>
 
               {images.length < 3 && (
-                <label className="px-3 py-1.5 bg-[#0056a4] hover:bg-[#004482] text-white rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors">
+                <label className="px-3 py-1.5 bg-marca hover:bg-marca-escuro text-white rounded-lg text-xs font-bold uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors">
                   <Upload className="w-3.5 h-3.5" />
                   Escolher Foto
                   <input
@@ -940,14 +940,14 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-[9px] font-bold text-white">
+                    <span className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-[10px] font-bold text-white">
                       Foto {idx + 1}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-gray-400 italic text-center py-2">
+              <p className="text-xs text-gray-500 italic text-center py-2">
                 Nenhuma fotografia adicionada ainda (máximo de 3).
               </p>
             )}
@@ -964,7 +964,7 @@ export const ClassifiedFormModal: React.FC<ClassifiedFormModalProps> = ({
             <button
               type="submit"
               disabled={loading || Boolean(successMessage)}
-              className="px-6 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white rounded-lg text-xs font-black uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-50"
+              className="px-6 py-2.5 bg-marca hover:bg-marca-escuro text-white rounded-lg text-xs font-black uppercase tracking-wider shadow-md transition-all cursor-pointer disabled:opacity-50"
             >
               {loading ? 'Publicando...' : initialData ? 'Salvar Alterações' : 'Publicar Anúncio Agora'}
             </button>

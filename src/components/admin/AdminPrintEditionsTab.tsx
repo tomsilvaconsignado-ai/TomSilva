@@ -28,8 +28,8 @@ const suggestNext = (editions: PrintEdition[]): PrintEditionInput => {
   };
 };
 
-const inputClass = 'w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none';
-const labelClass = 'block text-[11px] font-black uppercase tracking-wider text-gray-500 mb-1.5';
+const inputClass = 'w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-marca focus:bg-white outline-none';
+const labelClass = 'block text-[12px] font-black uppercase tracking-wider text-gray-500 mb-1.5';
 
 export const AdminPrintEditionsTab: React.FC = () => {
   const [editions, setEditions] = useState<PrintEdition[]>([]);
@@ -154,7 +154,7 @@ export const AdminPrintEditionsTab: React.FC = () => {
             {editing ? `Editar edição Nº ${editing.editionNumber}` : 'Nova edição impressa'}
           </h3>
           {editing && (
-            <button type="button" onClick={() => resetForm()} className="text-[11px] font-black uppercase text-gray-500 hover:text-gray-800 flex items-center gap-1 cursor-pointer">
+            <button type="button" onClick={() => resetForm()} className="text-[12px] font-black uppercase text-gray-500 hover:text-gray-800 flex items-center gap-1 cursor-pointer">
               <X className="w-3.5 h-3.5" /> Cancelar
             </button>
           )}
@@ -173,7 +173,7 @@ export const AdminPrintEditionsTab: React.FC = () => {
               onChange={e => setField('volumeYear', Number(e.target.value))}
               className={inputClass}
             />
-            <p className="text-[11px] text-gray-500 mt-1">
+            <p className="text-[12px] text-gray-500 mt-1">
               Aparece como <strong className="text-gray-900">Ano {roman || '—'}</strong>
             </p>
           </div>
@@ -232,7 +232,7 @@ export const AdminPrintEditionsTab: React.FC = () => {
 
         <div>
           <span className={labelClass}>Arquivo PDF da edição</span>
-          <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-300 hover:border-[#0056a4] rounded-xl cursor-pointer transition-colors">
+          <label className="flex items-center gap-3 p-3 border-2 border-dashed border-gray-300 hover:border-marca rounded-xl cursor-pointer transition-colors">
             <div className="w-10 h-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shrink-0">
               {file ? <FileText className="w-5 h-5" /> : <Upload className="w-5 h-5" />}
             </div>
@@ -262,15 +262,15 @@ export const AdminPrintEditionsTab: React.FC = () => {
             type="checkbox"
             checked={form.published}
             onChange={e => setField('published', e.target.checked)}
-            className="w-4 h-4 accent-[#0056a4]"
+            className="w-4 h-4 accent-marca"
           />
           Visível para os leitores cadastrados
         </label>
 
         {/* Prévia do que o leitor verá */}
         <div className="bg-[#fbfaf6] border border-gray-200 rounded-xl p-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">O leitor verá</p>
-          <p className="text-[11px] font-black uppercase tracking-widest text-red-700">{formatPrintEditionLabel(form)}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">O leitor verá</p>
+          <p className="text-[12px] font-black uppercase tracking-widest text-red-700">{formatPrintEditionLabel(form)}</p>
           <p className="text-sm font-black text-gray-900 leading-snug font-serif">{form.headline || 'Título da manchete principal'}</p>
         </div>
 
@@ -303,17 +303,17 @@ export const AdminPrintEditionsTab: React.FC = () => {
           <h3 className="text-sm font-black uppercase tracking-tight text-gray-900 flex items-center gap-2">
             <Newspaper className="w-4 h-4 text-red-600" /> Edições cadastradas
           </h3>
-          <span className="text-[11px] font-bold text-gray-400">{editions.length} edição(ões)</span>
+          <span className="text-[12px] font-bold text-gray-500">{editions.length} edição(ões)</span>
         </div>
 
         {loading ? (
-          <div className="p-10 flex justify-center text-gray-400"><Loader2 className="w-6 h-6 animate-spin" /></div>
+          <div className="p-10 flex justify-center text-gray-500"><Loader2 className="w-6 h-6 animate-spin" /></div>
         ) : loadError ? (
           <div className="p-8 text-center text-sm font-bold text-red-700 flex flex-col items-center gap-2">
             <AlertCircle className="w-8 h-8" /> {loadError}
           </div>
         ) : editions.length === 0 ? (
-          <div className="p-10 text-center text-gray-400 space-y-2">
+          <div className="p-10 text-center text-gray-500 space-y-2">
             <Newspaper className="w-10 h-10 mx-auto text-gray-300" />
             <p className="text-sm font-bold text-gray-600">Nenhuma edição cadastrada.</p>
             <p className="text-xs">Envie o PDF da primeira edição pelo formulário.</p>
@@ -324,13 +324,13 @@ export const AdminPrintEditionsTab: React.FC = () => {
               <li key={edition.id} className={`px-5 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3 ${editing?.id === edition.id ? 'bg-red-50/50' : ''}`}>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-red-700">{formatPrintEditionLabel(edition)}</p>
+                    <p className="text-[12px] font-black uppercase tracking-widest text-red-700">{formatPrintEditionLabel(edition)}</p>
                     {!edition.published && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-gray-200 text-gray-600">Oculta</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase bg-gray-200 text-gray-600">Oculta</span>
                     )}
                   </div>
                   <p className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{edition.headline}</p>
-                  <p className="text-[11px] text-gray-400">{formatFileSize(edition.fileSize)}</p>
+                  <p className="text-[12px] text-gray-500">{formatFileSize(edition.fileSize)}</p>
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <button onClick={() => setPreviewing(edition)} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer" title="Visualizar PDF">

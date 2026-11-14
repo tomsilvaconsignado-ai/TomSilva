@@ -51,7 +51,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           <div className="absolute inset-0 flex flex-col justify-end p-5 md:p-12">
             <div className="max-w-4xl w-full">
               <div className="flex flex-wrap items-center gap-2 mb-4">
-                <span className="inline-block px-3 py-1 bg-[#0056a4] text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg">
+                <span className="inline-block px-3 py-1 bg-marca text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg">
                   {article.category}
                 </span>
                 {article.isVideo && (
@@ -63,7 +63,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               <h2 className="text-hero font-black text-white group-hover:text-blue-300 transition-colors tracking-tighter mb-4 line-clamp-3">
                 {article.title}
               </h2>
-              <div className="flex flex-wrap items-center gap-3 md:gap-4 text-[9px] md:text-[10px] text-gray-400 font-black uppercase tracking-[0.15em] md:tracking-[0.2em]">
+              <div className="flex flex-wrap items-center gap-3 md:gap-4 text-[10px] md:text-[10px] text-gray-500 font-black uppercase tracking-[0.15em] md:tracking-[0.2em]">
                 <span>{formatRelativeTime(article.createdAt)}</span>
                 <div className="w-8 h-px bg-white/20"></div>
                 <ViewCounter views={article.viewsCount} />
@@ -85,7 +85,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <a
           href={`/noticia/${article.slug}`}
           onClick={handleClick}
-          className="group flex flex-col h-full bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-xl hover:border-[#0056a4]/20 transition-all duration-300 cursor-pointer"
+          className="group flex flex-col h-full bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-xl hover:border-marca/20 transition-all duration-300 cursor-pointer"
         >
           <div className="relative aspect-video overflow-hidden bg-gray-100">
             <img
@@ -97,7 +97,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
             {article.isVideo && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-14 h-14 rounded-full bg-[#0056a4]/90 flex items-center justify-center text-white shadow-2xl scale-90 group-hover:scale-100 transition-all duration-500">
+                <div className="w-14 h-14 rounded-full bg-marca/90 flex items-center justify-center text-white shadow-2xl scale-90 group-hover:scale-100 transition-all duration-500">
                   <Play className="w-7 h-7 fill-current ml-1" />
                 </div>
               </div>
@@ -105,7 +105,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           </div>
           <div className="p-4 md:p-5 flex flex-col flex-1">
             <div className="flex justify-between items-start mb-2 md:mb-3">
-              <span className="text-[#0056a4] text-[10px] font-black uppercase tracking-widest border-b-2 border-[#0056a4]/20 pb-0.5">
+              <span className="text-marca text-[10px] font-black uppercase tracking-widest border-b-2 border-marca/20 pb-0.5">
                 {article.category}
               </span>
               {article.isVideo && (
@@ -114,7 +114,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                 </span>
               )}
             </div>
-            <h3 className="text-base md:text-lg font-black text-gray-900 leading-[1.2] group-hover:text-[#0056a4] transition-colors line-clamp-2 tracking-tight">
+            <h3 className="text-base md:text-lg font-black text-gray-900 leading-[1.2] group-hover:text-marca transition-colors line-clamp-2 tracking-tight">
               {article.title}
             </h3>
             {article.subtitle && (
@@ -124,12 +124,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             )}
             <div className="mt-auto pt-4 border-t border-gray-50 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">
                   {formatRelativeTime(article.createdAt)}
                 </span>
                 <ViewCounter views={article.viewsCount} />
               </div>
-              <span className="text-[#0056a4] text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
+              <span className="text-marca text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
                 Ler agora →
               </span>
             </div>
@@ -163,15 +163,15 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           </div>
           <div className="flex flex-col justify-center gap-1 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-[#0056a4] text-[10px] font-black uppercase tracking-widest">
+              <span className="text-marca text-[10px] font-black uppercase tracking-widest">
                 {article.category}
               </span>
             </div>
-            <h4 className="text-sm md:text-base font-bold text-gray-900 leading-tight group-hover:text-[#0056a4] transition-colors line-clamp-2">
+            <h4 className="text-sm md:text-base font-bold text-gray-900 leading-tight group-hover:text-marca transition-colors line-clamp-2">
               {article.title}
             </h4>
             <div className="flex items-center gap-3 mt-1">
-              <span className="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+              <span className="text-[10px] md:text-[10px] text-gray-500 font-bold uppercase tracking-widest">
                 {formatRelativeTime(article.createdAt)}
               </span>
               <ViewCounter views={article.viewsCount} />
@@ -191,13 +191,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         className="group py-3 border-b border-gray-50 last:border-0 block hover:pl-2 transition-all cursor-pointer"
       >
         <div className="flex items-start gap-3">
-          <div className="w-1.5 h-1.5 bg-[#0056a4] rounded-full mt-2 shrink-0 group-hover:scale-150 transition-transform"></div>
+          <div className="w-1.5 h-1.5 bg-marca rounded-full mt-2 shrink-0 group-hover:scale-150 transition-transform"></div>
           <div className="flex flex-col gap-1">
-            <h4 className="text-sm font-black text-gray-900 group-hover:text-[#0056a4] transition-colors leading-snug tracking-tight line-clamp-2">
+            <h4 className="text-sm font-black text-gray-900 group-hover:text-marca transition-colors leading-snug tracking-tight line-clamp-2">
               {article.title}
             </h4>
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-[9px] text-gray-400 font-black uppercase tracking-[0.2em]">
+              <span className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">
                 {formatRelativeTime(article.createdAt)}
               </span>
               <ViewCounter views={article.viewsCount} />

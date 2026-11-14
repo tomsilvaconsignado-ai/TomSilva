@@ -114,7 +114,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
   return (
     <div className="container mx-auto px-4 py-8 animate-in fade-in duration-300">
       {/* Banner de Topo dos Classificados */}
-      <div className="bg-gradient-to-r from-gray-900 via-[#0056a4] to-gray-900 rounded-2xl p-6 md:p-10 text-white mb-8 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-gray-900 via-marca to-gray-900 rounded-2xl p-6 md:p-10 text-white mb-8 shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="max-w-2xl">
             <span className="px-3 py-1 bg-white/20 backdrop-blur-xs text-white text-[10px] font-black uppercase tracking-widest rounded-full mb-3 inline-block">
@@ -155,7 +155,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
           onClick={() => { setActiveSection('todos'); setSelectedCategory('todas'); }}
           className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
             activeSection === 'todos'
-              ? 'bg-[#0056a4] text-white shadow-sm'
+              ? 'bg-marca text-white shadow-sm'
               : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
           }`}
         >
@@ -166,7 +166,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
           onClick={() => { setActiveSection('produtos_servicos'); setSelectedCategory('todas'); }}
           className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
             activeSection === 'produtos_servicos'
-              ? 'bg-[#0056a4] text-white shadow-sm'
+              ? 'bg-marca text-white shadow-sm'
               : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
           }`}
         >
@@ -203,19 +203,19 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
       <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs mb-6 space-y-4">
         <form onSubmit={handleSearchSubmit} className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
+            <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
             <input
               type="text"
               placeholder="Pesquisar por produto, veículo, vaga de emprego ou profissional..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#0056a4] focus:bg-white"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-marca focus:bg-white"
             />
           </div>
 
           <button
             type="submit"
-            className="px-5 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white font-black uppercase tracking-wider text-xs rounded-xl transition-all cursor-pointer shadow-xs"
+            className="px-5 py-2.5 bg-marca hover:bg-marca-escuro text-white font-black uppercase tracking-wider text-xs rounded-xl transition-all cursor-pointer shadow-xs"
           >
             Buscar
           </button>
@@ -237,7 +237,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
           <div className="pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 animate-in fade-in">
             {/* Categoria */}
             <div>
-              <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+              <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                 Categoria
               </label>
               <select
@@ -256,7 +256,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
 
             {/* Tipo */}
             <div>
-              <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+              <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                 Tipo de Anúncio
               </label>
               <select
@@ -276,7 +276,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
 
             {/* Cidade */}
             <div>
-              <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+              <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                 Cidade
               </label>
               <select
@@ -294,7 +294,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
 
             {/* Ordenação */}
             <div>
-              <label className="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">
+              <label className="block text-[12px] font-bold text-gray-600 uppercase tracking-wider mb-1">
                 Ordenar por
               </label>
               <select
@@ -313,7 +313,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
               <button
                 type="button"
                 onClick={handleClearFilters}
-                className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold uppercase tracking-wider text-[11px] rounded-lg transition-colors cursor-pointer"
+                className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold uppercase tracking-wider text-[12px] rounded-lg transition-colors cursor-pointer"
               >
                 Limpar Filtros
               </button>
@@ -331,7 +331,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
         {(selectedCategory !== 'todas' || selectedCity !== 'todas' || search) && (
           <button
             onClick={handleClearFilters}
-            className="text-[#0056a4] hover:underline cursor-pointer uppercase text-[11px]"
+            className="text-marca hover:underline cursor-pointer uppercase text-[12px]"
           >
             Limpar Busca
           </button>
@@ -339,7 +339,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-gray-400">
+        <div className="py-20 text-center text-gray-500">
           <p className="text-sm font-bold">Carregando classificados...</p>
         </div>
       ) : items.length === 0 ? (
@@ -358,7 +358,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
             </button>
             <button
               onClick={handlePublishClick}
-              className="px-4 py-2 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-bold rounded-lg cursor-pointer"
+              className="px-4 py-2 bg-marca hover:bg-marca-escuro text-white text-xs font-bold rounded-lg cursor-pointer"
             >
               Publicar Agora
             </button>
@@ -407,7 +407,7 @@ export const ClassifiedList: React.FC<ClassifiedListProps> = ({
       {/* 4. Dicas de Segurança e Prevenção de Abusos (Item 9) */}
       <div className="mt-16 bg-gray-50 p-6 md:p-8 rounded-2xl border border-gray-200/80">
         <div className="flex items-center gap-2 mb-3">
-          <ShieldCheck className="w-5 h-5 text-[#0056a4]" />
+          <ShieldCheck className="w-5 h-5 text-marca" />
           <h3 className="text-sm font-black uppercase tracking-tight text-gray-900">
             Regras de Publicação e Prevenção de Golpes
           </h3>

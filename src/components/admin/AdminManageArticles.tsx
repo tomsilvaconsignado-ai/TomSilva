@@ -6,7 +6,7 @@ import {
 import { Article, ArticleStatus, CategoryItem } from '../../types/database';
 import { newsService } from '../../lib/supabase';
 import { INITIAL_CATEGORIES } from '../../data/initialData';
-import { sanitizeHtml } from '../../lib/assets';
+import { formatarMateria, sanitizeHtml } from '../../lib/assets';
 
 interface AdminManageArticlesProps {
   articles: Article[];
@@ -79,7 +79,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
 
         <button
           onClick={onAddNewArticle}
-          className="px-5 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+          className="px-5 py-2.5 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Adicionar Notícia
@@ -90,18 +90,18 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
       <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
         {/* Campo de Busca por Título */}
         <div className="sm:col-span-6 relative">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+          <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Pesquisar notícia por título ou palavra-chave..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:ring-2 focus:ring-marca focus:bg-white outline-none"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-600"
             >
               <X className="w-4 h-4" />
             </button>
@@ -113,7 +113,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none cursor-pointer"
+            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-2 focus:ring-marca focus:bg-white outline-none cursor-pointer"
           >
             <option value="todas">Todas as Categorias</option>
             {availableCategories.map(cat => (
@@ -127,7 +127,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value as any)}
-            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none cursor-pointer"
+            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-2 focus:ring-marca focus:bg-white outline-none cursor-pointer"
           >
             <option value="all">Todas as Situações</option>
             <option value="published">Somente Publicadas</option>
@@ -139,16 +139,16 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
       {/* Lista Organizada de Notícias */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
         {filteredArticles.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 space-y-3">
+          <div className="p-12 text-center text-gray-500 space-y-3">
             <Filter className="w-10 h-10 mx-auto text-gray-300" />
             <p className="text-sm font-bold text-gray-600">Nenhuma notícia encontrada com os filtros selecionados.</p>
-            <p className="text-xs text-gray-400">Tente buscar por outro termo ou limpe os filtros para visualizar todas.</p>
+            <p className="text-xs text-gray-500">Tente buscar por outro termo ou limpe os filtros para visualizar todas.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-100 text-[11px] font-black uppercase text-gray-400 tracking-wider">
+                <tr className="bg-gray-50/80 border-b border-gray-100 text-[12px] font-black uppercase text-gray-500 tracking-wider">
                   <th className="py-3.5 px-4">Notícia</th>
                   <th className="py-3.5 px-4">Categoria</th>
                   <th className="py-3.5 px-4">Autor</th>
@@ -175,7 +175,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
                               {art.title}
                             </p>
                             {art.isHero && (
-                              <span className="inline-block mt-1 text-[9px] font-black uppercase tracking-wider text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
+                              <span className="inline-block mt-1 text-[10px] font-black uppercase tracking-wider text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
                                 ★ Super Manchete
                               </span>
                             )}
@@ -220,7 +220,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setViewingArticle(art)}
-                            className="p-1.5 text-gray-500 hover:text-[#0056a4] hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            className="p-1.5 text-gray-500 hover:text-marca hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                             title="Visualizar Notícia"
                           >
                             <Eye className="w-4 h-4" />
@@ -270,7 +270,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
               <p className="text-xs font-bold text-gray-800 mt-1 p-2 bg-gray-50 rounded-lg border border-gray-100">
                 "{articleToDelete.title}"
               </p>
-              <p className="text-[11px] text-red-600 mt-2">
+              <p className="text-[12px] text-red-600 mt-2">
                 Esta ação não poderá ser desfeita.
               </p>
             </div>
@@ -303,7 +303,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
           <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div className="bg-gray-900 text-white p-4 flex items-center justify-between border-b border-gray-800">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-[#0056a4] text-white text-[10px] font-black uppercase rounded">
+                <span className="px-2 py-0.5 bg-marca text-white text-[10px] font-black uppercase rounded">
                   {viewingArticle.category}
                 </span>
                 <span className="text-xs font-bold text-gray-300">
@@ -327,7 +327,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
                   {viewingArticle.subtitle}
                 </p>
               )}
-              <div className="flex items-center gap-2 text-xs text-gray-400">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span>Por <strong>{viewingArticle.author}</strong></span>
                 <span>•</span>
                 <span>{new Date(viewingArticle.createdAt).toLocaleDateString('pt-BR')}</span>
@@ -344,8 +344,8 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
               )}
 
               <div 
-                className="prose prose-sm max-w-none text-gray-800 leading-relaxed pt-2"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(viewingArticle.content) }}
+                className="materia-texto text-sm pt-2"
+                dangerouslySetInnerHTML={{ __html: formatarMateria(viewingArticle.content) }}
               />
             </div>
 
@@ -356,7 +356,7 @@ export const AdminManageArticles: React.FC<AdminManageArticlesProps> = ({
                   setViewingArticle(null);
                   onEditArticle(art);
                 }}
-                className="px-4 py-2 bg-[#0056a4] text-white text-xs font-bold rounded-xl hover:bg-[#004482] transition-colors cursor-pointer"
+                className="px-4 py-2 bg-marca text-white text-xs font-bold rounded-xl hover:bg-marca-escuro transition-colors cursor-pointer"
               >
                 Editar Esta Matéria
               </button>

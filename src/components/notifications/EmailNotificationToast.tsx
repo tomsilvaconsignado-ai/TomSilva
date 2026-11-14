@@ -51,7 +51,7 @@ export const EmailNotificationToast: React.FC<EmailNotificationToastProps> = ({
         <div className="fixed bottom-5 left-5 z-[105] max-w-sm w-full bg-gray-950 text-white rounded-2xl shadow-2xl border border-gray-800 p-4 animate-in slide-in-from-bottom duration-300">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-[#0056a4] text-white flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-marca text-white flex items-center justify-center shrink-0">
                 <Mail className="w-5 h-5" />
               </div>
               <div>
@@ -61,7 +61,7 @@ export const EmailNotificationToast: React.FC<EmailNotificationToastProps> = ({
                 <p className="text-xs font-bold text-gray-100 truncate max-w-[200px]">
                   {latestEmail.subject}
                 </p>
-                <p className="text-[11px] text-gray-400 truncate max-w-[200px]">
+                <p className="text-[12px] text-gray-500 truncate max-w-[200px]">
                   Para: {latestEmail.to}
                 </p>
               </div>
@@ -69,7 +69,7 @@ export const EmailNotificationToast: React.FC<EmailNotificationToastProps> = ({
 
             <button
               onClick={() => setIsVisible(false)}
-              className="text-gray-400 hover:text-white p-1 rounded-full cursor-pointer hover:bg-gray-800"
+              className="text-gray-500 hover:text-white p-1 rounded-full cursor-pointer hover:bg-gray-800"
             >
               <X className="w-4 h-4" />
             </button>
@@ -82,7 +82,7 @@ export const EmailNotificationToast: React.FC<EmailNotificationToastProps> = ({
                   setIsVisible(false);
                   onOpenActionUrl(latestEmail.actionUrl!);
                 }}
-                className="flex-1 py-1.5 px-3 bg-[#0056a4] hover:bg-[#004482] text-white rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1 cursor-pointer"
+                className="flex-1 py-1.5 px-3 bg-marca hover:bg-marca-escuro text-white rounded-lg text-xs font-bold transition-all text-center flex items-center justify-center gap-1 cursor-pointer"
               >
                 <span>{latestEmail.actionLabel || 'Confirmar / Abrir'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -109,9 +109,9 @@ export const EmailNotificationToast: React.FC<EmailNotificationToastProps> = ({
           className="fixed bottom-5 right-5 z-[90] bg-gray-900 hover:bg-gray-800 text-white rounded-full px-4 py-2.5 shadow-xl border border-gray-700 flex items-center gap-2 text-xs font-bold cursor-pointer transition-all hover:scale-105"
           title="Ver e-mails transacionais enviados pelo portal"
         >
-          <Mail className="w-4 h-4 text-[#0056a4]" />
+          <Mail className="w-4 h-4 text-marca" />
           <span>E-mails</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-[#0056a4] text-white text-[10px] font-black">
+          <span className="px-1.5 py-0.5 rounded-full bg-marca text-white text-[10px] font-black">
             {totalCount}
           </span>
         </button>

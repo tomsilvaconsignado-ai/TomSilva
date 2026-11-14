@@ -104,7 +104,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-5 right-5 p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+            className="absolute top-5 right-5 p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer"
             aria-label="Fechar"
           >
             <X className="w-5 h-5" />
@@ -125,7 +125,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               <h3 id="admin-login-title" className="text-xl font-black uppercase tracking-tight text-white">
                 {isForgotMode ? 'Recuperação Administrativa' : 'Área Administrativa'}
               </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 {isForgotMode 
                   ? 'Redefinição de credencial exclusiva para administradores' 
                   : 'Acesso restrito para editores e administradores autorizados'}
@@ -158,7 +158,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                     E-mail Administrativo
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                    <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
                     <input
                       type="email"
                       required
@@ -183,13 +183,13 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                         setForgotEmail(email);
                         setError(null);
                       }}
-                      className="text-[11px] text-gray-600 hover:text-gray-950 hover:underline font-semibold cursor-pointer"
+                      className="text-[12px] text-gray-600 hover:text-gray-950 hover:underline font-semibold cursor-pointer"
                     >
                       Esqueceu a senha?
                     </button>
                   </div>
                   <div className="relative">
-                    <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                    <Lock className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required
@@ -202,7 +202,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      className="absolute right-3.5 top-2.5 text-gray-500 hover:text-gray-600 cursor-pointer"
                       title={showPassword ? 'Ocultar senha' : 'Ver senha'}
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -210,7 +210,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 leading-relaxed flex items-start gap-2">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[12px] text-slate-600 leading-relaxed flex items-start gap-2">
                   <Shield className="w-3.5 h-3.5 text-slate-500 mt-0.5 shrink-0" />
                   <span>
                     Contas públicas e leitores comuns não possuem acesso a este painel. Apenas credenciais com permissão administrativa atribuída serão aceitas.
@@ -256,7 +256,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                     E-mail do Administrador
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                    <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-3" />
                     <input
                       type="email"
                       required

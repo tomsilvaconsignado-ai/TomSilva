@@ -512,7 +512,7 @@ export default function App() {
   const ads300x900 = ads.filter(a => a.adFormat === '300x900' || a.placement === 'sidebar_300x900' || a.aspectRatio === '1 / 3' || a.adFormat === '300x600' || a.placement === 'sidebar_300x600' || a.aspectRatio === '1 / 2');
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans selection:bg-[#0056a4] selection:text-white flex flex-col">
+    <div className="min-h-screen bg-gray-50 font-sans selection:bg-marca selection:text-white flex flex-col">
       {/* Header Fixo */}
       <Header
         currentCategory={currentCategory}
@@ -624,7 +624,7 @@ export default function App() {
                 </div>
                 <button
                   onClick={() => { setCurrentCategory('todos'); setSearchQuery(''); }}
-                  className="text-xs font-black uppercase text-[#0056a4] hover:underline cursor-pointer"
+                  className="text-xs font-black uppercase text-marca hover:underline cursor-pointer"
                 >
                   Limpar Filtros
                 </button>
@@ -663,7 +663,7 @@ export default function App() {
 
                 {/* 3. Feed de Últimas Notícias */}
                 <section>
-                  <h2 className="text-xl font-black uppercase tracking-tighter text-gray-900 mb-6 border-l-4 border-[#0056a4] pl-4">
+                  <h2 className="text-xl font-black uppercase tracking-tighter text-gray-900 mb-6 border-l-4 border-marca pl-4">
                     {searchQuery ? 'Resultados' : 'Últimas Notícias'}
                   </h2>
 
@@ -689,7 +689,7 @@ export default function App() {
                   {visibleFeed.length < feedArticles.length && (
                     <button
                       onClick={() => setVisibleCount(prev => prev + 5)}
-                      className="w-full mt-8 py-4 bg-gray-100 hover:bg-[#0056a4] hover:text-white text-gray-900 font-black uppercase tracking-widest text-[11px] md:text-xs transition-all rounded-lg cursor-pointer shadow-xs"
+                      className="w-full mt-8 py-4 bg-gray-100 hover:bg-marca hover:text-white text-gray-900 font-black uppercase tracking-widest text-[12px] md:text-xs transition-all rounded-lg cursor-pointer shadow-xs"
                     >
                       Carregar mais notícias
                     </button>
@@ -715,7 +715,7 @@ export default function App() {
                 {/* Widget Mais Lidas */}
                 <section className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                   <h3 className="text-sm font-black uppercase tracking-tighter text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="w-1.5 h-4 bg-[#0056a4] rounded-full"></span>
+                    <span className="w-1.5 h-4 bg-marca rounded-full"></span>
                     Mais Lidas
                   </h3>
                   <div className="space-y-1">
@@ -739,7 +739,7 @@ export default function App() {
                 <section className="bg-gray-900 text-white p-6 md:p-8 rounded-xl shadow-lg relative overflow-hidden">
                   <div className="relative z-10">
                     <h3 className="text-xl font-black uppercase tracking-tight mb-2 italic">
-                      Folha <span className="text-[#0056a4]">News</span>
+                      Folha <span className="text-marca">News</span>
                     </h3>
                     <p className="text-gray-400 text-xs mb-6 leading-relaxed">
                       As principais notícias de Sergipe e do Brasil, direto no seu e-mail todos os dias.
@@ -758,11 +758,11 @@ export default function App() {
                           placeholder="Seu melhor e-mail"
                           value={sidebarEmail}
                           onChange={(e) => setSidebarEmail(e.target.value)}
-                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-[#0056a4]/50 transition-all outline-none text-white placeholder:text-gray-500"
+                          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-marca/50 transition-all outline-none text-white placeholder:text-gray-500"
                         />
                         <button
                           type="submit"
-                          className="w-full bg-[#0056a4] hover:bg-[#004482] text-white font-black uppercase tracking-widest text-xs py-3 rounded-lg transition-all shadow-md cursor-pointer"
+                          className="w-full bg-marca hover:bg-marca-escuro text-white font-black uppercase tracking-widest text-xs py-3 rounded-lg transition-all shadow-md cursor-pointer"
                         >
                           Inscrever-se Grátis
                         </button>

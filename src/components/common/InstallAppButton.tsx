@@ -11,7 +11,7 @@ interface InstallAppButtonProps {
 
 const Step: React.FC<{ n: number; children: React.ReactNode }> = ({ n, children }) => (
   <li className="flex items-start gap-3">
-    <span className="w-6 h-6 shrink-0 rounded-full bg-[#0056a4] text-white text-xs font-black flex items-center justify-center">{n}</span>
+    <span className="w-6 h-6 shrink-0 rounded-full bg-marca text-white text-xs font-black flex items-center justify-center">{n}</span>
     <span className="text-sm text-gray-700 leading-relaxed">{children}</span>
   </li>
 );
@@ -20,8 +20,8 @@ const InstallInstructions: React.FC<{ platform: InstallPlatform }> = ({ platform
   if (platform === 'ios') {
     return (
       <ol className="space-y-3">
-        <Step n={1}>Toque no botão <strong>Compartilhar</strong> <Share className="w-4 h-4 inline -mt-1 text-[#0056a4]" /> na barra do navegador (embaixo no iPhone, em cima no iPad).</Step>
-        <Step n={2}>Role a lista e toque em <strong>Adicionar à Tela de Início</strong> <PlusSquare className="w-4 h-4 inline -mt-1 text-[#0056a4]" />.</Step>
+        <Step n={1}>Toque no botão <strong>Compartilhar</strong> <Share className="w-4 h-4 inline -mt-1 text-marca" /> na barra do navegador (embaixo no iPhone, em cima no iPad).</Step>
+        <Step n={2}>Role a lista e toque em <strong>Adicionar à Tela de Início</strong> <PlusSquare className="w-4 h-4 inline -mt-1 text-marca" />.</Step>
         <Step n={3}>Confirme em <strong>Adicionar</strong>. O ícone da Folha da Região aparece junto com os seus aplicativos.</Step>
       </ol>
     );
@@ -29,7 +29,7 @@ const InstallInstructions: React.FC<{ platform: InstallPlatform }> = ({ platform
   if (platform === 'android') {
     return (
       <ol className="space-y-3">
-        <Step n={1}>Toque no menu do navegador <MoreVertical className="w-4 h-4 inline -mt-1 text-[#0056a4]" /> (os três pontinhos).</Step>
+        <Step n={1}>Toque no menu do navegador <MoreVertical className="w-4 h-4 inline -mt-1 text-marca" /> (os três pontinhos).</Step>
         <Step n={2}>Toque em <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</Step>
         <Step n={3}>Confirme em <strong>Instalar</strong>. O ícone aparece na tela do celular.</Step>
       </ol>
@@ -38,7 +38,7 @@ const InstallInstructions: React.FC<{ platform: InstallPlatform }> = ({ platform
   if (platform === 'desktop-chrome') {
     return (
       <ol className="space-y-3">
-        <Step n={1}>Clique no ícone de instalar <Monitor className="w-4 h-4 inline -mt-1 text-[#0056a4]" /> no canto direito da barra de endereços, ou abra o menu <MoreVertical className="w-4 h-4 inline -mt-1 text-[#0056a4]" /> do navegador.</Step>
+        <Step n={1}>Clique no ícone de instalar <Monitor className="w-4 h-4 inline -mt-1 text-marca" /> no canto direito da barra de endereços, ou abra o menu <MoreVertical className="w-4 h-4 inline -mt-1 text-marca" /> do navegador.</Step>
         <Step n={2}>Escolha <strong>Instalar Folha da Região</strong> (no Edge: <strong>Aplicativos › Instalar este site como aplicativo</strong>).</Step>
         <Step n={3}>Confirme em <strong>Instalar</strong>. O portal abre em uma janela própria e ganha atalho no computador.</Step>
       </ol>
@@ -108,7 +108,7 @@ export const InstallAppButton: React.FC<InstallAppButtonProps> = ({ variant, onA
         <button
           type="button"
           onClick={handleClick}
-          className="w-full py-2.5 px-3 bg-[#0056a4] hover:bg-[#004482] text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+          className="w-full py-2.5 px-3 bg-marca hover:bg-marca-escuro text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
         >
           <Download className="w-4 h-4" />
           Instalar aplicativo
@@ -118,7 +118,7 @@ export const InstallAppButton: React.FC<InstallAppButtonProps> = ({ variant, onA
           type="button"
           onClick={handleClick}
           title="Instalar a Folha da Região como aplicativo no computador"
-          className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#0056a4] hover:underline cursor-pointer"
+          className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-marca hover:underline cursor-pointer"
         >
           <Download className="w-3 h-3" />
           Instalar app
@@ -150,14 +150,14 @@ export const InstallAppButton: React.FC<InstallAppButtonProps> = ({ variant, onA
                   </p>
                 </div>
               </div>
-              <button type="button" onClick={closeModal} className="p-1 text-gray-400 hover:text-gray-700 cursor-pointer" aria-label="Fechar">
+              <button type="button" onClick={closeModal} className="p-1 text-gray-500 hover:text-gray-700 cursor-pointer" aria-label="Fechar">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {mode === 'waiting' && (
               <div className="flex flex-col items-center text-center gap-3 py-2" aria-live="polite">
-                <RefreshCw className="w-7 h-7 text-[#0056a4] animate-spin" />
+                <RefreshCw className="w-7 h-7 text-marca animate-spin" />
                 <p className="text-sm font-bold text-gray-800">Preparando a instalação...</p>
                 <p className="text-xs text-gray-500 leading-relaxed">
                   O navegador libera a instalação depois de alguns segundos no portal. Pode continuar com esta janela aberta: o botão <strong>Instalar agora</strong> aparece aqui assim que estiver pronto.
@@ -171,7 +171,7 @@ export const InstallAppButton: React.FC<InstallAppButtonProps> = ({ variant, onA
                 <button
                   type="button"
                   onClick={handleInstallNow}
-                  className="w-full py-3.5 bg-[#0056a4] hover:bg-[#004482] text-white text-sm font-black uppercase tracking-wider rounded-xl cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                  className="w-full py-3.5 bg-marca hover:bg-marca-escuro text-white text-sm font-black uppercase tracking-wider rounded-xl cursor-pointer flex items-center justify-center gap-2 shadow-md"
                   autoFocus
                 >
                   <Download className="w-5 h-5" />

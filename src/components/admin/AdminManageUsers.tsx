@@ -545,7 +545,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl border border-gray-200 transition-colors cursor-pointer"
             title="Atualizar lista de usuários a partir do Supabase Auth e Banco de Dados"
           >
-            <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#0056a4]' : ''}`} />
+            <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin text-marca' : ''}`} />
           </button>
 
           <span className="px-3 py-2 bg-cyan-50 text-cyan-900 text-xs font-bold rounded-xl border border-cyan-200 flex items-center gap-1.5">
@@ -662,13 +662,13 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Busca por Texto */}
           <div className="md:col-span-4 relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3.5" />
+            <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               placeholder="Buscar por nome, e-mail, telefone, empresa, CPF/CNPJ..."
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca focus:bg-white outline-none transition-all"
             />
           </div>
 
@@ -677,7 +677,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-[#0056a4]"
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-marca"
             >
               <option value="all">Situação: Todas</option>
               <option value="active">Apenas Ativos</option>
@@ -694,7 +694,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             <select
               value={emailConfirmFilter}
               onChange={(e) => { setEmailConfirmFilter(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-[#0056a4]"
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-marca"
             >
               <option value="all">E-mail: Todos</option>
               <option value="confirmed">E-mail Confirmado</option>
@@ -707,7 +707,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             <select
               value={lastAccessFilter}
               onChange={(e) => { setLastAccessFilter(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-[#0056a4]"
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-marca"
             >
               <option value="all">Último Acesso: Todos</option>
               <option value="accessed">Já Acessaram o Portal</option>
@@ -720,7 +720,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             <select
               value={sortBy}
               onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-[#0056a4]"
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 cursor-pointer outline-none focus:ring-2 focus:ring-marca"
             >
               <option value="recent">Mais Recentes Primeiro</option>
               <option value="oldest">Mais Antigos Primeiro</option>
@@ -735,7 +735,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
           <div className="flex flex-wrap items-center gap-3">
             {/* Tipo de Cadastro */}
             <div className="flex items-center gap-1.5">
-              <span className="text-gray-400 font-bold text-[11px] uppercase">Tipo:</span>
+              <span className="text-gray-500 font-bold text-[12px] uppercase">Tipo:</span>
               <div className="flex gap-1">
                 {[
                   { id: 'all', label: 'Todos' },
@@ -745,8 +745,8 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   <button
                     key={t.id}
                     onClick={() => { setAccountTypeFilter(t.id); setCurrentPage(1); }}
-                    className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                      accountTypeFilter === t.id ? 'bg-[#0056a4] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    className={`px-2 py-0.5 rounded-lg text-[12px] font-bold transition-all cursor-pointer ${
+                      accountTypeFilter === t.id ? 'bg-marca text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
                     {t.label}
@@ -757,7 +757,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
 
             {/* Período de Registro */}
             <div className="flex items-center gap-1.5">
-              <span className="text-gray-400 font-bold text-[11px] uppercase">Cadastro:</span>
+              <span className="text-gray-500 font-bold text-[12px] uppercase">Cadastro:</span>
               <div className="flex gap-1">
                 {[
                   { id: 'all', label: 'Todo o Período' },
@@ -768,7 +768,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   <button
                     key={d.id}
                     onClick={() => { setDateFilter(d.id); setCurrentPage(1); }}
-                    className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-lg text-[12px] font-bold transition-all cursor-pointer ${
                       dateFilter === d.id ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
@@ -779,7 +779,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             </div>
           </div>
 
-          <div className="text-gray-400 text-[11px] font-bold">
+          <div className="text-gray-500 text-[12px] font-bold">
             Exibindo {paginatedUsers.length} de {filteredUsers.length} cadastros filtrados
           </div>
         </div>
@@ -788,15 +788,15 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
       {/* Tabela de Usuários com Paginação */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="p-16 text-center text-gray-400 flex flex-col items-center justify-center gap-3">
-            <RotateCw className="w-6 h-6 animate-spin text-[#0056a4]" />
+          <div className="p-16 text-center text-gray-500 flex flex-col items-center justify-center gap-3">
+            <RotateCw className="w-6 h-6 animate-spin text-marca" />
             <span className="text-xs font-bold uppercase tracking-wider">Carregando lista completa de usuários...</span>
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="p-16 text-center text-gray-500">
             <Users className="w-10 h-10 mx-auto mb-3 text-gray-300" />
             <p className="font-bold text-sm text-gray-700">Nenhum usuário encontrado</p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-500 mt-1">
               Verifique os filtros aplicados ou limpe a busca para listar os usuários cadastrados.
             </p>
             <button
@@ -817,7 +817,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-100 text-[11px] font-black uppercase text-gray-400 tracking-wider">
+                <tr className="bg-gray-50/80 border-b border-gray-100 text-[12px] font-black uppercase text-gray-500 tracking-wider">
                   <th className="py-3.5 px-4">Nome / Identificação</th>
                   <th className="py-3.5 px-4">Tipo</th>
                   <th className="py-3.5 px-4">Contato / Localização</th>
@@ -857,25 +857,25 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                                 {u.fullName}
                               </p>
                               {u.role === 'admin' && (
-                                <span className="px-1.5 py-0.2 bg-red-100 text-red-700 text-[9px] font-black rounded uppercase tracking-wider border border-red-200">
+                                <span className="px-1.5 py-0.2 bg-red-100 text-red-700 text-[10px] font-black rounded uppercase tracking-wider border border-red-200">
                                   Admin
                                 </span>
                               )}
                               {u.role === 'editor' && (
-                                <span className="px-1.5 py-0.2 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase tracking-wider border border-blue-200">
+                                <span className="px-1.5 py-0.2 bg-blue-100 text-blue-700 text-[10px] font-black rounded uppercase tracking-wider border border-blue-200">
                                   Editor
                                 </span>
                               )}
                               {u.hasProfile === false && (
                                 <span 
-                                  className="px-1.5 py-0.2 bg-amber-50 text-amber-800 text-[9px] font-black rounded uppercase tracking-wider border border-amber-200"
+                                  className="px-1.5 py-0.2 bg-amber-50 text-amber-800 text-[10px] font-black rounded uppercase tracking-wider border border-amber-200"
                                   title="Este cadastro foi localizado no Supabase Auth sem perfil correspondente na tabela profiles"
                                 >
                                   Auth Direto (Sem Perfil)
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-gray-500 truncate max-w-[200px]" title={u.email}>
+                            <p className="text-[12px] text-gray-500 truncate max-w-[200px]" title={u.email}>
                               {u.email}
                             </p>
                             {u.tradeName && (
@@ -900,15 +900,15 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                       {/* Contato & Localização */}
                       <td className="py-3.5 px-4">
                         <p className="font-bold text-gray-900 whitespace-nowrap">{u.phone || 'Sem telefone'}</p>
-                        <p className="text-[11px] text-gray-400">
+                        <p className="text-[12px] text-gray-500">
                           {u.city ? `${u.city} - ${u.state || 'SE'}` : 'Sergipe'}
                         </p>
                       </td>
 
                       {/* Data de Cadastro */}
-                      <td className="py-3.5 px-4 whitespace-nowrap text-gray-600 text-[11px]">
+                      <td className="py-3.5 px-4 whitespace-nowrap text-gray-600 text-[12px]">
                         <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                          <Calendar className="w-3 h-3 text-gray-500 shrink-0" />
                           <span>{formatDateTime(u.createdAt)}</span>
                         </div>
                       </td>
@@ -932,7 +932,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                             <button
                               type="button"
                               onClick={() => handleAdminResendEmail(u)}
-                              className="text-[9px] text-[#0056a4] hover:underline font-bold cursor-pointer"
+                              className="text-[10px] text-marca hover:underline font-bold cursor-pointer"
                               title="Reenviar e-mail com link de confirmação para este usuário"
                             >
                               Reenviar Link
@@ -954,7 +954,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                       </td>
 
                       {/* Último Acesso */}
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap text-[11px]">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap text-[12px]">
                         {u.lastSignInAt ? (
                           <span className="inline-flex items-center gap-1 font-bold text-gray-800" title={`Último login em: ${formatDateTime(u.lastSignInAt)}`}>
                             <Clock className="w-3 h-3 text-blue-600 shrink-0" />
@@ -962,7 +962,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-gray-100 text-gray-500 rounded-full text-[10px] font-bold">
-                            <Clock className="w-3 h-3 text-gray-400 shrink-0" />
+                            <Clock className="w-3 h-3 text-gray-500 shrink-0" />
                             <span>Nunca acessou</span>
                           </span>
                         )}
@@ -972,7 +972,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <button
                           onClick={() => handleSelectUser(u)}
-                          className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] font-bold text-gray-700 transition-colors cursor-pointer"
+                          className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-[12px] font-bold text-gray-700 transition-colors cursor-pointer"
                           title="Clique para ver classificados na ficha detalhada"
                         >
                           <Tag className="w-3 h-3 inline mr-1 text-amber-600" />
@@ -985,7 +985,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleSelectUser(u)}
-                            className="p-1.5 bg-gray-100 hover:bg-[#0056a4] hover:text-white text-gray-700 rounded-lg transition-all cursor-pointer"
+                            className="p-1.5 bg-gray-100 hover:bg-marca hover:text-white text-gray-700 rounded-lg transition-all cursor-pointer"
                             title="Consultar ficha completa do usuário"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -994,7 +994,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                           {/* Se for conta protegida do Administrador Principal, não permite suspensão */}
                           {isProtectedAdmin ? (
                             <span 
-                              className="px-2 py-1 bg-gray-100 text-gray-400 text-[10px] font-bold rounded-lg cursor-not-allowed"
+                              className="px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold rounded-lg cursor-not-allowed"
                               title="Conta do administrador principal protegida pelo sistema"
                             >
                               Protegido
@@ -1011,7 +1011,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                                     submitting: false,
                                     error: null
                                   })}
-                                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-lg border border-emerald-200 transition-colors cursor-pointer"
+                                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[12px] font-bold rounded-lg border border-emerald-200 transition-colors cursor-pointer"
                                   title="Reativar conta do usuário"
                                 >
                                   Reativar
@@ -1026,7 +1026,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                                     submitting: false,
                                     error: null
                                   })}
-                                  className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-[11px] font-bold rounded-lg border border-red-200 transition-colors cursor-pointer"
+                                  className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-[12px] font-bold rounded-lg border border-red-200 transition-colors cursor-pointer"
                                   title="Suspender conta do usuário com justificativa"
                                 >
                                   Suspender
@@ -1102,7 +1102,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSelectedUser(null)}
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
                 title="Fechar ficha de detalhes"
               >
                 <X className="w-5 h-5" />
@@ -1114,29 +1114,29 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Bloco 1: Identificação e Contato */}
             <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-3">
-              <h4 className="text-xs font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-[#0056a4]" />
+              <h4 className="text-xs font-black uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-marca" />
                 <span>Dados de Identificação</span>
               </h4>
 
               <div className="space-y-2 text-xs">
                 <div>
-                  <span className="text-gray-400 block text-[10px] font-bold uppercase">Nome Completo:</span>
+                  <span className="text-gray-500 block text-[10px] font-bold uppercase">Nome Completo:</span>
                   <span className="font-bold text-gray-900">{selectedUser.fullName}</span>
                 </div>
 
                 <div>
-                  <span className="text-gray-400 block text-[10px] font-bold uppercase">E-mail:</span>
+                  <span className="text-gray-500 block text-[10px] font-bold uppercase">E-mail:</span>
                   <span className="font-medium text-gray-800">{selectedUser.email}</span>
                 </div>
 
                 <div>
-                  <span className="text-gray-400 block text-[10px] font-bold uppercase">Telefone:</span>
+                  <span className="text-gray-500 block text-[10px] font-bold uppercase">Telefone:</span>
                   <span className="font-medium text-gray-800">{selectedUser.phone || 'Não informado'}</span>
                 </div>
 
                 <div>
-                  <span className="text-gray-400 block text-[10px] font-bold uppercase">Localização:</span>
+                  <span className="text-gray-500 block text-[10px] font-bold uppercase">Localização:</span>
                   <span className="font-medium text-gray-800">
                     {selectedUser.city ? `${selectedUser.city} - ${selectedUser.state || 'SE'}` : 'Não informada'}
                   </span>
@@ -1145,13 +1145,13 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                 {/* Exibição Protegida de CPF/CNPJ (LGPD & Segurança) */}
                 <div className="pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400 block text-[10px] font-bold uppercase">
+                    <span className="text-gray-500 block text-[10px] font-bold uppercase">
                       {(selectedUser.accountType || 'pf') === 'pf' ? 'CPF (Protegido):' : 'CNPJ (Protegido):'}
                     </span>
                     <button
                       type="button"
                       onClick={() => setShowSensitiveDoc(!showSensitiveDoc)}
-                      className="text-[10px] text-[#0056a4] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      className="text-[10px] text-marca hover:underline font-bold flex items-center gap-1 cursor-pointer"
                     >
                       {showSensitiveDoc ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                       {showSensitiveDoc ? 'Ocultar' : 'Visualizar para Auditoria'}
@@ -1170,13 +1170,13 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
 
                 {selectedUser.companyName && (
                   <div>
-                    <span className="text-gray-400 block text-[10px] font-bold uppercase">Razão Social:</span>
+                    <span className="text-gray-500 block text-[10px] font-bold uppercase">Razão Social:</span>
                     <span className="font-medium text-gray-800">{selectedUser.companyName}</span>
                   </div>
                 )}
                 {selectedUser.tradeName && (
                   <div>
-                    <span className="text-gray-400 block text-[10px] font-bold uppercase">Nome Fantasia:</span>
+                    <span className="text-gray-500 block text-[10px] font-bold uppercase">Nome Fantasia:</span>
                     <span className="font-medium text-gray-800">{selectedUser.tradeName}</span>
                   </div>
                 )}
@@ -1185,16 +1185,16 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
 
             {/* Bloco 2: Segurança, Papéis e Situação */}
             <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-3">
-              <h4 className="text-xs font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <h4 className="text-xs font-black uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Situação e Credenciais</span>
               </h4>
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <span className="text-gray-400 block text-[10px] font-bold uppercase">Situação da Conta:</span>
+                  <span className="text-gray-500 block text-[10px] font-bold uppercase">Situação da Conta:</span>
                   <div className="mt-1 flex items-center gap-2">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase ${
+                    <span className={`px-2.5 py-0.5 rounded-full text-[12px] font-black uppercase ${
                       selectedUser.status === 'blocked'
                         ? 'bg-black text-white'
                         : selectedUser.status === 'suspended'
@@ -1256,7 +1256,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   </div>
 
                   {selectedUser.moderationReason && (
-                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-[11px] text-red-800">
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-[12px] text-red-800">
                       <strong>Motivo:</strong> {selectedUser.moderationReason}
                       {selectedUser.moderationAt && (
                         <span className="block text-[10px] text-red-500 mt-0.5">
@@ -1269,7 +1269,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
 
                 {/* Confirmação de E-mail */}
                 <div className="pt-2 border-t border-gray-200">
-                  <span className="text-gray-400 block text-[10px] font-bold uppercase">Confirmação de E-mail:</span>
+                  <span className="text-gray-500 block text-[10px] font-bold uppercase">Confirmação de E-mail:</span>
                   <div className="mt-1 flex items-center justify-between">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
                       selectedUser.emailConfirmed ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
@@ -1280,7 +1280,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                       <div className="flex gap-1.5">
                         <button
                           onClick={() => handleAdminResendEmail(selectedUser)}
-                          className="px-2 py-1 bg-[#0056a4] hover:bg-[#004482] text-white rounded text-[10px] font-bold cursor-pointer"
+                          className="px-2 py-1 bg-marca hover:bg-marca-escuro text-white rounded text-[10px] font-bold cursor-pointer"
                           title="Reenviar link de confirmação para o e-mail do usuário"
                         >
                           Reenviar Link
@@ -1296,7 +1296,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                     )}
                   </div>
                   {selectedUser.emailConfirmedAt && (
-                    <span className="text-[10px] text-gray-400 block mt-0.5">
+                    <span className="text-[10px] text-gray-500 block mt-0.5">
                       Confirmado em: {new Date(selectedUser.emailConfirmedAt).toLocaleString('pt-BR')}
                     </span>
                   )}
@@ -1304,14 +1304,14 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
 
                 {/* Comunicação e Recuperação de Acesso */}
                 <div className="pt-2 border-t border-gray-200">
-                  <span className="text-gray-400 block text-[10px] font-bold uppercase mb-1.5">
+                  <span className="text-gray-500 block text-[10px] font-bold uppercase mb-1.5">
                     Comunicação & Recuperação de Conta:
                   </span>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => handleAdminSendPasswordReset(selectedUser)}
-                      className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#0056a4] rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-blue-200 transition-colors cursor-pointer"
+                      className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-marca rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-blue-200 transition-colors cursor-pointer"
                       title="Disparar e-mail oficial com link para o usuário redefinir sua senha"
                     >
                       <Key className="w-3 h-3" />
@@ -1331,7 +1331,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                       className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-gray-200 transition-colors cursor-pointer"
                       title="Enviar e-mail personalizado do portal diretamente para este usuário"
                     >
-                      <Mail className="w-3 h-3 text-[#0056a4]" />
+                      <Mail className="w-3 h-3 text-marca" />
                       <span>Enviar E-mail Direto</span>
                     </button>
                   </div>
@@ -1340,7 +1340,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                 {/* Papel do Usuário (Fluxo Protegido) */}
                 <div className="pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-gray-400 text-[10px] font-bold uppercase">Papel de Acesso:</span>
+                    <span className="text-gray-500 text-[10px] font-bold uppercase">Papel de Acesso:</span>
                     {currentUser.role === 'admin' && selectedUser.email.toLowerCase() !== 'tomsilvaconsignado@gmail.com' && (
                       <button
                         onClick={() => setRoleModal({
@@ -1351,7 +1351,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                           submitting: false,
                           error: null
                         })}
-                        className="text-[10px] text-[#0056a4] hover:underline font-bold cursor-pointer"
+                        className="text-[10px] text-marca hover:underline font-bold cursor-pointer"
                       >
                         Alterar Papel com Auditoria
                       </button>
@@ -1366,7 +1366,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
 
             {/* Bloco 3: Classificados e Denúncias */}
             <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-3">
-              <h4 className="text-xs font-black uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <h4 className="text-xs font-black uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                 <Tag className="w-3.5 h-3.5 text-amber-600" />
                 <span>Classificados & Denúncias</span>
               </h4>
@@ -1375,7 +1375,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                 {/* Resumo de Anúncios */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-2.5 bg-white rounded-xl border border-gray-200 text-center">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase block">Total</span>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase block">Total</span>
                     <span className="text-base font-black text-gray-900">
                       {classifiedCounts[selectedUser.id]?.total || 0}
                     </span>
@@ -1403,7 +1403,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                 {/* Denúncias Recebidas */}
                 <div className="pt-2 border-t border-gray-200">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-gray-400 text-[10px] font-bold uppercase">Denúncias Relacionadas:</span>
+                    <span className="text-gray-500 text-[10px] font-bold uppercase">Denúncias Relacionadas:</span>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
                       userReports.length > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-600'
                     }`}>
@@ -1412,7 +1412,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   </div>
 
                   {userReports.length === 0 ? (
-                    <p className="text-[11px] text-gray-400 italic">Nenhuma denúncia registrada contra anúncios deste usuário.</p>
+                    <p className="text-[12px] text-gray-500 italic">Nenhuma denúncia registrada contra anúncios deste usuário.</p>
                   ) : (
                     <div className="space-y-1.5 max-h-28 overflow-y-auto">
                       {userReports.map(rep => (
@@ -1431,15 +1431,15 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
           {/* Histórico de Auditoria do Usuário */}
           <div className="pt-4 border-t border-gray-100 space-y-3">
             <h4 className="text-xs font-black uppercase tracking-wider text-gray-900 flex items-center gap-2">
-              <History className="w-4 h-4 text-[#0056a4]" />
+              <History className="w-4 h-4 text-marca" />
               <span>Histórico de Moderação e Auditoria da Conta ({userAuditLogs.length} registros)</span>
             </h4>
 
             {userAuditLogs.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">Nenhuma ação administrativa registrada para esta conta até o momento.</p>
+              <p className="text-xs text-gray-500 italic">Nenhuma ação administrativa registrada para esta conta até o momento.</p>
             ) : (
               <div className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden max-h-48 overflow-y-auto">
-                <table className="w-full text-left border-collapse text-[11px]">
+                <table className="w-full text-left border-collapse text-[12px]">
                   <thead>
                     <tr className="bg-gray-100/70 border-b border-gray-200 font-black uppercase text-gray-500">
                       <th className="p-2.5">Data / Hora</th>
@@ -1511,7 +1511,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
               <button
                 type="button"
                 onClick={() => setModerationModal(prev => ({ ...prev, isOpen: false }))}
-                className="text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer"
+                className="text-gray-500 hover:text-gray-700 p-1.5 rounded-full cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1553,9 +1553,9 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   value={moderationModal.reason}
                   onChange={(e) => setModerationModal(prev => ({ ...prev, reason: e.target.value }))}
                   placeholder="Descreva o motivo desta ação (ex.: Violação da regra de classificados, denúncia de dados falsos, regularização cadastral, etc.)..."
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca focus:bg-white outline-none"
                 />
-                <span className="text-[10px] text-gray-400">
+                <span className="text-[10px] text-gray-500">
                   Esta justificativa ficará registrada permanentemente na auditoria do sistema.
                 </span>
               </div>
@@ -1611,7 +1611,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
               <button
                 type="button"
                 onClick={() => setRoleModal(prev => ({ ...prev, isOpen: false }))}
-                className="text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer"
+                className="text-gray-500 hover:text-gray-700 p-1.5 rounded-full cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1632,7 +1632,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                 <select
                   value={roleModal.newRole}
                   onChange={(e) => setRoleModal(prev => ({ ...prev, newRole: e.target.value as UserRole }))}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-[#0056a4] outline-none cursor-pointer"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:ring-2 focus:ring-marca outline-none cursor-pointer"
                 >
                   <option value="reader">Leitor / Anunciante Comum (Acesso Público)</option>
                   <option value="editor">Editor de Notícias (Acesso Restrito)</option>
@@ -1650,7 +1650,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   value={roleModal.reason}
                   onChange={(e) => setRoleModal(prev => ({ ...prev, reason: e.target.value }))}
                   placeholder="Informe o motivo formal para a concessão ou revogação de privilégios..."
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-[#0056a4] focus:bg-white outline-none"
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-marca focus:bg-white outline-none"
                 />
               </div>
 
@@ -1666,7 +1666,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   type="button"
                   disabled={roleModal.submitting}
                   onClick={handleConfirmRoleChange}
-                  className="flex-1 py-3 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-3 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-50"
                 >
                   {roleModal.submitting ? 'Salvando...' : 'Aplicar Alteração'}
                 </button>
@@ -1699,7 +1699,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
               <button
                 type="button"
                 onClick={() => setShowFullAuditModal(false)}
-                className="text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer"
+                className="text-gray-500 hover:text-gray-700 p-1.5 rounded-full cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1707,13 +1707,13 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
 
             <div className="overflow-y-auto flex-1 my-4">
               {allAuditLogs.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 text-xs italic">
+                <div className="text-center py-12 text-gray-500 text-xs italic">
                   Nenhum registro de auditoria arquivado ainda.
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="bg-gray-50 sticky top-0 border-b border-gray-200 font-black uppercase text-[10px] text-gray-400">
+                    <tr className="bg-gray-50 sticky top-0 border-b border-gray-200 font-black uppercase text-[10px] text-gray-500">
                       <th className="p-3">Data / Hora</th>
                       <th className="p-3">Usuário Afetado</th>
                       <th className="p-3">Ação</th>
@@ -1724,12 +1724,12 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   <tbody className="divide-y divide-gray-100 text-gray-700">
                     {allAuditLogs.map(l => (
                       <tr key={l.id} className="hover:bg-gray-50">
-                        <td className="p-3 whitespace-nowrap text-gray-400 text-[11px]">
+                        <td className="p-3 whitespace-nowrap text-gray-500 text-[12px]">
                           {new Date(l.createdAt).toLocaleString('pt-BR')}
                         </td>
                         <td className="p-3">
                           <p className="font-bold text-gray-900">{l.userName}</p>
-                          <p className="text-[10px] text-gray-400">{l.userEmail}</p>
+                          <p className="text-[10px] text-gray-500">{l.userEmail}</p>
                         </td>
                         <td className="p-3 whitespace-nowrap font-black uppercase text-[10px]">
                           {l.action === 'suspend' && <span className="text-red-600">Suspensão</span>}
@@ -1741,7 +1741,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                         </td>
                         <td className="p-3 whitespace-nowrap">
                           <p className="font-bold text-gray-800">{l.adminName}</p>
-                          <p className="text-[10px] text-gray-400">{l.adminEmail}</p>
+                          <p className="text-[10px] text-gray-500">{l.adminEmail}</p>
                         </td>
                         <td className="p-3 text-gray-600 max-w-xs">
                           {l.reason}
@@ -1772,14 +1772,14 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
             {/* Header */}
             <div className="bg-slate-900 text-white p-5 flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#0056a4] flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-marca flex items-center justify-center shrink-0">
                   <Mail className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-tight">
                     Enviar E-mail Oficial
                   </h3>
-                  <p className="text-[11px] text-gray-300">
+                  <p className="text-[12px] text-gray-300">
                     Para: {userEmailModal.user.fullName} ({userEmailModal.user.email})
                   </p>
                 </div>
@@ -1787,7 +1787,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
               <button
                 type="button"
                 onClick={() => setUserEmailModal({ isOpen: false, user: null, subject: '', message: '', submitting: false, error: null })}
-                className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1830,7 +1830,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                 />
               </div>
 
-              <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 text-[11px] text-blue-900 leading-relaxed">
+              <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 text-[12px] text-blue-900 leading-relaxed">
                 Este e-mail será disparado com o layout oficial da <strong>Folha da Região</strong> e registrado no histórico de comunicação do portal.
               </div>
 
@@ -1846,7 +1846,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                 <button
                   type="submit"
                   disabled={userEmailModal.submitting}
-                  className="px-5 py-2.5 bg-[#0056a4] hover:bg-[#004482] text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2.5 bg-marca hover:bg-marca-escuro text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {userEmailModal.submitting ? (
                     <>
@@ -1882,7 +1882,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   <h3 className="text-base font-black uppercase tracking-tight">
                     Conectar Chave service_role (Servidor)
                   </h3>
-                  <p className="text-[11px] text-gray-400">
+                  <p className="text-[12px] text-gray-500">
                     Sincronização profunda direta com auth.users do Supabase Auth
                   </p>
                 </div>
@@ -1890,7 +1890,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
 
               <button
                 onClick={() => setServiceKeyModal({ isOpen: false, keyInput: '', submitting: false, error: null })}
-                className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+                className="text-gray-500 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1909,7 +1909,7 @@ export const AdminManageUsers: React.FC<AdminManageUsersProps> = ({ currentUser 
                   <ShieldCheck className="w-4 h-4 text-amber-700" />
                   Armazenamento Seguro no Servidor
                 </p>
-                <p className="text-[11px] text-amber-800">
+                <p className="text-[12px] text-amber-800">
                   A chave <strong>service_role</strong> concede acesso administrativo total ao Supabase Auth para listar usuários não confirmados. Ela fica gravada <strong>exclusivamente no servidor</strong> e nunca é exposta no navegador ou código público.
                 </p>
               </div>

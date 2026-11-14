@@ -4,7 +4,7 @@ import { Article, Comment, UserProfile, AdItem } from '../../types/database';
 import { commentsService, newsService } from '../../lib/supabase';
 import { ArticleCard, formatRelativeTime } from '../news/ArticleCard';
 import { AdSlot } from '../news/AdSlot';
-import { getAssetUrl, sanitizeHtml } from '../../lib/assets';
+import { getAssetUrl, formatarMateria, sanitizeHtml } from '../../lib/assets';
 import { getArticleCanonicalUrl, getArticlePathKey, getWhatsAppShareData, updateClientHeadForArticle } from '../../lib/seo';
 import { hasShareablePhoto, usePreviewStatus, PREVIEW_PENDING_MESSAGE } from '../../lib/share';
 
@@ -133,7 +133,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
       <div className="flex items-center justify-between gap-4 mb-6 pb-3 border-b border-gray-100 flex-wrap">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-gray-600 hover:text-[#0056a4] transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-gray-600 hover:text-marca transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar às Notícias
@@ -158,19 +158,19 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
           <span>Tamanho do texto:</span>
           <button
             onClick={() => setFontSize('normal')}
-            className={`px-2 py-0.5 rounded border text-[11px] cursor-pointer ${fontSize === 'normal' ? 'bg-[#0056a4] text-white border-[#0056a4]' : 'bg-gray-50 text-gray-700 border-gray-200'}`}
+            className={`px-2 py-0.5 rounded border text-[12px] cursor-pointer ${fontSize === 'normal' ? 'bg-marca text-white border-marca' : 'bg-gray-50 text-gray-700 border-gray-200'}`}
           >
             A
           </button>
           <button
             onClick={() => setFontSize('large')}
-            className={`px-2 py-0.5 rounded border text-xs cursor-pointer ${fontSize === 'large' ? 'bg-[#0056a4] text-white border-[#0056a4]' : 'bg-gray-50 text-gray-700 border-gray-200'}`}
+            className={`px-2 py-0.5 rounded border text-xs cursor-pointer ${fontSize === 'large' ? 'bg-marca text-white border-marca' : 'bg-gray-50 text-gray-700 border-gray-200'}`}
           >
             A+
           </button>
           <button
             onClick={() => setFontSize('xlarge')}
-            className={`px-2 py-0.5 rounded border text-sm cursor-pointer ${fontSize === 'xlarge' ? 'bg-[#0056a4] text-white border-[#0056a4]' : 'bg-gray-50 text-gray-700 border-gray-200'}`}
+            className={`px-2 py-0.5 rounded border text-sm cursor-pointer ${fontSize === 'xlarge' ? 'bg-marca text-white border-marca' : 'bg-gray-50 text-gray-700 border-gray-200'}`}
           >
             A++
           </button>
@@ -180,7 +180,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
       <article className="space-y-6">
         {/* Categoria Badge */}
         <div className="flex items-center gap-3">
-          <span className="inline-block px-3 py-1 bg-[#0056a4] text-white text-[10px] font-black uppercase tracking-widest rounded shadow-sm">
+          <span className="inline-block px-3 py-1 bg-marca text-white text-[10px] font-black uppercase tracking-widest rounded shadow-sm">
             {article.category}
           </span>
           {article.isVideo && (
@@ -205,12 +205,12 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
         {/* Metadados e Autor */}
         <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-y border-gray-100 text-xs text-gray-500">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#0056a4] text-white flex items-center justify-center font-black text-xs">
+            <div className="w-8 h-8 rounded-full bg-marca text-white flex items-center justify-center font-black text-xs">
               FR
             </div>
             <div>
               <p className="font-bold text-gray-900">{article.author}</p>
-              <div className="flex items-center gap-2 text-[10px] text-gray-400">
+              <div className="flex items-center gap-2 text-[10px] text-gray-500">
                 <Clock className="w-3 h-3" />
                 <span>{formattedDate} ({formatRelativeTime(article.createdAt)})</span>
               </div>
@@ -219,7 +219,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
 
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5 font-bold text-gray-600">
-              <Eye className="w-4 h-4 text-[#0056a4]" />
+              <Eye className="w-4 h-4 text-marca" />
               {article.viewsCount} visualizações
             </span>
 
@@ -264,7 +264,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
         {/* Barra de Compartilhamento Rápido */}
         <div className="bg-gray-50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 border border-gray-100">
           <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-            <Share2 className="w-4 h-4 text-[#0056a4]" />
+            <Share2 className="w-4 h-4 text-marca" />
             Compartilhe esta notícia:
           </span>
 
@@ -300,7 +300,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             </button>
           </div>
           {(shareBlockReason || preview.status === 'pending') && (
-            <p className="w-full text-[11px] text-amber-700 font-semibold">
+            <p className="w-full text-[12px] text-amber-700 font-semibold">
               {shareBlockReason || 'Prévia com foto e título ainda em geração: o compartilhamento será liberado em alguns minutos.'}
             </p>
           )}
@@ -308,10 +308,10 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
 
         {/* Conteúdo Completo da Matéria */}
         <div
-          className={`prose prose-lg max-w-none text-gray-800 leading-relaxed space-y-4 pt-4 ${
+          className={`materia-texto pt-4 ${
             fontSize === 'large' ? 'text-lg md:text-xl' : fontSize === 'xlarge' ? 'text-xl md:text-2xl' : 'text-base md:text-lg'
           }`}
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
+          dangerouslySetInnerHTML={{ __html: formatarMateria(article.content) }}
         />
 
         {/* Publicidade dentro da matéria */}
@@ -323,7 +323,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
       {/* Seção de Comentários */}
       <section className="mt-12 pt-8 border-t border-gray-200">
         <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-6 flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-[#0056a4]" />
+          <MessageSquare className="w-5 h-5 text-marca" />
           Comentários dos Leitores ({comments.length})
         </h3>
 
@@ -337,7 +337,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
                 className="w-7 h-7 rounded-full object-cover"
               />
               <span className="text-xs font-bold text-gray-800">
-                Comentando como <strong className="text-[#0056a4]">{currentUser.fullName}</strong>
+                Comentando como <strong className="text-marca">{currentUser.fullName}</strong>
               </span>
             </div>
 
@@ -347,14 +347,14 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Deixe sua opinião sobre esta notícia..."
-              className="w-full p-3 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-[#0056a4] focus:ring-2 focus:ring-[#0056a4]/10 resize-none"
+              className="w-full p-3 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-marca focus:ring-2 focus:ring-marca/10 resize-none"
             />
 
             <div className="flex justify-end mt-2">
               <button
                 type="submit"
                 disabled={submittingComment || !newComment.trim()}
-                className="px-5 py-2 bg-[#0056a4] hover:bg-[#004482] text-white font-black uppercase tracking-widest text-xs rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2 bg-marca hover:bg-marca-escuro text-white font-black uppercase tracking-widest text-xs rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5" />
                 {submittingComment ? 'Enviando...' : 'Publicar Comentário'}
@@ -368,7 +368,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
             </p>
             <button
               onClick={onOpenAuth}
-              className="px-6 py-2.5 bg-[#0056a4] text-white font-black uppercase tracking-widest text-xs rounded-lg hover:bg-[#004482] transition-all shadow-md cursor-pointer"
+              className="px-6 py-2.5 bg-marca text-white font-black uppercase tracking-widest text-xs rounded-lg hover:bg-marca-escuro transition-all shadow-md cursor-pointer"
             >
               Fazer Login ou Criar Conta Grátis
             </button>
@@ -378,7 +378,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
         {/* Lista de Comentários */}
         <div className="space-y-4">
           {comments.length === 0 ? (
-            <p className="text-sm text-gray-400 italic">
+            <p className="text-sm text-gray-500 italic">
               Seja o primeiro a comentar esta matéria!
             </p>
           ) : (
@@ -393,7 +393,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
                     />
                     <span className="font-bold text-xs text-gray-900">{comment.userName}</span>
                   </div>
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
                     {formatRelativeTime(comment.createdAt)}
                   </span>
                 </div>
@@ -409,7 +409,7 @@ export const ArticleDetail: React.FC<ArticleDetailProps> = ({
       {/* Notícias Relacionadas */}
       {relatedArticles.length > 0 && (
         <section className="mt-14 pt-8 border-t border-gray-200">
-          <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-6 border-l-4 border-[#0056a4] pl-3">
+          <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-6 border-l-4 border-marca pl-3">
             Notícias Relacionadas em {article.category}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
