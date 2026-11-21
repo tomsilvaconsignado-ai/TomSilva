@@ -283,7 +283,15 @@ export const Footer: React.FC<FooterProps> = ({
           <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest text-center md:text-left">
             © {settings.referenceYear || new Date().getFullYear()} {settings.copyrightText || `${settings.officialName}. Todos os direitos reservados.`}
           </p>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            <a
+              href="https://measuresistemas.com.br/"
+              target="_blank"
+              rel="noopener"
+              className="text-gray-500 hover:text-gray-900 text-[10px] font-bold uppercase tracking-widest transition-colors"
+            >
+              Desenvolvido por MEASURE Sistemas
+            </a>
             <button
               onClick={onOpenAdmin}
               className="text-gray-500 hover:text-gray-900 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 cursor-pointer"
