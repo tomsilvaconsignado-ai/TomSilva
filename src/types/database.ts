@@ -210,6 +210,19 @@ export interface AdItem {
   clicksCount?: number;          // Contagem de cliques confirmados
 }
 
+/** Janela de anúncio (pop-up) que salta na tela de tempos em tempos, revezando os anúncios. */
+export interface AdPopupSettings {
+  enabled: boolean;
+  /** anúncios que NÃO entram na janela (por padrão todos os ativos entram) */
+  excludedIds: string[];
+  /** espera depois que a pessoa abre o portal, em segundos */
+  initialDelaySeconds: number;
+  /** intervalo mínimo entre uma janela e outra, em minutos */
+  intervalMinutes: number;
+  /** máximo de janelas por visita (sessão do navegador) */
+  maxPerVisit: number;
+}
+
 export interface Comment {
   id: string;
   articleId: string;
