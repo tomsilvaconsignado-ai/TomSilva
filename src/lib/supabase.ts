@@ -1082,9 +1082,9 @@ const SITE_SETTING_CACHE_KEYS: Record<SiteSettingKey, string> = {
 export const DEFAULT_AD_POPUP_SETTINGS: AdPopupSettings = {
   enabled: true,
   excludedIds: [],
-  initialDelaySeconds: 20,
-  intervalMinutes: 3,
-  maxPerVisit: 3
+  initialDelaySeconds: 10,
+  intervalMinutes: 1,
+  maxPerVisit: 4
 };
 
 const saveSiteSetting = async (key: SiteSettingKey, value: unknown): Promise<void> => {
