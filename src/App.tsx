@@ -8,6 +8,7 @@ import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { ArticleCard } from './components/news/ArticleCard';
 import { AdSlot } from './components/news/AdSlot';
+import { AdPopup } from './components/news/AdPopup';
 import { AuthModal } from './components/auth/AuthModal';
 import { EmailConfirmationModal } from './components/auth/EmailConfirmationModal';
 import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
@@ -814,6 +815,9 @@ export default function App() {
           }
         }}
       />
+
+      {/* Janela de anúncio: salta de tempos em tempos para quem lê o portal (nunca no painel) */}
+      <AdPopup ads={ads} disabled={viewMode === 'admin' || !contentReady} />
 
       {/* Modal Exclusivo de Login Administrativo (Acesso Restrito) */}
       <AdminLoginModal

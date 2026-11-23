@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import {
-  Article, AdItem, AdPlacement, AdFormat, FormatCarouselSetting, PlacementSetting, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
+  Article, AdItem, AdPlacement, AdFormat, AdPopupSettings, FormatCarouselSetting, PlacementSetting, UserProfile, UserRole, UserStatus, UserAuditLog, Comment, NewsletterSubscriber, NotificationItem,
   ClassifiedItem, ClassifiedCategory, ClassifiedReport, ClassifiedsSettings,
   ClassifiedSection, ClassifiedType, ClassifiedStatus, PortalSettings, PrintEdition,
   isExtraSidebarSquare
@@ -1069,12 +1069,22 @@ export const newsService = {
 // CONFIGURAÇÕES COMPARTILHADAS (tabela site_settings)
 // Leitura síncrona pelo cache local; hydrate() atualiza o cache a partir do banco.
 // ==========================================
-type SiteSettingKey = 'portal' | 'ads_placement' | 'ads_format';
+type SiteSettingKey = 'portal' | 'ads_placement' | 'ads_format' | 'ads_popup';
 
 const SITE_SETTING_CACHE_KEYS: Record<SiteSettingKey, string> = {
   portal: STORAGE_KEYS.PORTAL_SETTINGS,
   ads_placement: STORAGE_KEYS.ADS_SETTINGS,
-  ads_format: STORAGE_KEYS.ADS_FORMAT_SETTINGS
+  ads_format: STORAGE_KEYS.ADS_FORMAT_SETTINGS,
+  ads_popup: 'folha_ads_popup_settings_cache_v1'
+};
+
+/** Padrão: janela ligada para todos os anúncios ativos, inclusive os já publicados. */
+export const DEFAULT_AD_POPUP_SETTINGS: AdPopupSettings = {
+  enabled: true,
+  excludedIds: [],
+  initialDelaySeconds: 20,
+  intervalMinutes: 3,
+  maxPerVisit: 3
 };
 
 const saveSiteSetting = async (key: SiteSettingKey, value: unknown): Promise<void> => {
@@ -1472,6 +1482,19 @@ export const adsService = {
   recordClick(adId: string): void {
     if (!adId || !supabase) return;
     supabase.rpc('increment_ad_metric', { p_ad_id: adId, p_metric: 'click' }).then(() => {});
+  },
+
+  // Janela de anúncio (pop-up): configuração compartilhada em site_settings ('ads_popup')
+  getPopupSettings(): AdPopupSettings {
+    const stored = getStored<Partial<AdPopupSettings>>(SITE_SETTING_CACHE_KEYS.ads_popup, {});
+    return { ...DEFAULT_AD_POPUP_SETTINGS, ...stored, excludedIds: stored.excludedIds ?? [] };
+  },
+
+  async savePopupSettings(update: Partial<AdPopupSettings>): Promise<AdPopupSettings> {
+    const updated: AdPopupSettings = { ...this.getPopupSettings(), ...update };
+    await saveSiteSetting('ads_popup', updated);
+    notifyAdsUpdated({});
+    return updated;
   }
 };
 

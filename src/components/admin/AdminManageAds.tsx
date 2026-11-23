@@ -9,6 +9,7 @@ import {
 import { AdItem, AdPlacement, AdFormat, AdStatus, PlacementSetting, FormatCarouselSetting, PlacementMode, isExtraSidebarSquare } from '../../types/database';
 import { adsService, mediaService, resolveMediaMime, MEDIA_UPLOAD_LIMITS } from '../../lib/supabase';
 import { AdSlot } from '../news/AdSlot';
+import { AdminAdPopupPanel } from './AdminAdPopupPanel';
 
 interface AdminManageAdsProps {
   ads: AdItem[];
@@ -635,6 +636,9 @@ export const AdminManageAds: React.FC<AdminManageAdsProps> = ({ ads, onRefreshDa
           <span className="font-bold">{successNotice}</span>
         </div>
       )}
+
+      {/* JANELA DE ANÚNCIO (POP-UP) */}
+      {activeView === 'list' && <AdminAdPopupPanel ads={ads} />}
 
       {/* SELETOR DE ESPAÇOS PUBLICITÁRIOS (NAVEGAÇÃO POR ESPAÇO) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
