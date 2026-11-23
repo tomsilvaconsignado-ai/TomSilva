@@ -7,8 +7,28 @@ import { ExternalLink, X } from 'lucide-react';
 import { AdItem, AdPopupSettings } from '../../types/database';
 import { adsService } from '../../lib/supabase';
 
-const QTD_KEY = 'folha_popup_anuncio_qtd';
 const VEZ_KEY = 'folha_popup_anuncio_vez';
+const VISITA_KEY = 'folha_popup_anuncio_visita';
+/** Sem janela há 30 minutos = nova visita: a contagem do limite recomeça. */
+const FIM_DA_VISITA_MS = 30 * 60_000;
+
+interface Visita { qtd: number; ultima: number }
+const lerVisita = (agora = Date.now()): Visita => {
+  try {
+    const v = JSON.parse(localStorage.getItem(VISITA_KEY) ?? '') as Visita;
+    if (typeof v.qtd === 'number' && typeof v.ultima === 'number' && agora - v.ultima < FIM_DA_VISITA_MS) return v;
+  } catch {
+    /* sem registro */
+  }
+  return { qtd: 0, ultima: 0 };
+};
+const gravarVisita = (v: Visita) => {
+  try {
+    localStorage.setItem(VISITA_KEY, JSON.stringify(v));
+  } catch {
+    /* navegador sem armazenamento */
+  }
+};
 
 const lerNumero = (store: Storage, key: string) => {
   try {
@@ -151,16 +171,20 @@ export const AdPopup: React.FC<{ ads: AdItem[]; disabled?: boolean }> = ({ ads, 
     if (!config.enabled || disabled || elegiveis.length === 0) return;
     const relogio = window.setInterval(() => {
       if (aberto.current) return;
-      if (lerNumero(sessionStorage, QTD_KEY) >= config.maxPerVisit) return;
       const agora = Date.now();
+      // a visita vale entre recarregamentos e abas; 30 min sem janela, a contagem recomeça
+      const visita = lerVisita(agora);
+      if (visita.qtd >= config.maxPerVisit) return;
       if (agora - inicio.current < config.initialDelaySeconds * 1000) return;
-      if (ultimaFechada.current && agora - ultimaFechada.current < config.intervalMinutes * 60_000) return;
+      // intervalo contado da última janela (fechada aqui ou mostrada antes de recarregar a página)
+      const desde = Math.max(ultimaFechada.current, visita.ultima);
+      if (desde && agora - desde < config.intervalMinutes * 60_000) return;
       if (document.visibilityState !== 'visible' || digitando() || document.querySelector('[aria-modal="true"]')) return;
       // revezamento: cada janela mostra o próximo anúncio da lista (continua na próxima visita)
       const vez = lerNumero(localStorage, VEZ_KEY);
       const ad = elegiveis[vez % elegiveis.length];
       gravarNumero(localStorage, VEZ_KEY, vez + 1);
-      gravarNumero(sessionStorage, QTD_KEY, lerNumero(sessionStorage, QTD_KEY) + 1);
+      gravarVisita({ qtd: visita.qtd + 1, ultima: agora });
       aberto.current = true;
       adsService.recordImpression(ad.id);
       setAtual(ad);
@@ -170,7 +194,9 @@ export const AdPopup: React.FC<{ ads: AdItem[]; disabled?: boolean }> = ({ ads, 
 
   const fechar = () => {
     aberto.current = false;
-    ultimaFechada.current = Date.now();
+    const agora = Date.now();
+    ultimaFechada.current = agora;
+    gravarVisita({ ...lerVisita(agora), ultima: agora });
     setAtual(null);
   };
 
